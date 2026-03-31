@@ -46,7 +46,7 @@ export const ProjectsService = {
         if (formattedDeadline && formattedDeadline.indexOf('-') !== -1) {
             formattedDeadline = formattedDeadline.replace(/-/g, '.');
         }
-        
+
         const updateData: any = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.course !== undefined) updateData.course = data.course;
@@ -67,8 +67,22 @@ export const ProjectsService = {
         try {
             await prisma.project.delete({ where: { id: Number(id) } });
             return true;
-        } catch(e) {
+        } catch (e) {
             return false;
         }
+    },
+
+    join: async (email: string, inviteCode: string, userName: string) => {
+        // 임시 조인 로직: DB 구조에 아직 inviteCode가 없으므로 가장 최근 프로젝트에 조인하도록 처리
+        const project = await prisma.project.findFirst({
+            orderBy: { id: 'desc' }
+        });
+        if (project) {
+            return await prisma.project.update({
+                where: { id: project.id },
+                data: { members: project.members + 1 }
+            });
+        }
+        return null;
     }
 };
