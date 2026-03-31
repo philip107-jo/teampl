@@ -27,6 +27,7 @@ model Project {
   members     Int      @default(1)
   color       String?  @default("purple")
   icon        String?  @default("Database")
+  inviteCode  String?  @unique
   createdAt   DateTime @default(now())
 }
 

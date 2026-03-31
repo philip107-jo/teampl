@@ -27,6 +27,8 @@ export const ProjectsService = {
             formattedDeadline = formattedDeadline.replace(/-/g, '.');
         }
 
+        const generatedInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
         return await prisma.project.create({
             data: {
                 name: data.name || '새 프로젝트',
@@ -37,6 +39,7 @@ export const ProjectsService = {
                 members: typeof data.members === 'number' ? data.members : 1,
                 color: data.color || "bg-[#f1f5f9]",
                 icon: data.icon || "Target",
+                inviteCode: generatedInviteCode,
             }
         });
     },
@@ -73,10 +76,10 @@ export const ProjectsService = {
     },
 
     join: async (email: string, inviteCode: string, userName: string) => {
-        // 임시 조인 로직: DB 구조에 아직 inviteCode가 없으므로 가장 최근 프로젝트에 조인하도록 처리
-        const project = await prisma.project.findFirst({
-            orderBy: { id: 'desc' }
+        const project = await prisma.project.findUnique({
+            where: { inviteCode }
         });
+        
         if (project) {
             return await prisma.project.update({
                 where: { id: project.id },
