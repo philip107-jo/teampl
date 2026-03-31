@@ -1,35 +1,15 @@
 import { useParams, useNavigate } from "react-router";
-import { useState, useEffect } from "react";
-import { 
-  ChevronLeft, Database, Plus, Users, Calendar, Clock, 
-  CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard 
+import {
+  ChevronLeft, Database, Plus, Users, Calendar, Clock,
+  CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { projectApi } from "../api/projectApi";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isMockUser = user?.email === "test@naver.com";
-
-  const [realProject, setRealProject] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(!isMockUser);
-
-  useEffect(() => {
-    if (!isMockUser) {
-      projectApi.getProjects()
-        .then(projects => {
-          const found = projects.find(p => String(p.id) === String(projectId));
-          setRealProject(found);
-        })
-        .catch(console.error)
-        .finally(() => setIsLoading(false));
-    }
-  }, [isMockUser, projectId]);
 
   // Mock data for the specific project
-  const mockProject = {
+  const project = {
     id: projectId,
     name: "데이터베이스 설계 프로젝트",
     course: "데이터베이스",
@@ -37,62 +17,32 @@ export default function ProjectDetails() {
     progress: 75,
     deadline: "2026.03.20",
     members: [
-      { id: 1, name: "나 (팀장)", avatarColor: "bg-[#7C6CFF]" },
-      { id: 2, name: "김철수", avatarColor: "bg-[#27D7A1]" },
-      { id: 3, name: "이영희", avatarColor: "bg-[#7C6CFF]" },
-      { id: 4, name: "박민수", avatarColor: "bg-[#FFB547]" },
+      { id: 'user-1', name: "나 (팀장)", avatarColor: "bg-[#7C6CFF]" },
+      { id: 'user-2', name: "김철수", avatarColor: "bg-[#23D7A1]" },
+      { id: 'user-3', name: "이영희", avatarColor: "bg-[#FF6B7A]" },
+      { id: 'user-4', name: "박민수", avatarColor: "bg-[#FFB547]" },
     ],
     theme: "blue",
     icon: Database,
-    inviteCode: "TEAMPL",
   };
 
-  const mockRecentTasks = [
+  const recentTasks = [
     { id: 1, title: "요구사항 명세서 작성", status: "완료", assignee: "이영희", date: "03.05" },
     { id: 2, title: "개념적 스키마 설계", status: "진행중", assignee: "나 (팀장)", date: "03.10" },
     { id: 3, title: "논리적 스키마 변환", status: "대기중", assignee: "김철수", date: "03.15" },
   ];
 
-  const mockRecentFiles = [
+  const recentFiles = [
     { id: 1, name: "요구사항_명세서_v1.pdf", size: "2.4MB", uploader: "이영희", date: "03.05" },
     { id: 2, name: "ERD_초안_draft.png", size: "1.1MB", uploader: "나 (팀장)", date: "03.08" },
   ];
-
-  const project = isMockUser ? mockProject : (realProject ? { ...realProject, theme: realProject.color || "blue" } : {
-    id: projectId,
-    name: "알 수 없는 프로젝트",
-    course: "미지정",
-    description: "데이터를 찾을 수 없습니다.",
-    progress: 0,
-    deadline: "-",
-    theme: "blue",
-    icon: Database,
-    members: 1
-  });
-
-  const displayMembers = project.membersList 
-    ? project.membersList 
-    : (isMockUser 
-        ? mockProject.members 
-        : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
-
-  const recentTasks = isMockUser ? mockRecentTasks : [];
-  const recentFiles = isMockUser ? mockRecentFiles : [];
-
-  if (isLoading) {
-    return (
-      <div className="flex h-[75vh] items-center justify-center">
-         <div className="animate-spin w-8 h-8 border-4 border-[#7C6CFF] border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard pt-4">
       {/* Header Sticky */}
       <div className="hero-top mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate("/projects")}
             className="hero-action flex items-center justify-center p-0"
           >
@@ -101,32 +51,16 @@ export default function ProjectDetails() {
           <div className="flex items-center gap-4">
             <div className={`schedule-item ${project.theme} !border-none !p-0 bg-transparent`}>
               <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                {typeof project.icon === 'string' || !project.icon ? <Database className="w-6 h-6" /> : <project.icon className="w-6 h-6" />}
+                <project.icon className="w-6 h-6" />
               </div>
             </div>
             <div>
               <p className="hero-meta">{project.course}</p>
-              <h1 className="hero-title" style={{ fontSize: '1.4rem' }}>{project.name}</h1>
+              <h1 className="hero-title tracking-tight" style={{ fontSize: '1.4rem' }}>{project.name}</h1>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {project.inviteCode && (
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(project.inviteCode);
-                alert("초대 코드가 클립보드에 복사되었습니다!");
-              }}
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#12182B] text-[#27D7A1] rounded-2xl text-[14px] font-black border border-[#27D7A1]/30 shadow-[0_0_15px_rgba(39,215,161,0.2)] hover:bg-[#27D7A1]/10 transition-all"
-              title="클릭하여 복사하기"
-            >
-              초대 코드: {project.inviteCode}
-            </button>
-          )}
-          <button className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#12182B] text-[#7C6CFF] rounded-2xl text-[14px] font-black border border-gray-200 dark:border-white/5 shadow-[0_0_15px_rgba(124,108,255,0.2)] hover:bg-[#7C6CFF]/10 transition-all">
-            <LayoutDashboard className="w-4 h-4" />
-            칸반 뷰
-          </button>
           <button className="hero-action p-0 text-[#1A2340] dark:text-white flex items-center justify-center border-none bg-transparent hover:bg-white/60 dark:bg-white/10 shadow-none">
             <MoreVertical className="w-6 h-6" />
           </button>
@@ -134,14 +68,26 @@ export default function ProjectDetails() {
       </div>
 
       {/* Project Overview Card */}
-      <section className="card hero-card mb-8">
+      <section
+        className="card hero-card mb-8 relative group cursor-pointer overflow-hidden transition-all"
+        onClick={() => navigate(`/projects/${projectId}/members`)}
+      >
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-[18px] font-black text-white uppercase tracking-[0.3em]">팀원 상세 보기</span>
+          </div>
+        </div>
         <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
           <div className="space-y-8 flex-1">
             <div>
               <h2 className="hero-title mb-3" style={{ fontSize: '2rem' }}>{project.name}</h2>
               <p className="text-[15px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed max-w-2xl">{project.description}</p>
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-8">
               <div className="flex items-center gap-4">
                 <div className="schedule-item orange !p-0 !border-none !bg-transparent">
@@ -155,32 +101,23 @@ export default function ProjectDetails() {
                 </div>
               </div>
               <div className="w-px h-12 bg-white/60 dark:bg-white/10"></div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="hero-meta uppercase">참여 팀원</p>
-                <button 
-                  onClick={() => navigate(`/projects/${projectId}/members`)}
-                  className="text-[12px] font-black text-[#7C6CFF] hover:underline flex items-center gap-1"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  기여도 분석
-                </button>
+              <div>
+                <p className="hero-meta mb-2 uppercase">참여 팀원</p>
+                <div className="flex -space-x-3">
+                  {project.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] border-[#151C31] flex items-center justify-center text-[#1A2340] dark:text-white text-[13px] font-black shadow-md z-10 relative`}
+                      title={member.name}
+                    >
+                      {member.name[0]}
+                    </div>
+                  ))}
+                  <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex -space-x-3">
-                {displayMembers.map((member: any) => (
-                  <div 
-                    key={member.id} 
-                    className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] border-[#151C31] flex items-center justify-center text-[#1A2340] dark:text-white text-[13px] font-black shadow-md z-10 relative`}
-                    title={member.name}
-                  >
-                    {member.name[0]}
-                  </div>
-                ))}
-                <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
             </div>
           </div>
 
@@ -189,12 +126,12 @@ export default function ProjectDetails() {
             <div className="relative w-28 h-28 flex items-center justify-center mb-4">
               <svg className="w-full h-full transform -rotate-90">
                 <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/5" />
-                <circle 
-                  cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" 
-                  strokeDasharray="301.6" 
+                <circle
+                  cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent"
+                  strokeDasharray="301.6"
                   strokeDashoffset={301.6 - (301.6 * project.progress) / 100}
-                  className="text-[#7C6CFF] shadow-[0_0_20px_rgba(124,108,255,0.6)]" 
-                  strokeLinecap="round" 
+                  className="text-[#7C6CFF] shadow-[0_0_20px_rgba(124,108,255,0.6)]"
+                  strokeLinecap="round"
                 />
               </svg>
               <div className="absolute flex flex-col items-center justify-center">
@@ -208,7 +145,7 @@ export default function ProjectDetails() {
 
       {/* Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Recent Tasks */}
         <div className="space-y-4">
           <div className="section-head">
@@ -216,17 +153,21 @@ export default function ProjectDetails() {
               <span className="analysis-dot"></span>
               최근 작업
             </div>
-            <button className="text-[14px] font-black text-[#7C6CFF] hover:text-[#1A2340] dark:text-white dark:hover:text-white/80 hover:underline transition-all">전체보기</button>
+            <button 
+              onClick={() => navigate(`/projects/${projectId}/members`)}
+              className="filter-btn !bg-transparent !border-none !text-[#7C6CFF] hover:!text-[#1A2340] dark:!text-white hover:underline transition-all !p-0"
+            >
+              전체보기
+            </button>
           </div>
-          
+
           <div className="card space-y-3">
-            {recentTasks.length > 0 ? recentTasks.map((task) => (
+            {recentTasks.map((task) => (
               <div key={task.id} className="p-5 rounded-[18px] bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:bg-white/10 transition-all cursor-pointer flex items-center justify-between border border-gray-200 dark:border-white/5">
                 <div className="flex items-center gap-4">
-                  <div className={`w-3.5 h-3.5 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.5)] ${
-                    task.status === "완료" ? "bg-[#27D7A1] shadow-[#27D7A1]" :
-                    task.status === "진행중" ? "bg-[#7C6CFF] shadow-[#7C6CFF]" : "bg-white/20"
-                  }`}></div>
+                  <div className={`w-3.5 h-3.5 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.5)] ${task.status === "완료" ? "bg-[#27D7A1] shadow-[#27D7A1]" :
+                      task.status === "진행중" ? "bg-[#7C6CFF] shadow-[#7C6CFF]" : "bg-white/20"
+                    }`}></div>
                   <div>
                     <h4 className="text-[15px] font-black text-[#1A2340] dark:text-white hover:text-[#7C6CFF] transition-colors">{task.title}</h4>
                     <div className="flex items-center gap-2 text-[11px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mt-1">
@@ -236,16 +177,13 @@ export default function ProjectDetails() {
                     </div>
                   </div>
                 </div>
-                <span className={`badge ${
-                  task.status === "완료" ? "!text-[#27D7A1] !bg-[#27D7A1]/10 !border-[#27D7A1]/20" :
-                  task.status === "진행중" ? "!text-[#7C6CFF] !bg-[#7C6CFF]/10 !border-[#7C6CFF]/20" : "!text-[#7D879C]/80 dark:!text-white/40 !bg-white/50 dark:!bg-white/5 !border-gray-200 dark:!border-white/5"
-                }`}>
+                <span className={`badge ${task.status === "완료" ? "!text-[#27D7A1] !bg-[#27D7A1]/10 !border-[#27D7A1]/20" :
+                    task.status === "진행중" ? "!text-[#7C6CFF] !bg-[#7C6CFF]/10 !border-[#7C6CFF]/20" : "!text-[#7D879C]/80 dark:!text-white/40 !bg-white/50 dark:!bg-white/5 !border-gray-200 dark:!border-white/5"
+                  }`}>
                   {task.status}
                 </span>
               </div>
-            )) : (
-              <p className="text-center py-6 text-[#7D879C]/60 text-[13px] font-bold">아직 최근 작업이 없습니다.</p>
-            )}
+            ))}
             <button className="w-full p-4 rounded-[18px] border-2 border-dashed border-gray-300 dark:border-white/10 text-[#7D879C]/80 dark:text-white/40 hover:border-[#7C6CFF]/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/5 transition-all flex items-center justify-center gap-2 text-[13px] font-black uppercase mt-4 mb-1">
               <Plus className="w-5 h-5" />
               새 작업 추가
@@ -262,11 +200,11 @@ export default function ProjectDetails() {
                 <span className="analysis-dot" style={{ background: '#FFB547', boxShadow: '0 0 8px #FFB547' }}></span>
                 파일 및 문서
               </div>
-              <button onClick={() => navigate("/drive")} className="text-[14px] font-black text-[#FFB547] hover:text-[#1A2340] dark:text-white dark:hover:text-white/80 hover:underline transition-all">전체보기</button>
+              <button onClick={() => navigate("/drive")} className="filter-btn !bg-transparent !border-none !text-[#FFB547] hover:!text-[#1A2340] dark:!text-white hover:underline transition-all !p-0">전체보기</button>
             </div>
-            
+
             <div className="card space-y-3">
-              {recentFiles.length > 0 ? recentFiles.map((file) => (
+              {recentFiles.map((file) => (
                 <div key={file.id} className="p-4 rounded-[18px] border border-gray-200 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:bg-white/10 hover:border-[#FFB547]/30 transition-all flex items-center justify-between cursor-pointer">
                   <div className="flex items-center gap-4">
                     <div className="schedule-item orange !p-0 !border-none !bg-transparent">
@@ -280,9 +218,7 @@ export default function ProjectDetails() {
                     </div>
                   </div>
                 </div>
-              )) : (
-                <p className="text-center py-5 text-[#7D879C]/60 text-[13px] font-bold">업로드된 파일이 없습니다.</p>
-              )}
+              ))}
             </div>
           </div>
 
@@ -292,8 +228,8 @@ export default function ProjectDetails() {
             <MessageSquare className="absolute -right-4 -bottom-4 w-32 h-32 text-gray-300 dark:text-white/20 group-hover:scale-110 transition-transform duration-700" />
             <div className="relative z-10">
               <h3 className="text-[20px] font-black mb-3 tracking-tight">팀 채팅방 참여</h3>
-              <p className="text-[13px] text-[#7D879C] dark:text-white/80 font-bold mb-6 max-w-[220px] leading-relaxed">이 프로젝트의 팀원들과<br/>실시간으로 소통하세요.</p>
-              <button 
+              <p className="text-[13px] text-[#7D879C] dark:text-white/80 font-bold mb-6 max-w-[220px] leading-relaxed">이 프로젝트의 팀원들과<br />실시간으로 소통하세요.</p>
+              <button
                 className="px-6 py-2.5 bg-white text-[#7C6CFF] text-[13px] font-black uppercase rounded-[12px] shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] transition-all"
               >
                 입장하기
