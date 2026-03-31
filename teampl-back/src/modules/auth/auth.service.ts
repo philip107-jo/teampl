@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
 export const AuthService = {
     register: async (email: string, password: string, name?: string) => {
-        const existing = UsersService.findByEmail(email);
+        const existing = await UsersService.findByEmail(email);
         if (existing) {
             throw new Error('User already exists');
         }
@@ -14,7 +14,7 @@ export const AuthService = {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         
-        const newUser = UsersService.create({
+        const newUser = await UsersService.create({
             email,
             password: hashedPassword,
             name: name || email.split('@')[0],
@@ -25,7 +25,7 @@ export const AuthService = {
     },
     
     login: async (email: string, password: string) => {
-        const user = UsersService.findByEmail(email);
+        const user = await UsersService.findByEmail(email);
         if (!user) {
             throw new Error('Invalid credentials');
         }

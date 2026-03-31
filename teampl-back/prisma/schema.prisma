@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  studentId  String?
+  department String?
+  createdAt  DateTime @default(now())
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  course      String?
+  description String?
+  progress    Int      @default(0)
+  deadline    String
+  members     Int      @default(1)
+  color       String?  @default("purple")
+  icon        String?  @default("Database")
+  createdAt   DateTime @default(now())
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  workspaceId String?
+  title       String
+  status      String   @default("TODO")
+  priority    String   @default("medium")
+  deadline    String
+  createdById String?
+  assignees   String[] // We can use string array to match current frontend array
+  createdAt   DateTime @default(now())
+}
+
+model Schedule {
+  id      Int     @id @default(autoincrement())
+  title   String
+  project String?
+  date    String
+  endDate String?
+  type    String  @default("other")
+  color   String  @default("bg-gray-500")
+  dot     String  @default("bg-gray-500")
+}

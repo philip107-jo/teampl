@@ -1,69 +1,47 @@
-// 이 파일은 프론트엔드 모의 데이터와 일치하는 임시 저장소와 서비스 로직입니다.
+import { prisma } from '../../prisma';
+
 export interface Task {
   id: string;
-  workspaceId: string;
+  workspaceId?: string;
   title: string;
   status: string;
   priority: string;
   deadline: string;
-  createdById: string;
-  assignees: string[];
+  createdById?: string;
+  assignees?: string[];
 }
 
-let mockTasks: Task[] = [
-  {
-    id: 'task-1',
-    workspaceId: 'workspace-1',
-    title: '프로젝트 기획안 작성',
-    status: 'TODO',
-    priority: 'high',
-    deadline: '2026-04-01',
-    createdById: 'user-1',
-    assignees: ['user-1']
-  }
-];
-
-let userTasksStore: Record<string, Task[]> = {
-  'test@naver.com': [...mockTasks]
-};
-
 export const TasksService = {
-  getAll: (email: string) => {
-    if (email === 'test@naver.com') return userTasksStore['test@naver.com'];
-    return userTasksStore[email] || [];
+  getAll: async (email: string) => {
+    return await prisma.task.findMany({
+        orderBy: { createdAt: 'desc' }
+    });
   },
 
-  create: (email: string, data: Partial<Task>) => {
-    if (!userTasksStore[email]) {
-      if (email === 'test@naver.com') userTasksStore[email] = [...mockTasks];
-      else userTasksStore[email] = [];
-    }
-    const tasks = userTasksStore[email];
-
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      workspaceId: data.workspaceId || 'workspace-1',
-      title: data.title || '새 태스크',
-      status: data.status || 'TODO',
-      priority: data.priority || 'medium',
-      deadline: data.deadline || new Date().toISOString().split('T')[0],
-      createdById: data.createdById || 'user-1',
-      assignees: data.assignees || [],
-    };
-    userTasksStore[email] = [newTask, ...tasks];
-    return newTask;
+  create: async (email: string, data: Partial<Task>) => {
+    return await prisma.task.create({
+      data: {
+        workspaceId: data.workspaceId || 'workspace-1',
+        title: data.title || '새 태스크',
+        status: data.status || 'TODO',
+        priority: data.priority || 'medium',
+        deadline: data.deadline || new Date().toISOString().split('T')[0],
+        createdById: data.createdById || 'user-1',
+        assignees: data.assignees || [],
+      }
+    });
   },
 
-  updateStatus: (email: string, id: string, status: string) => {
-    const tasks = userTasksStore[email] || [];
-    const task = tasks.find(t => t.id === id);
-    if (!task) return null;
-    task.status = status;
-    return task;
+  updateStatus: async (email: string, id: string, status: string) => {
+    return await prisma.task.update({
+        where: { id },
+        data: { status }
+    });
   },
 
-  deleteByWorkspaceId: (email: string, workspaceId: string) => {
-    if (!userTasksStore[email]) return;
-    userTasksStore[email] = userTasksStore[email].filter(t => t.workspaceId !== workspaceId);
+  deleteByWorkspaceId: async (email: string, workspaceId: string) => {
+    await prisma.task.deleteMany({
+        where: { workspaceId }
+    });
   }
 };

@@ -3,30 +3,30 @@ import { SchedulesService } from './schedules.service';
 
 const router = Router();
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const email = req.header('X-User-Email') || '';
-  const schedules = SchedulesService.getAll(email);
+  const schedules = await SchedulesService.getAll(email);
   res.json(schedules);
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const email = req.header('X-User-Email') || '';
-  const newSchedule = SchedulesService.create(email, req.body);
+  const newSchedule = await SchedulesService.create(email, req.body);
   res.status(201).json(newSchedule);
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   const email = req.header('X-User-Email') || '';
   const id = parseInt(req.params.id, 10);
-  const updated = SchedulesService.update(email, id, req.body);
+  const updated = await SchedulesService.update(email, id, req.body);
   if (!updated) return res.status(404).json({ message: 'Schedule not found' });
   res.json(updated);
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const email = req.header('X-User-Email') || '';
   const id = parseInt(req.params.id, 10);
-  const success = SchedulesService.delete(email, id);
+  const success = await SchedulesService.delete(email, id);
   if (!success) return res.status(404).json({ message: 'Schedule not found' });
   res.status(204).send();
 });
