@@ -1,117 +1,93 @@
 import { useState } from "react";
-import { User, Mail, Phone, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, Trophy, TrendingUp, Star, Plus, MessageSquare, X } from "lucide-react";
+import { User, Mail, Phone, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, TrendingUp, Star, Plus, MessageSquare } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router";
+import { useNavigate } from "react-router";
+import { useDarkMode } from "../context/DarkModeContext";
 
 export default function MyPage() {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const { isDark: darkMode, toggleDark: setDarkModeToggle } = useDarkMode();
   const [pushNoti, setPushNoti] = useState(true);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", department: "", phone: "010-1234-5678" });
-  const isTestUser = user?.isTestUser;
-
-  // From Team.tsx
-  const contributors = isTestUser ? [
-    { name: "나 (팀장)", score: 95, color: "bg-[#6366f1]", rank: 1 },
-    { name: "김철수", score: 82, color: "bg-[#10b981]", rank: 2 },
-    { name: "이영희", score: 78, color: "bg-[#d946ef]", rank: 3 },
-  ] : [];
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const openEditProfile = () => {
-    setEditForm({
-      name: user?.name || "",
-      department: user?.department || "컴퓨터공학과",
-      phone: (user as any)?.phone || "010-1234-5678"
-    });
-    setIsEditingProfile(true);
-  };
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (updateProfile) {
-        await updateProfile({ name: editForm.name, department: editForm.department, phone: editForm.phone } as any);
-      }
-      setIsEditingProfile(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   return (
-    <div className="p-6 md:p-8 space-y-8 bg-[#f8faff] min-h-screen pb-24">
+    <div className="dashboard pt-4 lg:max-w-6xl lg:mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-gray-400 text-[14px] font-bold">내 정보</p>
-          <h1 className="text-[28px] font-black text-gray-900 tracking-tight">프로필 설정 및 현황</h1>
+      <section className="card hero-card mb-8">
+        <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
+          <div>
+            <p className="hero-meta uppercase">설정</p>
+            <h1 className="hero-title" style={{ fontSize: '2rem' }}>
+              프로필 및 시스템 환경
+            </h1>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Main Content: Profile, Notices, Settings */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-24">
+        {/* Main Content */}
         <div className="lg:col-span-8 space-y-8">
           {/* Profile Card */}
-          <div className="bg-white rounded-[32px] p-8 shadow-[0_4px_40px_rgba(0,0,0,0.03)] border border-[#f1f5f9] flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 blur-xl"></div>
-
-            <div className="relative group cursor-pointer">
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-[40px] font-black shadow-lg shadow-indigo-200">
+          <div className="card !p-10 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden group transition-all !rounded-[40px] border border-gray-200 dark:border-white/5">
+            <div className={`absolute top-0 right-0 w-48 h-48 bg-[#7C6CFF]/10 rounded-bl-full -z-10 opacity-50 blur-3xl group-hover:scale-110 transition-transform duration-700`}></div>
+            
+            <div className="relative group/avatar cursor-pointer flex-shrink-0">
+              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-[#7C6CFF] to-[#3B2D9C] flex items-center justify-center text-[#1A2340] dark:text-white text-[48px] font-black shadow-[0_0_40px_rgba(124,108,255,0.4)]">
                 {user?.name?.[0] || "U"}
               </div>
-              <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera className="w-8 h-8 text-white" />
+              <div className="absolute inset-0 bg-black/60 rounded-[40px] opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                <Camera className="w-10 h-10 text-[#1A2340] dark:text-white" />
               </div>
-              <button className="absolute bottom-0 right-0 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-md border border-gray-50 text-gray-600 hover:text-indigo-600">
-                <Camera className="w-4 h-4" />
+              <button className="absolute -bottom-2 -right-2 w-11 h-11 bg-white/40 dark:bg-[#1A2340] rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/80 hover:text-[#7C6CFF] transition-all active:scale-95">
+                <Camera className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-[24px] font-black text-gray-900 mb-1">{user?.name}</h2>
-              <p className="text-[15px] font-bold text-gray-400 mb-4">{user?.department} / 팀장</p>
-              <div className="flex flex-wrap justify-center md:justify-start gap-2">
-                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[13px] font-bold rounded-lg truncate max-w-full">
+            <div className="flex-1 text-center md:text-left space-y-4">
+              <div>
+                <h2 className="text-3xl font-black text-[#1A2340] dark:text-white tracking-tight mb-2">{user?.name}</h2>
+                <p className="hero-meta">{user?.department} • 프로젝트 팀장</p>
+              </div>
+              <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                <span className="px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/60 text-[13px] font-black rounded-xl border border-gray-300 dark:border-white/10 truncate max-w-full">
                   {user?.email}
                 </span>
               </div>
             </div>
-
-            <button onClick={openEditProfile} className="px-6 py-3 bg-gray-900 text-white text-[14px] font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200">
-              프로필 수정
+            
+            <button className="px-8 py-4 bg-white/50 dark:bg-white/5 text-[#1A2340] dark:text-white text-[14px] font-black uppercase tracking-widest rounded-2xl hover:bg-white/60 dark:bg-white/10 transition-all border border-gray-300 dark:border-white/10 active:scale-95">
+              정보수정
             </button>
           </div>
 
           {/* Settings Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Account Info */}
-            <div className="bg-white rounded-[28px] p-6 shadow-sm border border-[#f1f5f9]">
-              <h3 className="text-[16px] font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <User className="w-5 h-5 text-indigo-500" />
-                계정 정보
+            <div className="card !p-8 space-y-8 border border-gray-200 dark:border-white/5">
+              <h3 className="hero-meta flex items-center gap-3">
+                <User className="w-5 h-5 text-[#7C6CFF]" />
+                계정 상세 정보
               </h3>
               <div className="space-y-4">
                 {[
-                  { label: "이름", value: user?.name, icon: User },
-                  { label: "소속", value: user?.department, icon: Building2 },
-                  { label: "이메일", value: user?.email, icon: Mail },
-                  { label: "전화번호", value: (user as any)?.phone || "010-1234-5678", icon: Phone },
+                  { label: "사용자 이름", value: user?.name, icon: User },
+                  { label: "학부/전공", value: user?.department, icon: Building2 },
+                  { label: "학교 이메일", value: user?.email, icon: Mail },
+                  { label: "연락처", value: "010-1234-5678", icon: Phone },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl hover:bg-gray-50 transition-colors cursor-pointer group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                        <item.icon className="w-5 h-5 text-gray-400" />
+                  <div key={idx} className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] transition-all cursor-pointer group">
+                    <div className="flex items-center gap-5">
+                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-all`}>
+                        <item.icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-[12px] font-bold text-gray-400 mb-0.5">{item.label}</p>
-                        <p className="text-[15px] font-bold text-gray-900">{item.value}</p>
+                        <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mb-1">{item.label}</p>
+                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white">{item.value}</p>
                       </div>
                     </div>
                   </div>
@@ -120,239 +96,135 @@ export default function MyPage() {
             </div>
 
             <div className="space-y-6">
-              {/* Preferences */}
-              <div className="bg-white rounded-[28px] p-6 shadow-sm border border-[#f1f5f9]">
-                <h3 className="text-[16px] font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-indigo-500" />
-                  앱 설정
+              {/* App Settings */}
+              <div className="card !p-8 space-y-8 border border-gray-200 dark:border-white/5">
+                <h3 className="hero-meta flex items-center gap-3">
+                  <Bell className="w-5 h-5 text-[#7C6CFF]" />
+                  환경 설정
                 </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <Bell className="w-5 h-5 text-indigo-600" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] transition-all">
+                    <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5">
+                        <Bell className="w-5 h-5 text-[#7C6CFF]" />
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">앱 푸시 알림</p>
+                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white">앱 푸시 알림</p>
+                        <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mt-0.5">실시간 업무 상태 알림</p>
                       </div>
                     </div>
-                    <button
+                    <button 
                       onClick={() => setPushNoti(!pushNoti)}
-                      className={`w-12 h-6 rounded-full p-1 transition-colors ${pushNoti ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${pushNoti ? 'bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${pushNoti ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${pushNoti ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
                     </button>
                   </div>
-                  <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-                        {darkMode ? <Moon className="w-5 h-5 text-gray-600" /> : <Sun className="w-5 h-5 text-gray-600" />}
+                  <div className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] transition-all">
+                    <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5">
+                        {darkMode ? <Moon className="w-5 h-5 text-[#7C6CFF]" /> : <Sun className="w-5 h-5 text-[#FFB547]" />}
                       </div>
                       <div>
-                        <p className="text-[15px] font-bold text-gray-900">다크 모드</p>
+                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white">다크 모드</p>
+                        <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mt-0.5">시스템 컬러 구성 테마</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setDarkMode(!darkMode)}
-                      className={`w-12 h-6 rounded-full p-1 transition-colors ${darkMode ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                    <button 
+                      onClick={setDarkModeToggle}
+                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${darkMode ? 'bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${darkMode ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Security / Logout */}
-              <div className="bg-white rounded-[28px] p-6 shadow-sm border border-[#f1f5f9]">
-                <div className="space-y-2">
-                  <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors group">
-                    <div className="flex items-center gap-4 text-gray-700 font-bold">
-                      <Shield className="w-5 h-5 text-gray-400 group-hover:text-indigo-600" />
-                      비밀번호 변경
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-900" />
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center justify-between p-4 hover:bg-red-50 rounded-2xl transition-colors group"
-                  >
-                    <div className="flex items-center gap-4 text-red-500 font-bold">
-                      <LogOut className="w-5 h-5" />
-                      로그아웃
-                    </div>
-                  </button>
-                </div>
+              <div className="card !p-6 border border-gray-200 dark:border-white/5 space-y-4">
+                <button className="w-full flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-lg transition-all group">
+                  <div className="flex items-center gap-5 text-[#7D879C] dark:text-white/80 font-black uppercase tracking-widest text-[13px]">
+                    <Shield className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-colors" />
+                    보안 및 비밀번호 변경
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-[#7D879C]/80 dark:text-white/30 group-hover:text-[#1A2340] dark:text-white transition-all" />
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-between p-5 bg-[#FF6B7A]/10 rounded-[24px] border border-[#FF6B7A]/20 hover:bg-[#FF6B7A]/20 transition-all group"
+                >
+                  <div className="flex items-center gap-5 text-[#FF6B7A] font-black uppercase tracking-widest text-[13px] drop-shadow-[0_0_8px_rgba(255,107,122,0.5)]">
+                    <LogOut className="w-5 h-5" />
+                    최종 로그아웃
+                  </div>
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sidebar (from Team.tsx) */}
+        {/* Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Contributor of the Month */}
-          <div className="bg-white rounded-[28px] p-8 shadow-[0_4px_30px_rgba(0,0,0,0.02)] border border-gray-50">
-            <div className="flex items-center gap-3 mb-8">
-              <Trophy className="w-6 h-6 text-yellow-500" />
-              <h2 className="text-[18px] font-black text-gray-900 tracking-tight">이달의 기여자</h2>
-            </div>
-            {contributors.length > 0 ? (
-              <div className="space-y-8">
-                {contributors.map((c, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className={`w-12 h-12 rounded-full ${c.color} flex items-center justify-center text-white text-[14px] font-bold`}>
-                            {c.name[0]}
-                          </div>
-                          {c.rank === 1 && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-white">
-                              <span className="text-[10px] text-white font-black">1</span>
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[15px] font-bold text-gray-800">{c.name}</span>
-                      </div>
-                      <span className="text-[13px] font-black text-gray-400">{c.score}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div className="bg-gray-900 h-full rounded-full" style={{ width: `${c.score}%` }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                  <Trophy className="w-6 h-6 text-gray-300" />
-                </div>
-                <p className="text-[14px] font-bold text-gray-900">기여자 데이터가 없습니다</p>
-                <p className="text-[12px] text-gray-400 mt-1 font-medium">프로젝트를 진행하며 팀원들과 협업해보세요.</p>
-              </div>
-            )}
-          </div>
-
           {/* Team Performance Summary */}
-          <div className="bg-white rounded-[28px] p-10 shadow-[0_4px_30px_rgba(0,0,0,0.02)] border border-[#f1f5f9]">
-            <div className="flex items-center gap-3 mb-12">
-              <TrendingUp className="w-7 h-7 text-[#6366f1]" />
-              <h2 className="text-[20px] font-black text-gray-900 tracking-tight">팀 성과 요약</h2>
+          <div className="card !p-10 border border-gray-200 dark:border-white/5 group hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all">
+            <div className="flex items-center gap-4 mb-10">
+              <div className="schedule-item purple !p-0 !border-none bg-transparent">
+                <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 14 }}>
+                  <TrendingUp className="w-6 h-6 text-[#1A2340] dark:text-white" />
+                </div>
+              </div>
+              <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white tracking-tight uppercase tracking-widest">팀 성과 요약</h2>
             </div>
-            {isTestUser ? (
-              <div className="space-y-7">
-                <div className="flex justify-between items-center">
-                  <span className="text-[16px] font-bold text-gray-500">이번 주 활동률</span>
-                  <span className="text-[18px] font-black text-[#10b981]">+12%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[16px] font-bold text-gray-500">평균 응답 시간</span>
-                  <span className="text-[19px] font-black text-gray-900">2.5시간</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[16px] font-bold text-gray-500">완료된 마일스톤</span>
-                  <span className="text-[19px] font-black text-gray-900">18/24</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[16px] font-bold text-gray-500">팀 만족도</span>
-                  <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-[#f59e0b] fill-[#f59e0b]" />
-                    <span className="text-[19px] font-black text-[#d97706]">4.8/5.0</span>
+            <div className="space-y-8">
+              <div className="flex justify-between items-center group/item cursor-default">
+                <div className="space-y-1">
+                  <span className="hero-meta">이번 주 활동률</span>
+                  <div className="w-32 bg-white dark:bg-[#12182B] h-1.5 rounded-full overflow-hidden mt-1.5 border border-gray-200 dark:border-white/5">
+                    <div className="bg-[#23D7A1] h-full rounded-full shadow-[0_0_10px_rgba(35,215,161,0.5)]" style={{ width: '85%' }}></div>
                   </div>
                 </div>
+                <span className="text-[20px] font-black text-[#23D7A1] drop-shadow-[0_0_8px_rgba(35,215,161,0.4)]">+12.5%</span>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-4 text-center">
-                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                  <TrendingUp className="w-6 h-6 text-gray-300" />
+              <div className="flex justify-between items-center">
+                <span className="hero-meta">평균 응답 시간</span>
+                <span className="text-[20px] font-black text-[#1A2340] dark:text-white tracking-tight">2.5 H</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="hero-meta">완료된 마일스톤</span>
+                <span className="text-[20px] font-black text-[#1A2340] dark:text-white tracking-tight">18 / 24</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="hero-meta">팀 만족도</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-[#FFB547]/10 rounded-xl border border-[#FFB547]/20">
+                  <Star className="w-5 h-5 text-[#FFB547] fill-[#FFB547]" />
+                  <span className="text-[18px] font-black text-[#FFB547] drop-shadow-[0_0_8px_rgba(255,181,71,0.4)]">4.8</span>
                 </div>
-                <p className="text-[14px] font-bold text-gray-900">집계 가능한 성과가 없습니다</p>
-                <p className="text-[12px] text-gray-400 mt-1 font-medium">새로운 업무와 마일스톤을 달성해보세요.</p>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Quick Actions Card */}
-          <div className="bg-gradient-to-br from-[#6366f1] to-[#4f46e5] rounded-[28px] p-8 shadow-xl text-white space-y-6">
-            <h2 className="text-[18px] font-black tracking-tight">빠른 작업</h2>
-            <div className="space-y-3">
+          <div className="card !p-10 border border-[#7C6CFF]/30 bg-gradient-to-br from-[#12182B] to-[#1A2340] text-[#1A2340] dark:text-white space-y-8 relative overflow-hidden group shadow-[0_0_30px_rgba(124,108,255,0.15)]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#7C6CFF]/20 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
+            <h2 className="text-[18px] font-black tracking-tight uppercase tracking-widest relative z-10 text-[#7C6CFF]">빠른 업무 생산</h2>
+            <div className="space-y-3 relative z-10">
               {[
                 { label: "새 팀원 초대하기", icon: Plus },
-                { label: "전체 공지 보내기", icon: MessageSquare },
-                { label: "성과 리포트 보기", icon: TrendingUp },
+                { label: "전체 공지 메시지", icon: MessageSquare },
+                { label: "성과 리포트 익스포트", icon: TrendingUp },
               ].map((action, i) => (
-                <button key={i} className="w-full flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all text-left group">
-                  <action.icon className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-[14px] font-bold">{action.label}</span>
+                <button key={i} className="w-full flex items-center justify-between p-5 bg-white dark:bg-[#12182B]/80 hover:bg-[#7C6CFF]/10 rounded-[20px] transition-all text-left group/btn border border-gray-200 dark:border-white/5 hover:border-[#7C6CFF]/30 active:scale-95 shadow-lg">
+                  <div className="flex items-center gap-4">
+                    <action.icon className="w-5 h-5 text-[#7D879C] dark:text-white/50 group-hover/btn:text-[#7C6CFF] group-hover/btn:scale-110 transition-all" />
+                    <span className="text-[14px] font-black uppercase tracking-widest text-[#7D879C] dark:text-white/80 group-hover/btn:text-[#1A2340] dark:text-white">{action.label}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover/btn:text-[#7C6CFF] group-hover/btn:translate-x-1 transition-all" />
                 </button>
               ))}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Profile Edit Modal */}
-      {isEditingProfile && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-            onClick={() => setIsEditingProfile(false)}
-          />
-          <div className="relative w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black text-gray-900">프로필 수정</h2>
-              <button
-                onClick={() => setIsEditingProfile(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateProfile} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-gray-700 ml-1">이름</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-[16px] text-gray-900 text-[15px] font-medium placeholder:text-gray-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-gray-700 ml-1">소속</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.department}
-                  onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                  className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-[16px] text-gray-900 text-[15px] font-medium placeholder:text-gray-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-gray-700 ml-1">전화번호</label>
-                <input
-                  type="text"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-[16px] text-gray-900 text-[15px] font-medium placeholder:text-gray-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-                />
-              </div>
-
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[16px] rounded-[16px] transition-colors shadow-lg shadow-indigo-200"
-                >
-                  변경사항 저장
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

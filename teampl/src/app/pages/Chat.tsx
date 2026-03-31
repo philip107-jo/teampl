@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { projectApi, Project } from "../api/projectApi";
-import { useAuth } from "../context/AuthContext";
 import {
   Send,
   Plus,
@@ -22,36 +20,61 @@ import {
   Mail,
   GraduationCap,
   Calendar,
-  X, // imported for closing modal
+  X,
   Menu
 } from "lucide-react";
 
-// icon map for string to component mapping
-const iconMap: Record<string, React.ElementType> = {
-  Database,
-  Zap,
-  BarChart3,
-  Target
-};
-// Mock Members (Detailed, linked to projects, matching Team.tsx)
+// Mock Projects Data
+const projects = [
+  {
+    id: 1,
+    name: "데이터베이스 설계 프로젝트",
+    course: "데이터베이스",
+    icon: Database,
+    theme: "blue",
+  },
+  {
+    id: 2,
+    name: "모바일 앱 개발",
+    course: "소프트웨어공학",
+    icon: Zap,
+    theme: "green",
+  },
+  {
+    id: 3,
+    name: "AI 모델 구현",
+    course: "인공지능",
+    icon: BarChart3,
+    theme: "purple",
+  },
+  {
+    id: 4,
+    name: "웹 서비스 기획",
+    course: "창업과 경영",
+    icon: Target,
+    theme: "orange",
+  },
+];
+
+// Mock Members
 const members = [
   {
-    id: 1, name: "나 (팀장)", role: "팀장", avatarColor: "bg-[#6366f1]", status: "활동중",
+    id: 1, name: "나 (팀장)", role: "팀장", avatarColor: "bg-[#7C6CFF]", status: "활동중",
     email: "leader@university.ac.kr", phone: "010-1234-5678", department: "컴퓨터공학과", joinDate: "2024.03.01",
     skills: ["Python", "React", "데이터베이스"], projects: 2, completedTasks: 18, contribution: 95, activityScore: 95
   },
   {
-    id: 2, name: "김철수", role: "팀원", avatarColor: "bg-[#10b981]", status: "활동중",
+    id: 2, name: "김철수", role: "팀원", avatarColor: "bg-[#23D7A1]", status: "활동중",
     email: "chulsoo@university.ac.kr", phone: "010-2345-6789", department: "학부 미정학과", joinDate: "2024.03.01",
     skills: ["UI/UX", "Figma", "디자인"], projects: 2, completedTasks: 15, contribution: 82, activityScore: 82
   },
   {
-    id: 3, name: "이영희", role: "팀원", avatarColor: "bg-[#d946ef]", status: "활동중",
+    id: 3, name: "이영희", role: "팀원", avatarColor: "bg-[#FF6B7A]", status: "활동중",
     email: "younghee@university.ac.kr", phone: "010-3456-7890", department: "학부 미정학과", joinDate: "2024.03.02",
     skills: ["AI/ML", "TensorFlow", "데이터분석"], projects: 2, completedTasks: 18, contribution: 78, activityScore: 78
   },
   {
-    id: 4, name: "박민수", role: "팀원", avatarColor: "bg-[#f97316]", status: "휴식중",
+    id: 4, name: "박민수", role: "팀원", avatarColor: "bg-[#FFB547]", status: "휴식중",
     email: "minsoo@university.ac.kr", phone: "010-4567-8901", department: "학부 미정학과", joinDate: "2024.03.02",
     skills: ["비즈니스", "기획", "마케팅"], projects: 2, completedTasks: 15, contribution: 71, activityScore: 71
   },
@@ -68,97 +91,98 @@ interface Message {
 type NavStep = "LIST" | "CHAT";
 type ChatMode = "TEAM" | "INDIVIDUAL";
 
-// Reusable Profile Modal Component
 function ProfileModal({ selectedMember, onClose, onMessage }: { selectedMember: any, onClose: () => void, onMessage: () => void }) {
   if (!selectedMember) return null;
   return (
-    <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl space-y-6 relative overflow-hidden" onClick={e => e.stopPropagation()}>
-        <button
+    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4" onClick={onClose}>
+      <div className="card w-full max-w-lg !p-10 shadow-[0_20px_60px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <button 
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 bg-gray-50 text-gray-400 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors z-20"
+          className="absolute top-8 right-8 p-3 bg-white/50 dark:bg-white/7 text-[#7D879C]/80 dark:text-white/40 rounded-2xl hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white transition-all z-20"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
-        <div className="flex items-start justify-between relative z-10">
+        <div className="flex items-start justify-between relative z-10 mt-2">
           <div className="flex items-center gap-5">
             <div className="relative">
-              <div className={`w-20 h-20 rounded-[24px] ${selectedMember.avatarColor} flex items-center justify-center text-white text-[24px] font-black shadow-lg`}>
+              <div className={`w-24 h-24 rounded-[32px] ${selectedMember.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white text-[32px] font-black shadow-[0_0_20px_rgba(0,0,0,0.4)]`}>
                 {selectedMember.name[0]}
               </div>
-              <div className={`absolute -bottom-1 -right-0.5 w-4 h-4 ${selectedMember.status === '활동중' ? 'bg-[#10b981]' : 'bg-gray-300'} border-[3px] border-white rounded-full ring-1 ring-gray-200`}></div>
+              <div className={`absolute -bottom-1 -right-0.5 w-6 h-6 ${selectedMember.status === '활동중' ? 'bg-[#23D7A1]' : 'bg-white/30'} border-[5px] border-[#12182B] rounded-full shadow-lg`}></div>
             </div>
             <div>
-              <h3 className="text-[20px] font-black text-gray-900 tracking-tight">{selectedMember.name}</h3>
-              <span className={`inline-block px-3 py-1 mt-1 rounded-lg text-[11px] font-bold uppercase tracking-wider ${selectedMember.role === '팀장' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-400'}`}>
+              <h3 className="hero-title tracking-tight mb-2" style={{ fontSize: '1.8rem' }}>{selectedMember.name}</h3>
+              <span className={`inline-block px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest ${selectedMember.role === '팀장' ? 'bg-[#7C6CFF] text-white shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white/50 dark:bg-white/5 text-[#7D879C]/80 dark:text-white/40'}`}>
                 {selectedMember.role}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3 relative z-10">
-          <div className="flex items-center gap-3 text-[13px] text-gray-400 font-medium">
-            <Mail className="w-4 h-4" />
-            {selectedMember.email}
-          </div>
-          <div className="flex items-center gap-3 text-[13px] text-gray-400 font-medium">
-            <Phone className="w-4 h-4" />
-            {selectedMember.phone}
-          </div>
-          <div className="flex items-center gap-3 text-[13px] text-gray-400 font-medium">
-            <GraduationCap className="w-4 h-4" />
-            {selectedMember.department}
-          </div>
-          <div className="flex items-center gap-3 text-[13px] text-gray-400 font-medium">
-            <Calendar className="w-4 h-4" />
-            가입일: {selectedMember.joinDate}
+        <div className="space-y-3 relative z-10 mt-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3 text-[13px] text-[#7D879C] dark:text-white/60 font-black bg-white/40 dark:bg-[#1A2340] border border-gray-200 dark:border-white/5 p-4 rounded-2xl">
+              <Mail className="w-4 h-4 text-[#7D879C]/80 dark:text-white/30" />
+              {selectedMember.email}
+            </div>
+            <div className="flex items-center gap-3 text-[13px] text-[#7D879C] dark:text-white/60 font-black bg-white/40 dark:bg-[#1A2340] border border-gray-200 dark:border-white/5 p-4 rounded-2xl">
+              <Phone className="w-4 h-4 text-[#7D879C]/80 dark:text-white/30" />
+              {selectedMember.phone}
+            </div>
+            <div className="flex items-center gap-3 text-[13px] text-[#7D879C] dark:text-white/60 font-black bg-white/40 dark:bg-[#1A2340] border border-gray-200 dark:border-white/5 p-4 rounded-2xl">
+              <GraduationCap className="w-4 h-4 text-[#7D879C]/80 dark:text-white/30" />
+              {selectedMember.department}
+            </div>
+            <div className="flex items-center gap-3 text-[13px] text-[#7D879C] dark:text-white/60 font-black bg-white/40 dark:bg-[#1A2340] border border-gray-200 dark:border-white/5 p-4 rounded-2xl">
+              <Calendar className="w-4 h-4 text-[#7D879C]/80 dark:text-white/30" />
+              가입: {selectedMember.joinDate}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4 relative z-10">
+        <div className="space-y-6 relative z-10">
           <div>
-            <p className="text-[12px] font-bold text-gray-300 mb-2 uppercase tracking-wider">보유 스킬</p>
+            <p className="hero-meta mb-3">보유 스킬</p>
             <div className="flex flex-wrap gap-2">
               {selectedMember.skills.map((skill: string, i: number) => (
-                <span key={i} className="px-3 py-1.5 bg-gray-50 text-gray-500 text-[12px] font-bold rounded-lg border border-gray-100">
+                <span key={i} className="px-3.5 py-2 bg-[#7C6CFF]/10 text-[#7C6CFF] text-[11px] font-black rounded-xl border border-[#7C6CFF]/20 uppercase tracking-widest">
                   {skill}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 py-4 border-y border-gray-50">
+          <div className="grid grid-cols-3 gap-2 py-6 border-y border-gray-200 dark:border-white/5">
             <div className="text-center">
-              <p className="text-[11px] font-bold text-gray-300 mb-1">프로젝트</p>
-              <p className="text-[16px] font-black text-gray-900">{selectedMember.projects}</p>
+              <p className="hero-meta mb-1">프로젝트</p>
+              <p className="text-[18px] font-black text-[#1A2340] dark:text-white">{selectedMember.projects}</p>
             </div>
-            <div className="text-center border-x border-gray-50">
-              <p className="text-[11px] font-bold text-gray-300 mb-1">완료 작업</p>
-              <p className="text-[16px] font-black text-gray-900">{selectedMember.completedTasks}</p>
+            <div className="text-center border-x border-gray-200 dark:border-white/5">
+              <p className="hero-meta mb-1">완료 작업</p>
+              <p className="text-[18px] font-black text-[#1A2340] dark:text-white">{selectedMember.completedTasks}</p>
             </div>
             <div className="text-center">
-              <p className="text-[11px] font-bold text-gray-300 mb-1">기여도</p>
-              <p className="text-[16px] font-black text-indigo-600">{selectedMember.contribution}%</p>
+              <p className="hero-meta mb-1">기여도</p>
+              <p className="text-[20px] font-black text-[#7C6CFF] drop-shadow-[0_0_10px_rgba(124,108,255,0.4)]">{selectedMember.contribution}%</p>
             </div>
           </div>
-
+          
           <div className="pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[12px] font-bold text-gray-400">활동 점수</span>
-              <span className="text-[13px] font-black text-gray-900">{selectedMember.activityScore}/100</span>
+            <div className="flex items-center justify-between mb-3">
+              <span className="hero-meta">활동 점수</span>
+              <span className="text-[15px] font-black text-[#1A2340] dark:text-white tracking-tight">{selectedMember.activityScore}/100</span>
             </div>
-            <div className="w-full bg-gray-50 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-gray-900 h-full rounded-full" style={{ width: `${selectedMember.activityScore}%` }}></div>
+            <div className="w-full bg-white/40 dark:bg-[#1A2340] rounded-full h-3 overflow-hidden border border-gray-200 dark:border-white/5">
+              <div className="bg-[#7C6CFF] h-full rounded-full shadow-[0_0_15px_rgba(124,108,255,0.6)]" style={{ width: `${selectedMember.activityScore}%` }}></div>
             </div>
           </div>
 
           <div className="pt-4">
-            <button
+            <button 
               onClick={onMessage}
-              className="w-full py-4 bg-[#6366f1] hover:bg-[#4f46e5] shadow-lg shadow-indigo-100 text-white rounded-[16px] text-[14px] font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl text-[15px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:opacity-90 border border-[#7C6CFF]/50"
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-6 h-6" />
               1:1 메시지 보내기
             </button>
           </div>
@@ -169,17 +193,6 @@ function ProfileModal({ selectedMember, onClose, onMessage }: { selectedMember: 
 }
 
 export default function Chat() {
-  const { user } = useAuth();
-  const isTestUser = user?.isTestUser;
-
-  const currentMembers = isTestUser ? members : [
-    {
-      id: 1, name: user?.name || "사용자", role: "팀장", avatarColor: "bg-[#6366f1]", status: "활동중",
-      email: user?.email || "", phone: "-", department: "-", joinDate: "-",
-      skills: [], projects: 0, completedTasks: 0, contribution: 0, activityScore: 0
-    }
-  ];
-  const [projects, setProjects] = useState<Project[]>([]);
   const [navStep, setNavStep] = useState<NavStep>("LIST");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>("TEAM");
@@ -190,20 +203,18 @@ export default function Chat() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Mock messages
-  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>(
-    isTestUser ? {
-      "team-1": [
-        { id: "1", sender: "김철수", content: "데이터베이스 스키마 초안 공유합니다!", time: "오전 10:30", isMe: false },
-        { id: "2", sender: "나 (팀장)", content: "확인해볼게요.", time: "오전 10:32", isMe: true },
-      ],
-      "user-2": [
-        { id: "1", sender: "김철수", content: "팀장님, 아까 말한 정규화 관련해서 질문있습니다.", time: "오후 1:10", isMe: false },
-      ],
-    } : {}
-  );
+  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({
+    "team-1": [
+      { id: "1", sender: "김철수", content: "데이터베이스 스키마 초안 공유합니다!", time: "오전 10:30", isMe: false },
+      { id: "2", sender: "나 (팀장)", content: "확인해볼게요.", time: "오전 10:32", isMe: true },
+    ],
+    "user-2": [
+      { id: "1", sender: "김철수", content: "팀장님, 아까 말한 정규화 관련해서 질문있습니다.", time: "오후 1:10", isMe: false },
+    ],
+  });
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const selectedMember = currentMembers.find(m => m.id === selectedMemberId);
+  const selectedMember = members.find(m => m.id === selectedMemberId);
 
   const currentChatKey = chatMode === "TEAM"
     ? `team-${selectedProjectId}`
@@ -223,10 +234,6 @@ export default function Chat() {
     }
   }, [navStep, messagesStore]);
 
-  useEffect(() => {
-    projectApi.getProjects().then(setProjects).catch(console.error);
-  }, []);
-
   const handleSend = () => {
     if (!inputText.trim()) return;
 
@@ -245,35 +252,40 @@ export default function Chat() {
     setInputText("");
   };
 
-  // 1단계: 메시지 목록 (통합 1-Depth)
   if (navStep === "LIST") {
     return (
-      <div className="flex flex-col h-full bg-white overflow-hidden relative">
-        {/* PROFILE MODAL (OVERLAY) */}
+      <div className="dashboard pt-4 lg:max-w-5xl lg:mx-auto relative">
         {profileModalOpen && selectedMember && (
-          <ProfileModal
-            selectedMember={selectedMember}
-            onClose={() => setProfileModalOpen(false)}
+          <ProfileModal 
+            selectedMember={selectedMember} 
+            onClose={() => setProfileModalOpen(false)} 
             onMessage={() => {
               setChatMode("INDIVIDUAL");
               setNavStep("CHAT");
               setProfileModalOpen(false);
-            }}
+            }} 
           />
         )}
-        <div className="p-4 md:p-6 border-b border-[#f1f5f9] bg-white sticky top-0 z-20">
-          <h2 className="text-[24px] font-black text-gray-900 tracking-tight">메시지</h2>
-          <p className="text-[13px] font-bold text-gray-400 mt-1">팀 채널과 멤버들을 확인하세요</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#f8faff]">
+        
+        <section className="card hero-card mb-6 flex-shrink-0">
+          <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
+            <div>
+              <p className="hero-meta uppercase">팀 채널 및 멤버</p>
+              <h1 className="hero-title" style={{ fontSize: '2rem' }}>
+                채팅
+              </h1>
+            </div>
+          </div>
+        </section>
+
+        <div className="space-y-8 pb-24">
           {/* 팀 채널 섹션 */}
-          <div className="space-y-3">
-            <h3 className="text-[13px] font-black text-gray-400 px-2 flex items-center gap-1.5">
+          <div className="space-y-4">
+            <h3 className="hero-meta px-1 flex items-center gap-2">
               <Users className="w-4 h-4" /> 팀 채널
             </h3>
-            {projects.map((project) => {
-              const IconComp = iconMap[project.icon] || Target;
-              return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {projects.map((project) => (
                 <button
                   key={project.id}
                   onClick={() => {
@@ -281,54 +293,56 @@ export default function Chat() {
                     setChatMode("TEAM");
                     setNavStep("CHAT");
                   }}
-                  className="w-full flex items-center gap-4 p-4 bg-white rounded-[24px] border border-[#f1f5f9] shadow-sm hover:shadow-md active:scale-[0.98] transition-all group"
+                  className="card !p-5 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer group flex items-center gap-5 border border-gray-200 dark:border-white/5 active:scale-[0.98] transition-all text-left"
                 >
-                  <div
-                    className={`w-12 h-12 rounded-[18px] ${project.color?.startsWith('#') ? '' : (project.color || 'bg-[#f0f7ff]')} flex items-center justify-center flex-shrink-0 relative overflow-hidden`}
-                  >
-                    {project.color?.startsWith('#') && <div className="absolute inset-0 opacity-15" style={{ backgroundColor: project.color }}></div>}
-                    <IconComp
-                      className={`w-6 h-6 relative z-10 ${project.iconColor?.startsWith('#') ? '' : project.iconColor}`}
-                      style={project.iconColor?.startsWith('#') ? { color: project.iconColor } : undefined}
-                    />
+                  <div className={`schedule-item ${project.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
+                    <div className="schedule-icon" style={{ width: 56, height: 56, borderRadius: 16 }}>
+                      <project.icon className="w-7 h-7 text-[#1A2340] dark:text-white" />
+                    </div>
                   </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-[15px] font-black text-gray-900 truncate">{project.name}</p>
-                    <p className="text-[12px] font-bold text-gray-400 truncate">전체 팀원 채팅</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[16px] font-black text-[#1A2340] dark:text-white truncate mb-1 group-hover:text-[#7C6CFF] transition-colors">{project.name}</p>
+                    <p className="text-[12px] font-black text-[#7D879C]/80 dark:text-white/40 truncate uppercase tracking-widest">전체 팀원 채팅</p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 transition-colors" />
+                  <div className="p-2.5 rounded-2xl bg-white/50 dark:bg-white/5 group-hover:bg-[#7C6CFF]/20 transition-colors">
+                    <ChevronRight className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-colors" />
+                  </div>
                 </button>
-              )
-            })}
+              ))}
+            </div>
           </div>
 
           {/* 1:1 메시지 섹션 */}
-          <div className="space-y-3">
-            <h3 className="text-[13px] font-black text-gray-400 px-2 flex items-center gap-1.5">
+          <div className="space-y-4">
+            <h3 className="hero-meta px-1 flex items-center gap-2">
               <UserIcon className="w-4 h-4" /> 1:1 메시지
             </h3>
-            {currentMembers.filter(m => m.id !== 1).map((member) => (
-              <button
-                key={member.id}
-                onClick={() => {
-                  setSelectedMemberId(member.id);
-                  setProfileModalOpen(true);
-                }}
-                className="w-full flex items-center gap-4 p-4 bg-white rounded-[24px] border border-[#f1f5f9] shadow-sm hover:shadow-md active:scale-[0.98] transition-all group"
-              >
-                <div className="relative">
-                  <div className={`w-12 h-12 rounded-[18px] ${member.avatarColor} flex items-center justify-center text-white text-[16px] font-black`}>
-                    {member.name[0]}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {members.filter(m => m.id !== 1).map((member) => (
+                <button
+                  key={member.id}
+                  onClick={() => {
+                    setSelectedMemberId(member.id);
+                    setProfileModalOpen(true);
+                  }}
+                  className="card !p-5 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer group flex items-center gap-5 border border-gray-200 dark:border-white/5 active:scale-[0.98] transition-all text-left"
+                >
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-14 h-14 rounded-[20px] ${member.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white text-[20px] font-black shadow-[0_0_15px_rgba(0,0,0,0.2)]`}>
+                      {member.name[0]}
+                    </div>
+                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 ${member.status === '활동중' ? 'bg-[#23D7A1] shadow-[0_0_10px_rgba(35,215,161,0.4)]' : 'bg-white/30'} border-[4px] border-[#12182B] rounded-full`}></div>
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${member.status === '활동중' ? 'bg-[#10b981] shadow-[0_2px_8px_rgba(16,185,129,0.4)]' : 'bg-gray-300'} border-[3px] border-white rounded-full`}></div>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-[15px] font-black text-gray-900">{member.name}</p>
-                  <p className="text-[12px] font-bold text-gray-400">{member.status === '활동중' ? '현재 활동 중' : '휴식 중'} • {member.role}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 transition-colors" />
-              </button>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[17px] font-black text-[#1A2340] dark:text-white truncate mb-1 group-hover:text-[#7C6CFF] transition-colors">{member.name}</p>
+                    <p className="text-[12px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{member.status === '활동중' ? '현재 활동 중' : '휴식 중'} • {member.role}</p>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/50 dark:bg-white/5 group-hover:bg-[#7C6CFF]/20 transition-colors">
+                    <ChevronRight className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-colors" />
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -337,135 +351,123 @@ export default function Chat() {
 
   // 3단계: 채팅창
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden relative">
-      <div className="p-4 md:p-6 border-b border-[#f1f5f9] flex items-center justify-between bg-white/90 backdrop-blur-md sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setNavStep("LIST")} className="p-2 -ml-2 text-gray-400 hover:text-gray-900"><ChevronLeft className="w-6 h-6" /></button>
-          <div className="flex items-center gap-3">
+    <div className="flex flex-col h-screen bg-[#f8faff] dark:bg-[#0B1020] overflow-hidden relative transition-all duration-300">
+      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#12182B]/90 backdrop-blur-md sticky top-0 z-10 transition-all">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setNavStep("LIST")} className="p-2.5 -ml-2 text-[#7D879C]/80 dark:text-white/40 hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"><ChevronLeft className="w-7 h-7" /></button>
+          <div className="flex items-center gap-4">
             {chatMode === "TEAM" ? (
-              (() => {
-                const ProjectIcon = selectedProject ? (iconMap[selectedProject.icon] || Target) : Target;
-                return (
-                  <div className={`w-10 h-10 rounded-xl ${selectedProject?.color?.startsWith('#') ? '' : (selectedProject?.color || 'bg-indigo-50')} flex items-center justify-center relative overflow-hidden`}>
-                    {selectedProject?.color?.startsWith('#') && <div className="absolute inset-0 opacity-15" style={{ backgroundColor: selectedProject.color }}></div>}
-                    <ProjectIcon
-                      className={`w-5 h-5 relative z-10 ${selectedProject?.iconColor?.startsWith('#') ? '' : (selectedProject?.iconColor || 'text-indigo-500')}`}
-                      style={selectedProject?.iconColor?.startsWith('#') ? { color: selectedProject.iconColor } : undefined}
-                    />
-                  </div>
-                );
-              })()
+              <div className={`schedule-item ${selectedProject?.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
+                <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 14 }}>
+                  {selectedProject && <selectedProject.icon className="w-6 h-6 text-[#1A2340] dark:text-white" />}
+                </div>
+              </div>
             ) : (
-              <div className={`w-10 h-10 rounded-xl ${selectedMember?.avatarColor} flex items-center justify-center text-white font-black text-[14px]`}>
+              <div className={`w-12 h-12 rounded-[14px] ${selectedMember?.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white font-black text-[16px] shadow-[0_0_15px_rgba(0,0,0,0.2)]`}>
                 {selectedMember?.name[0]}
               </div>
             )}
             <div>
-              <h1 className="text-[16px] font-black text-gray-900 tracking-tight leading-none mb-1 truncate max-w-[150px]">
-                {chatMode === "TEAM" ? selectedProject?.name : `${selectedMember?.name}님과의 대화`}
+              <h1 className="text-[17px] font-black text-[#1A2340] dark:text-white tracking-tight leading-none mb-1.5 truncate max-w-[180px]">
+                {chatMode === "TEAM" ? selectedProject?.name : `${selectedMember?.name}님`}
               </h1>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-green-500">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#23D7A1] drop-shadow-[0_0_8px_rgba(35,215,161,0.5)]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#23D7A1] animate-pulse"></div>
                 {chatMode === "TEAM" ? "실시간 팀 소통 중" : "1:1 프라이빗 대화"}
               </div>
             </div>
           </div>
         </div>
-        <button
-          onClick={() => chatMode === "TEAM" ? setIsDrawerOpen(true) : null}
-          className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl transition-colors"
+        <button 
+          onClick={() => chatMode === "TEAM" ? setIsDrawerOpen(true) : null} 
+          className="p-3 text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"
         >
-          {chatMode === "TEAM" ? <Menu className="w-6 h-6" /> : <MoreVertical className="w-5 h-5" />}
+          {chatMode === "TEAM" ? <Menu className="w-7 h-7" /> : <MoreVertical className="w-6 h-6" />}
         </button>
       </div>
 
       {/* TEAM MEMBERS DRAWER (OVERLAY) */}
       {isDrawerOpen && chatMode === "TEAM" && (
         <>
-          <div className="absolute inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity" onClick={() => setIsDrawerOpen(false)}></div>
-          <div className="absolute top-0 right-0 bottom-0 w-[280px] bg-white z-50 shadow-2xl flex flex-col transform transition-transform duration-300 animate-in slide-in-from-right">
-            <div className="p-5 border-b border-[#f1f5f9] flex justify-between items-center bg-gray-50/50">
-              <h3 className="font-black text-gray-900 text-[16px]">참여 팀원 ({currentMembers.length})</h3>
-              <button onClick={() => setIsDrawerOpen(false)} className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-sm"><X className="w-4 h-4 text-gray-500" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8faff]/50">
-              {currentMembers.map(member => (
-                <button
-                  key={member.id}
-                  onClick={() => {
-                    setSelectedMemberId(member.id);
-                    setProfileModalOpen(true);
-                  }}
-                  className="w-full flex items-center gap-3 p-3 bg-white border border-[#f1f5f9] rounded-2xl hover:border-indigo-100 hover:shadow-sm transition-all text-left"
-                >
-                  <div className="relative">
-                    <div className={`w-10 h-10 rounded-[14px] ${member.avatarColor} flex items-center justify-center text-white text-[14px] font-black shadow-sm`}>
-                      {member.name[0]}
+          <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDrawerOpen(false)}></div>
+          <div className="absolute top-0 right-0 bottom-0 w-[300px] bg-white dark:bg-[#12182B] z-50 shadow-2xl flex flex-col transform transition-transform duration-300 animate-in slide-in-from-right border-l border-gray-200 dark:border-white/5">
+             <div className="p-6 border-b border-gray-200 dark:border-white/5 flex justify-between items-center bg-white/40 dark:bg-[#1A2340]">
+               <h3 className="font-black text-[#1A2340] dark:text-white text-[17px] tracking-tight">참여 팀원 ({members.length})</h3>
+               <button onClick={() => setIsDrawerOpen(false)} className="p-2.5 bg-white/50 dark:bg-white/5 rounded-xl hover:bg-white/60 dark:bg-white/10 transition-all"><X className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40" /></button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-[#f8faff] dark:bg-[#0B1020] transition-all">
+               {members.map(member => (
+                 <button 
+                   key={member.id}
+                   onClick={() => {
+                      setSelectedMemberId(member.id);
+                      setProfileModalOpen(true);
+                   }}
+                   className="w-full flex items-center gap-4 p-4 card !bg-white dark:!bg-[#12182B] hover:!bg-white/40 dark:!bg-[#1A2340] border border-gray-200 dark:border-white/5 !rounded-[24px] cursor-pointer group text-left"
+                 >
+                    <div className="relative">
+                      <div className={`w-11 h-11 rounded-[16px] ${member.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white text-[15px] font-black shadow-sm`}>
+                        {member.name[0]}
+                      </div>
+                      <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 ${member.status === '활동중' ? 'bg-[#23D7A1]' : 'bg-white/30'} border-[3px] border-[#12182B] rounded-full`}></div>
                     </div>
-                    <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${member.status === '활동중' ? 'bg-[#10b981]' : 'bg-gray-300'} border-2 border-white rounded-full`}></div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-bold text-gray-900 truncate">{member.name}</p>
-                    <p className="text-[11px] font-bold text-gray-400 truncate">{member.role}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-black text-[#1A2340] dark:text-white truncate group-hover:text-[#7C6CFF] transition-colors">{member.name}</p>
+                      <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest truncate">{member.role}</p>
+                    </div>
+                 </button>
+               ))}
+             </div>
           </div>
         </>
       )}
 
       {/* PROFILE MODAL IN CHAT */}
       {profileModalOpen && selectedMember && (
-        <ProfileModal
-          selectedMember={selectedMember}
-          onClose={() => setProfileModalOpen(false)}
+        <ProfileModal 
+          selectedMember={selectedMember} 
+          onClose={() => setProfileModalOpen(false)} 
           onMessage={() => {
             setChatMode("INDIVIDUAL");
             setNavStep("CHAT");
             setProfileModalOpen(false);
             setIsDrawerOpen(false);
-          }}
+          }} 
         />
       )}
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#f8faff]/50">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-8 transition-all scrollbar-hide">
         {currentMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <div className={`w-20 h-20 rounded-[28px] ${chatMode === "TEAM" ? (selectedProject?.color?.startsWith('#') ? '' : (selectedProject?.color || 'bg-indigo-50')) : selectedMember?.avatarColor} flex items-center justify-center animate-bounce relative overflow-hidden`}>
-              {chatMode === "TEAM" && selectedProject?.color?.startsWith('#') && <div className="absolute inset-0 opacity-15" style={{ backgroundColor: selectedProject.color }}></div>}
-              {chatMode === "TEAM" ? (
-                (() => {
-                  const ProjIcon = selectedProject ? (iconMap[selectedProject.icon] || Target) : Target;
-                  return <ProjIcon
-                    className={`w-10 h-10 relative z-10 ${selectedProject?.iconColor?.startsWith('#') ? '' : (selectedProject?.iconColor || 'text-indigo-500')}`}
-                    style={selectedProject?.iconColor?.startsWith('#') ? { color: selectedProject.iconColor } : undefined}
-                  />;
-                })()
-              ) : (
-                <UserIcon className="w-10 h-10 text-white" />
-              )}
+          <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-6">
+            <div className={`schedule-item ${chatMode === "TEAM" ? selectedProject?.theme : "purple"} !p-0 !border-none bg-transparent flex-shrink-0 animate-in zoom-in-50 duration-500`}>
+              <div className="schedule-icon" style={{ width: 112, height: 112, borderRadius: 40 }}>
+                {chatMode === "TEAM" ? (
+                  selectedProject && <selectedProject.icon className="w-12 h-12 text-[#1A2340] dark:text-white" />
+                ) : (
+                  <UserIcon className="w-12 h-12 text-[#1A2340] dark:text-white" />
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-[18px] font-black text-gray-900">{chatMode === "TEAM" ? "팀원들과 대화를 시작하세요" : `${selectedMember?.name}님께 메시지를 보내보세요`}</p>
-              <p className="text-[14px] font-bold text-gray-400">함께 협업하며 프로젝트를 완성해보세요.</p>
+            <div className="space-y-2">
+              <p className="text-[22px] font-black text-[#1A2340] dark:text-white tracking-tight">{chatMode === "TEAM" ? "팀원들과 첫 메시지를 나누어보세요" : `${selectedMember?.name}님과 대화를 시작하세요`}</p>
+              <p className="text-[15px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest leading-loose">함께 협업하며 프로젝트를 완성해보세요.</p>
             </div>
           </div>
         ) : (
           currentMessages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-end gap-2.5`}>
+            <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-4 animate-in slide-in-from-bottom-2`}>
               {!msg.isMe && (
-                <div className="w-9 h-9 rounded-2xl bg-[#6366f1] text-white flex items-center justify-center text-[13px] font-black shadow-lg shadow-indigo-100 flex-shrink-0 mb-1">
+                <div className={`w-10 h-10 rounded-[14px] ${selectedMember?.avatarColor || 'bg-[#7C6CFF]'} text-white flex items-center justify-center text-[15px] font-black shadow-[0_0_15px_rgba(0,0,0,0.2)] flex-shrink-0 mt-1 uppercase`}>
                   {msg.sender[0]}
                 </div>
               )}
-              <div className="max-w-[75%] space-y-1">
-                {!msg.isMe && <p className="text-[12px] font-black text-gray-900 ml-1">{msg.sender}</p>}
-                <div className={`flex items-end gap-2 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
-                  <div className={`px-4 py-2.5 rounded-[20px] text-[14px] font-medium shadow-sm leading-snug break-words ${msg.isMe ? "bg-[#6366f1] text-white rounded-br-none" : "bg-white text-gray-800 rounded-bl-none border border-[#f1f5f9]"}`}>
+              <div className={`max-w-[70%] space-y-2 ${msg.isMe ? "flex flex-col items-end" : ""}`}>
+                {!msg.isMe && <p className="text-[12px] font-black text-[#7D879C] dark:text-white/80 ml-1 uppercase tracking-widest">{msg.sender}</p>}
+                <div className={`flex items-end gap-3 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                  <div className={`px-5 py-3.5 rounded-[24px] text-[15px] font-medium transition-all shadow-sm leading-relaxed break-words ${msg.isMe ? "bg-[#7C6CFF] text-white rounded-br-none shadow-[0_0_20px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/50" : "bg-white/40 dark:bg-[#1A2340] text-white rounded-bl-none border border-gray-300 dark:border-white/10"}`}>
                     {msg.content}
                   </div>
-                  <span className="text-[10px] font-bold text-gray-300 mb-0.5 whitespace-nowrap">{msg.time}</span>
+                  <span className="text-[10px] font-black text-[#7D879C]/80 dark:text-white/40 mb-1 whitespace-nowrap uppercase tracking-widest">{msg.time}</span>
                 </div>
               </div>
             </div>
@@ -473,19 +475,19 @@ export default function Chat() {
         )}
       </div>
 
-      <div className="p-4 bg-white border-t border-[#f1f5f9]">
-        <div className="flex items-center gap-2 bg-gray-50 border border-[#f1f5f9] rounded-full pl-2 pr-1.5 py-1.5 shadow-inner">
-          <button className="p-2 text-gray-400 hover:text-[#6366f1] flex-shrink-0"><Plus className="w-6 h-6" /></button>
+      <div className="p-5 bg-white dark:bg-[#12182B] border-t border-gray-200 dark:border-white/5 transition-all">
+        <div className="flex items-center gap-3 bg-white/40 dark:bg-[#1A2340] border border-gray-300 dark:border-white/10 rounded-3xl pl-3 pr-2 py-2 group focus-within:bg-white/40 dark:bg-[#1A2340] focus-within:border-[#7C6CFF]/50 focus-within:shadow-[0_0_15px_rgba(124,108,255,0.1)] transition-all">
+          <button className="p-3 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] transition-colors flex-shrink-0"><Plus className="w-7 h-7" /></button>
           <input
             type="text"
             placeholder="메시지 입력..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-[14px] font-medium py-1 placeholder-gray-400"
+            className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] font-medium py-2 placeholder-white/20 text-[#1A2340] dark:text-white outline-none"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
-          <button onClick={handleSend} disabled={!inputText.trim()} className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 ${inputText.trim() ? "bg-[#6366f1] text-white shadow-lg" : "text-gray-300"}`}>
-            <Send className="w-5 h-5" />
+          <button onClick={handleSend} disabled={!inputText.trim()} className={`w-12 h-12 flex items-center justify-center rounded-[18px] flex-shrink-0 transition-all active:scale-95 ${inputText.trim() ? "bg-[#7C6CFF] text-white shadow-[0_0_20px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/50" : "bg-white/50 dark:bg-white/5 text-gray-300 dark:text-white/20"}`}>
+            <Send className="w-6 h-6" />
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { useDrop } from 'react-dnd';
 import { KanbanCard } from './KanbanCard';
 import { Task, TaskStatus } from '../types';
-import { Plus, MoreHorizontal } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface KanbanColumnProps {
   status: TaskStatus;
@@ -30,30 +30,30 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   const getStatusColor = (s: TaskStatus) => {
     switch (s) {
-      case 'TODO': return 'bg-gray-100';
-      case 'IN_PROGRESS': return 'bg-blue-500';
-      case 'DONE': return 'bg-green-500';
-      default: return 'bg-gray-300';
+      case 'TODO': return 'bg-white/20 shadow-none';
+      case 'IN_PROGRESS': return 'bg-[#7C6CFF] shadow-[0_0_10px_rgba(124,108,255,0.4)]';
+      case 'DONE': return 'bg-[#23D7A1] shadow-[0_0_10px_rgba(35,215,161,0.4)]';
+      default: return 'bg-white/20';
     }
   };
 
   return (
     <div
       ref={drop as any}
-      className={`flex flex-col w-full min-w-[300px] h-full rounded-[32px] p-4 transition-colors ${
-        isOver && canDrop ? 'bg-indigo-50/50' : 'bg-gray-50/30'
+      className={`flex flex-col w-full min-w-[320px] h-full rounded-[40px] p-6 transition-all border ${
+        isOver && canDrop ? 'bg-white/50 dark:bg-white/5 border-[#7C6CFF]/30 shadow-[0_0_30px_rgba(124,108,255,0.1)]' : 'bg-white dark:bg-[#12182B] border-gray-200 dark:border-white/5'
       }`}
     >
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${getStatusColor(status)} shadow-sm`}></div>
-          <h3 className="font-bold text-gray-900 text-sm tracking-tight">{title}</h3>
-          <span className="text-xs font-bold text-gray-400 bg-white border border-gray-100 px-2 py-0.5 rounded-full shadow-sm">
+      <div className="flex items-center justify-between mb-6 px-2">
+        <div className="flex items-center gap-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(status)}`}></div>
+          <h3 className="font-black text-[#1A2340] dark:text-white text-[15px] tracking-tight">{title}</h3>
+          <span className="text-[11px] font-black text-[#7D879C] dark:text-white/50 bg-white/40 dark:bg-[#1A2340] border border-gray-300 dark:border-white/10 px-3 py-1 rounded-xl shadow-sm">
             {tasks.length}
           </span>
         </div>
-        <button className="p-1 hover:bg-white hover:shadow-sm rounded-lg text-gray-400 transition-all">
-          <Plus className="w-4 h-4" />
+        <button className="p-2 hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white rounded-xl text-[#7D879C]/80 dark:text-white/40 transition-all">
+          <Plus className="w-5 h-5" />
         </button>
       </div>
 
@@ -62,7 +62,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
           <KanbanCard key={task.id} task={task} onToggle={onToggleTask} />
         ))}
         {tasks.length === 0 && (
-          <div className="h-24 border-2 border-dashed border-gray-100 rounded-3xl flex items-center justify-center text-gray-300 text-xs font-medium">
+          <div className="h-24 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-[24px] flex items-center justify-center text-gray-300 dark:text-white/20 text-xs font-black uppercase tracking-widest">
             항목 없음
           </div>
         )}

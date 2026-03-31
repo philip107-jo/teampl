@@ -1,166 +1,134 @@
-import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon } from "lucide-react";
+import { useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { initialMembers, currentUser } from "../mockData";
+import { initialTasks, initialMembers, currentUser } from "../mockData";
 import { Task, TaskStatus } from "../types";
 import KanbanBoard from "../components/KanbanBoard";
-import { taskApi } from "../api/taskApi";
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [viewMode, setViewMode] = useState<"list" | "board">("list");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
-  const loadTasks = async () => {
-    setIsLoading(true);
-    try {
-      const data = await taskApi.getTasks();
-      setTasks(data);
-    } catch (error) {
-      console.error("Failed to load tasks:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const filteredTasks = tasks.filter((task) => {
     if (filter === "all") return true;
     return task.status === filter;
   });
 
-  const handleAddTask = async () => {
+  const handleAddTask = () => {
     if (!newTaskTitle.trim()) return;
-    
-    const title = newTaskTitle;
-    setIsModalOpen(false);
+    const newTask: Task = {
+      id: `task-${Date.now()}`,
+      workspaceId: 'workspace-1',
+      title: newTaskTitle,
+      status: 'TODO',
+      priority: 'medium',
+      deadline: new Date().toISOString().split('T')[0],
+      createdById: currentUser.id,
+      assignees: [currentUser.id]
+    };
+    setTasks([newTask, ...tasks]);
     setNewTaskTitle("");
-    
-    try {
-      const newTask = await taskApi.createTask({
-        title,
-        workspaceId: 'workspace-1',
-        createdById: currentUser.id,
-        assignees: [currentUser.id]
-      });
-      setTasks([newTask, ...tasks]);
-    } catch (error) {
-      console.error("Failed to create task:", error);
-    }
+    setIsModalOpen(false);
   };
 
-  const toggleTaskStatus = async (id: string) => {
-    const task = tasks.find(t => t.id === id);
-    if (!task) return;
-
-    const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
-    
-    // Optimistic Update
-    setTasks(tasks.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    
-    try {
-      await taskApi.updateTaskStatus(id, newStatus);
-    } catch (e) {
-      console.error("Failed to update status:", e);
-      // rollback
-      setTasks(tasks.map(t => t.id === id ? { ...t, status: task.status } : t));
-    }
+  const toggleTaskStatus = (id: string) => {
+    setTasks(tasks.map(t => {
+      if (t.id === id) {
+        return { ...t, status: t.status === 'DONE' ? 'TODO' : 'DONE' };
+      }
+      return t;
+    }));
   };
 
-  const moveTask = async (taskId: string, targetStatus: TaskStatus) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task || task.status === targetStatus) return;
-
-    const oldStatus = task.status;
-    
-    // Optimistic Update
+  const moveTask = (taskId: string, targetStatus: TaskStatus) => {
     setTasks(tasks.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
-    
-    try {
-      await taskApi.updateTaskStatus(taskId, targetStatus);
-    } catch (e) {
-      console.error("Failed to move task:", e);
-      // rollback
-      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: oldStatus } : t));
-    }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "text-red-600 bg-red-50 border-red-200";
-      case "medium": return "text-orange-600 bg-orange-50 border-orange-200";
-      case "low": return "text-blue-600 bg-blue-50 border-blue-200";
-      default: return "text-gray-600 bg-gray-50 border-gray-200";
+      case "high": return "text-[#FF6B7A] bg-[#FF6B7A]/10 border-[#FF6B7A]/20";
+      case "medium": return "text-[#FFB547] bg-[#FFB547]/10 border-[#FFB547]/20";
+      case "low": return "text-[#7C6CFF] bg-[#7C6CFF]/10 border-[#7C6CFF]/20";
+      default: return "text-[#7D879C]/80 dark:text-white/40 bg-white/50 dark:bg-white/5 border-gray-300 dark:border-white/10";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "DONE": return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case "IN_PROGRESS": return <Clock className="w-5 h-5 text-blue-600" />;
-      default: return <Circle className="w-5 h-5 text-gray-400" />;
+      case "DONE": return (
+        <div className="w-8 h-8 rounded-[12px] bg-[#23D7A1]/10 flex items-center justify-center border border-[#23D7A1]/20 shadow-[0_0_15px_rgba(35,215,161,0.2)]">
+          <CheckCircle2 className="w-5 h-5 text-[#23D7A1]" />
+        </div>
+      );
+      case "IN_PROGRESS": return (
+        <div className="w-8 h-8 rounded-[12px] bg-[#7C6CFF]/10 flex items-center justify-center border border-[#7C6CFF]/20 shadow-[0_0_15px_rgba(124,108,255,0.2)]">
+          <Clock className="w-5 h-5 text-[#7C6CFF]" />
+        </div>
+      );
+      default: return (
+        <div className="w-8 h-8 rounded-[12px] bg-white/50 dark:bg-white/5 flex items-center justify-center border border-gray-300 dark:border-white/10">
+          <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
+        </div>
+      );
     }
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex flex-col h-full space-y-6 p-4 max-w-5xl mx-auto pb-24">
-        <div className="flex items-center justify-between flex-shrink-0 mb-2">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">태스크 보드</h1>
-            <p className="text-sm text-gray-400 font-medium mt-1">드래그하여 상태를 변경하세요</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-gray-100/50 p-1 rounded-2xl">
+      <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto flex flex-col h-[calc(100vh-2rem)]">
+        {/* Header */}
+        <section className="card hero-card mb-6 flex-shrink-0">
+          <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
+            <div>
+              <p className="hero-meta uppercase">워크스페이스</p>
+              <h1 className="hero-title" style={{ fontSize: '2rem' }}>
+                태스크 보드
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex bg-white dark:bg-[#12182B] p-1.5 rounded-2xl border border-gray-300 dark:border-white/10">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-2.5 rounded-xl transition-all ${viewMode === "list" ? "bg-white/60 dark:bg-white/10 text-[#7C6CFF]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
+                  title="리스트 뷰"
+                >
+                  <ListIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode("board")}
+                  className={`p-2.5 rounded-xl transition-all ${viewMode === "board" ? "bg-white/60 dark:bg-white/10 text-[#7C6CFF]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
+                  title="칸반 보드"
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                </button>
+              </div>
               <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-xl transition-all ${viewMode === "list" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
-                title="리스트 뷰"
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-[#7C6CFF] text-white rounded-2xl text-[14px] font-black shadow-[0_0_20px_rgba(124,108,255,0.4)] hover:opacity-90 active:scale-95 transition-all border border-[#7C6CFF]/50"
               >
-                <ListIcon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode("board")}
-                className={`p-2 rounded-xl transition-all ${viewMode === "board" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
-                title="칸반 보드"
-              >
-                <LayoutGrid className="w-5 h-5" />
+                <Plus className="w-5 h-5" />
+                태스크 추가
               </button>
             </div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              추가
-            </button>
           </div>
-        </div>
+        </section>
 
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 animate-in fade-in duration-500">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-            <p className="text-gray-500 font-bold text-sm tracking-tight">태스크 정보를 불러오는 중입니다...</p>
-          </div>
-        ) : viewMode === "list" ? (
-          <>
-            {/* Filters (List View Only) */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide flex-shrink-0">
+        {viewMode === "list" ? (
+          <div className="flex flex-col flex-1 min-h-0">
+            {/* Filters */}
+            <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide flex-shrink-0">
               {["all", "TODO", "IN_PROGRESS", "DONE"].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f as any)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${filter === f
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
-                      : "bg-white text-gray-400 border border-transparent hover:border-gray-100"
-                    }`}
+                  className={`px-5 py-2.5 rounded-[12px] text-[12px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${filter === f
+                    ? "bg-[#7C6CFF] text-white shadow-[0_0_15px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/50"
+                    : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white"
+                  }`}
                 >
                   {f === "all" ? "전체" : f === "TODO" ? "대기" : f === "IN_PROGRESS" ? "진행중" : "완료"} (
                   {f === "all" ? tasks.length : tasks.filter(t => t.status === f).length})
@@ -169,66 +137,67 @@ export default function Tasks() {
             </div>
 
             {/* List Content */}
-            <div className="flex-1 overflow-y-auto space-y-4 pb-12 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto space-y-3 pb-24 scrollbar-hide">
               {filteredTasks.map((task) => (
                 <div
                   key={task.id}
                   onClick={() => toggleTaskStatus(task.id)}
-                  className={`bg-white rounded-[24px] p-5 shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group flex items-start gap-5 ${task.status === 'DONE' ? 'opacity-60' : ''}`}
+                  className={`card !p-5 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer group flex items-center gap-6 ${task.status === 'DONE' ? 'opacity-40 grayscale' : ''}`}
                 >
-                  <div className="mt-1 flex-shrink-0 group-hover:scale-110 transition-transform">{getStatusIcon(task.status)}</div>
+                  <div className="flex-shrink-0 group-hover:scale-110 transition-transform">{getStatusIcon(task.status)}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <h3 className={`font-bold text-[15px] text-gray-900 leading-tight ${task.status === 'DONE' ? 'line-through' : ''}`}>
-                        {task.title}
-                      </h3>
-                      <div className="flex -space-x-1.5">
+                    <div className="flex items-center justify-between gap-6">
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-black text-[16px] tracking-tight truncate mb-1.5 transition-colors ${task.status === 'DONE' ? 'line-through text-[#7D879C]/80 dark:text-white/40' : 'text-[#1A2340] dark:text-white group-hover:text-[#7C6CFF]'}`}>
+                          {task.title}
+                        </h3>
+                        <div className="flex items-center gap-4">
+                          <span className={`text-[10px] font-black px-2 py-1 rounded-[8px] uppercase tracking-widest border ${getPriorityColor(task.priority)}`}>
+                            {task.priority === 'high' ? 'HIGH PRIORITY' : task.priority === 'medium' ? 'NORMAL' : 'LOW'}
+                          </span>
+                          <span className="text-[10px] text-[#7D879C]/80 dark:text-white/40 font-black uppercase tracking-widest flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            {task.deadline}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex -space-x-2 hover:space-x-1 transition-all pr-2">
                         {task.assignees.map((uid) => (
-                          <div key={uid} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-500 text-[9px] font-bold">
+                          <div key={uid} className="w-8 h-8 rounded-full bg-white/40 dark:bg-[#1A2340] border-2 border-[#12182B] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black uppercase shadow-sm">
                             {initialMembers.find(m => m.id === uid)?.name[0]}
                           </div>
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
-                        {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '중간' : '낮음'}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
-                        <Clock className="w-3.5 h-3.5" />
-                        {task.deadline}
-                      </span>
-                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </>
+          </div>
         ) : (
-          /* Kanban Board Content */
-          <div className="flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-hidden min-h-0 bg-[#f8faff] dark:bg-[#0B1020]/30 rounded-[40px] p-6 border border-gray-200 dark:border-white/5">
             <KanbanBoard tasks={tasks} onMoveTask={moveTask} onToggleTask={toggleTaskStatus} />
           </div>
         )}
 
         {/* Add Task Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl p-8 animate-in slide-in-from-bottom-10">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="card w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-10 border border-gray-300 dark:border-white/10">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">새 태스크 추가</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-50 rounded-2xl transition-all">
-                  <X className="w-6 h-6 text-gray-400" />
+                <h2 className="hero-title" style={{ fontSize: '1.6rem' }}>새 태스크 추가</h2>
+                <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-white/60 dark:bg-white/10 rounded-2xl transition-all">
+                  <X className="w-6 h-6 text-[#7D879C]/80 dark:text-white/40" />
                 </button>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 ml-1">태스크 이름</label>
+                  <label className="hero-meta ml-1">태스크 이름</label>
                   <input
                     type="text"
                     placeholder="무엇을 완료해야 하나요?"
                     autoFocus
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-300 font-medium"
+                    className="w-full px-6 py-5 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] focus:bg-white/40 dark:bg-[#1A2340] outline-none transition-all placeholder-white/20 font-black text-[#1A2340] dark:text-white"
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
@@ -237,7 +206,7 @@ export default function Tasks() {
                 <button
                   onClick={handleAddTask}
                   disabled={!newTaskTitle.trim()}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 disabled:bg-gray-200 disabled:shadow-none transition-all active:scale-[0.98]"
+                  className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:bg-white/50 dark:bg-white/5 disabled:text-gray-300 dark:text-white/20 disabled:shadow-none transition-all active:scale-[0.98] border border-[#7C6CFF]/50 disabled:border-transparent"
                 >
                   태스크 생성하기
                 </button>

@@ -1,14 +1,10 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { Bell, CheckCircle2, MessageSquare, AlertCircle, Calendar as CalendarIcon, FileText, Check } from "lucide-react";
 
 export default function Notifications() {
-  const { user } = useAuth();
-  const isTestUser = user?.isTestUser;
-
   const [activeTab, setActiveTab] = useState("전체");
 
-  const notifications = isTestUser ? [
+  const notifications = [
     {
       id: 1,
       type: "mention",
@@ -17,8 +13,7 @@ export default function Notifications() {
       time: "10분 전",
       isRead: false,
       icon: MessageSquare,
-      color: "text-blue-500",
-      bg: "bg-blue-50",
+      theme: "purple"
     },
     {
       id: 2,
@@ -28,19 +23,17 @@ export default function Notifications() {
       time: "1시간 전",
       isRead: false,
       icon: CheckCircle2,
-      color: "text-green-500",
-      bg: "bg-green-50",
+      theme: "green"
     },
     {
       id: 3,
       type: "alert",
-      title: "마감일 알림",
+      title: "마감일 알림 (긴급)",
       content: "AI 모델 구현: 데이터셋 전처리 완료 마감이 내일입니다.",
       time: "어제",
       isRead: true,
       icon: AlertCircle,
-      color: "text-red-500",
-      bg: "bg-red-50",
+      theme: "red"
     },
     {
       id: 4,
@@ -50,57 +43,58 @@ export default function Notifications() {
       time: "어제",
       isRead: true,
       icon: CalendarIcon,
-      color: "text-purple-500",
-      bg: "bg-purple-50",
+      theme: "orange"
     },
     {
       id: 5,
       type: "file",
       title: "새 파일 업로드",
-      content: "이영희님이 '요구사항_정의서_v2.pdf'를 업로드했습니다.",
+      content: "이영희님이 '요구사항_정의 정의서_v2.pdf'를 업로드했습니다.",
       time: "2일 전",
       isRead: true,
       icon: FileText,
-      color: "text-indigo-500",
-      bg: "bg-indigo-50",
+      theme: "blue"
     },
-  ] : [];
+  ];
 
-  const filteredNotis = activeTab === "전체"
-    ? notifications
-    : activeTab === "안 읽음"
-      ? notifications.filter(n => !n.isRead)
+  const filteredNotis = activeTab === "전체" 
+    ? notifications 
+    : activeTab === "안 읽음" 
+      ? notifications.filter(n => !n.isRead) 
       : notifications.filter(n => n.type === activeTab);
 
   return (
-    <div className="p-6 md:p-8 space-y-6 bg-[#f8faff] min-h-screen pb-24 max-w-4xl mx-auto">
+    <div className="dashboard pt-4 lg:max-w-4xl lg:mx-auto">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <p className="text-gray-400 text-[14px] font-bold">새로운 소식</p>
-          <h1 className="text-[28px] font-black text-gray-900 tracking-tight flex items-center gap-3">
-            알림 센터
-            <span className="flex items-center justify-center w-7 h-7 bg-red-500 text-white text-[13px] rounded-full shadow-lg shadow-red-200">
-              {notifications.filter(n => !n.isRead).length}
-            </span>
-          </h1>
+      <section className="card hero-card mb-6">
+        <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
+          <div>
+            <p className="hero-meta uppercase">알림 피드</p>
+            <h1 className="hero-title flex items-center gap-4" style={{ fontSize: '2rem' }}>
+              알림 센터
+              <span className="flex items-center justify-center min-w-[32px] h-[32px] px-2.5 bg-[#FF6B7A] text-white text-[13px] font-black rounded-[10px] shadow-[0_0_15px_rgba(255,107,122,0.4)] border border-[#FF6B7A]/50">
+                {notifications.filter(n => !n.isRead).length}
+              </span>
+            </h1>
+          </div>
+          <button className="flex items-center gap-3 px-6 py-3.5 bg-white/50 dark:bg-white/5 border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/60 rounded-[20px] text-[13px] font-black uppercase tracking-widest hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white transition-all shadow-sm active:scale-95 group">
+            <Check className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            모두 읽음
+          </button>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-[14px] font-bold hover:bg-gray-50 transition-all shadow-sm">
-          <Check className="w-4 h-4" />
-          모두 읽음
-        </button>
-      </div>
+      </section>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
+      <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide mb-6 relative z-10">
         {["전체", "안 읽음", "mention", "task"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 rounded-xl text-[14px] font-bold whitespace-nowrap transition-all ${activeTab === tab
-                ? "bg-[#6366f1] text-white shadow-lg shadow-indigo-100"
-                : "bg-white text-gray-400 border border-gray-100 hover:bg-gray-50"
-              }`}
+            className={`px-6 py-3 rounded-[20px] text-[12px] font-black uppercase tracking-widest transition-all ${
+              activeTab === tab
+                ? "bg-[#7C6CFF] text-white shadow-[0_0_20px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/40"
+                : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-white/5 hover:text-[#1A2340] dark:text-white"
+            }`}
           >
             {tab === "mention" ? "멘션" : tab === "task" ? "업무" : tab}
           </button>
@@ -108,33 +102,36 @@ export default function Notifications() {
       </div>
 
       {/* Notification List */}
-      <div className="bg-white rounded-[28px] shadow-sm border border-[#f1f5f9] overflow-hidden">
+      <div className="space-y-4 pb-24">
         {filteredNotis.length > 0 ? (
-          <div className="divide-y divide-gray-50">
+          <div className="space-y-4">
             {filteredNotis.map((noti) => (
-              <div
-                key={noti.id}
-                className={`p-5 hover:bg-gray-50 transition-colors flex gap-4 cursor-pointer relative ${!noti.isRead ? "bg-indigo-50/30" : ""
-                  }`}
+              <div 
+                key={noti.id} 
+                className={`card !p-6 flex gap-6 cursor-pointer relative group transition-all !border-gray-200 dark:!border-white/5 ${
+                  !noti.isRead ? "!bg-white/40 dark:!bg-[#1A2340] hover:!bg-white/50 dark:!bg-[#222E54]" : "hover:!bg-white/40 dark:!bg-[#1A2340]"
+                }`}
               >
                 {!noti.isRead && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-lg"></div>
+                  <div className="absolute left-0 top-6 bottom-6 w-1.5 rounded-r-lg bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.6)]"></div>
                 )}
-
-                <div className={`w-12 h-12 rounded-2xl ${noti.bg} flex items-center justify-center flex-shrink-0 mt-1`}>
-                  {<noti.icon className={`w-6 h-6 ${noti.color}`} />}
+                
+                <div className={`schedule-item ${noti.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
+                  <div className="schedule-icon" style={{ width: 64, height: 64, borderRadius: 16 }}>
+                    <noti.icon className="w-8 h-8 text-[#1A2340] dark:text-white" />
+                  </div>
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <h3 className={`text-[16px] truncate ${!noti.isRead ? "font-black text-gray-900" : "font-bold text-gray-700"}`}>
+                
+                <div className="flex-1 min-w-0 py-1">
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <h3 className={`text-[17px] tracking-tight truncate ${!noti.isRead ? "font-black text-[#1A2340] dark:text-white" : "font-black text-[#7D879C] dark:text-white/70"}`}>
                       {noti.title}
                     </h3>
-                    <span className="text-[12px] font-bold text-gray-400 whitespace-nowrap">
+                    <span className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest whitespace-nowrap">
                       {noti.time}
                     </span>
                   </div>
-                  <p className="text-[14px] text-gray-500 font-medium leading-relaxed">
+                  <p className="text-[14px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed group-hover:text-white/90 transition-opacity">
                     {noti.content}
                   </p>
                 </div>
@@ -142,12 +139,14 @@ export default function Notifications() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-              <Bell className="w-10 h-10 text-gray-300" />
+          <div className="card !py-32 flex flex-col items-center justify-center text-center !border-gray-200 dark:!border-white/5">
+            <div className={`schedule-item purple !p-0 !border-none bg-transparent mb-6 opacity-40`}>
+              <div className="schedule-icon" style={{ width: 80, height: 80, borderRadius: 24 }}>
+                <Bell className="w-10 h-10 text-[#1A2340] dark:text-white" />
+              </div>
             </div>
-            <p className="text-[18px] font-black text-gray-900 mb-2">새로운 알림이 없습니다</p>
-            <p className="text-[14px] font-bold text-gray-400">팀원들이 보내는 소식이 이곳에 표시됩니다.</p>
+            <p className="text-[20px] font-black text-[#1A2340] dark:text-white mb-2 uppercase tracking-tight">상태 확인 완료</p>
+            <p className="hero-meta !text-[#7D879C]/80 dark:!text-white/40">새로운 알림이 없습니다.</p>
           </div>
         )}
       </div>

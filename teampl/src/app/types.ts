@@ -5,7 +5,6 @@ export type User = {
   studentId?: string;
   department?: string;
   avatarUrl?: string;
-  isTestUser?: boolean;
 };
 
 export type Workspace = {

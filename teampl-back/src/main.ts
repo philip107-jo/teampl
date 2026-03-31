@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import tasksRouter from './modules/tasks/tasks.controller';
 import projectsRouter from './modules/projects/projects.controller';
 import authRouter from './modules/auth/auth.controller';
+import schedulesRouter from './modules/schedules/schedules.controller';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/tasks', tasksRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/schedules', schedulesRouter);
 
 app.listen(port, () => {
   console.log(`🚀 Server is running on http://localhost:${port}`);

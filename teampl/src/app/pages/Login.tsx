@@ -17,7 +17,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email);
       navigate("/");
     } catch (err: any) {
       setError(err.message || "로그인에 실패했습니다.");
@@ -35,10 +35,10 @@ export default function Login() {
       <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-600 shadow-xl shadow-indigo-200 mb-6 rotate-3 hover:rotate-0 transition-transform duration-300">
-            <Compass className="w-10 h-10 text-white" />
+            <Compass className="w-10 h-10 text-[#1A2340] dark:text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">TeamSync</h1>
-          <p className="text-gray-500 mt-3 font-medium">더 밝고 스마트한 협업의 시작</p>
+          <h1 className="text-4xl font-extrabold text-[#1A2340] tracking-tight">TeamSync</h1>
+          <p className="text-[#7D879C] mt-3 font-medium">더 밝고 스마트한 협업의 시작</p>
         </div>
 
         <div className="bg-white/70 backdrop-blur-xl rounded-[40px] p-10 border border-white shadow-2xl shadow-gray-200/50">
@@ -51,15 +51,15 @@ export default function Login() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700 ml-1">이메일</label>
+              <label className="text-sm font-bold text-[#7D879C] ml-1">이메일</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-gray-400 group-focus-within:text-indigo-600 transition-colors" />
+                  <Mail className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
                 </div>
                 <input
                   type="email"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-gray-900 placeholder:text-gray-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all"
                   placeholder="name@university.ac.kr"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -69,19 +69,19 @@ export default function Login() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
-                <label className="text-sm font-bold text-gray-700">비밀번호</label>
+                <label className="text-sm font-bold text-[#7D879C]">비밀번호</label>
                 <Link to="#" className="text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
                   비밀번호 찾기
                 </Link>
               </div>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-gray-400 group-focus-within:text-indigo-600 transition-colors" />
+                  <Lock className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
                 </div>
                 <input
                   type="password"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-gray-900 placeholder:text-gray-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -92,7 +92,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-[#1A2340] dark:text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -105,7 +105,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center mt-10 text-sm text-gray-500">
+          <p className="text-center mt-10 text-sm text-[#7D879C]">
             계정이 아직 없으신가요?{" "}
             <Link to="/register" className="text-indigo-600 font-bold hover:underline transition-all">
               무료 회원가입
@@ -113,7 +113,7 @@ export default function Login() {
           </p>
         </div>
 
-        <p className="mt-8 text-center text-xs text-gray-400 font-bold tracking-widest uppercase">
+        <p className="mt-8 text-center text-xs text-[#7D879C]/80 font-bold tracking-widest uppercase">
           &copy; 2026 TeamSync. Built for Success.
         </p>
       </div>

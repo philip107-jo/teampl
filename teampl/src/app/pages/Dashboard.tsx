@@ -1,361 +1,257 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  FolderKanban,
-  CheckSquare,
-  Clock,
-  TrendingUp,
-  Bell,
-  ChevronRight,
-  ChevronDown,
-  Check,
-  Building2,
-  AlertCircle,
-  Award,
-  Users,
-  Flame,
-  LayoutDashboard as DashIcon,
-  Calendar as CalendarIcon,
-  Users2,
-  BarChart3,
-  CheckCircle2
-} from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-} from 'recharts';
-import { initialTasks, initialWorkspace } from "../mockData";
-import { Link } from "react-router";
-import { useAuth } from "../context/AuthContext";
-import { projectApi, Project } from "../api/projectApi";
+import React, { useState } from "react";
+import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target } from "lucide-react";
+import { useNavigate } from "react-router";
+import { initialTasks, initialMembers } from "../mockData";
+import { Task } from "../types";
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const isTestUser = user?.isTestUser;
-
-  const [selectedProject, setSelectedProject] = useState("all");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    projectApi.getProjects().then(data => setProjects(data)).catch(console.error);
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const tasks = isTestUser ? initialTasks : [];
-  const workspace = isTestUser ? initialWorkspace : null;
-
-  const doneTasks = tasks.filter(t => t.status === 'DONE').length;
-  const progressPercent = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
-
-  const stats = [
-    {
-      label: "진행 프로젝트",
-      value: isTestUser ? "1" : "0",
-      icon: FolderKanban,
-      color: "bg-blue-500",
-    },
-    {
-      label: "할 일 완료",
-      value: `${doneTasks}/${tasks.length}`,
-      icon: CheckSquare,
-      color: "bg-green-500",
-    },
-    {
-      label: "남은 기한",
-      value: isTestUser ? "D-110" : "-",
-      icon: Clock,
-      color: "bg-orange-500",
-    },
-    {
-      label: "완료율",
-      value: `${progressPercent}%`,
-      icon: TrendingUp,
-      color: "bg-purple-500",
-    },
+  const navigate = useNavigate();
+  
+  // -- Local State --
+  const [tasks] = useState<Task[]>(initialTasks);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  
+  // Available projects for selection (Mockup list)
+  const projects = [
+    { id: 1, name: "데이터베이스 설계 프로젝트", course: "데이터베이스", icon: Database, color: "blue" },
+    { id: 2, name: "모바일 앱 개발", course: "소프트웨어공학", icon: Zap, color: "green" },
+    { id: 3, name: "AI 모델 구현", course: "인공지능", icon: BarChart3, color: "purple" },
+    { id: 4, name: "웹 서비스 기획", course: "창업과 경영", icon: Target, color: "orange" },
   ];
+  
+  const [selectedProject, setSelectedProject] = useState(projects[0]);
 
-  // Contribution data (Mock)
-  const contributionData = isTestUser ? [
-    { name: '나 (팀장)', tasks: 12, attendance: 100, compliance: 95, color: '#4f46e5' },
-    { name: '김철수', tasks: 8, attendance: 90, compliance: 85, color: '#10b981' },
-    { name: '이영희', tasks: 10, attendance: 95, compliance: 90, color: '#f59e0b' },
-    { name: '박민수', tasks: 4, attendance: 70, compliance: 60, color: '#ef4444' },
-  ] : [];
+  // Dynamic calculations based on real mock data
+  const totalTasks = tasks.length;
+  const completedCount = tasks.filter(t => t.status === "DONE").length;
+  const inProgressCount = tasks.filter(t => t.status === "IN_PROGRESS").length;
+  const todoCount = tasks.filter(t => t.status === "TODO").length;
+  const progressPercentage = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  const taskDistribution = isTestUser ? [
-    { name: '완료', value: 34, color: '#10b981' },
-    { name: '진행중', value: 12, color: '#3b82f6' },
-    { name: '대기', value: 8, color: '#94a3b8' },
-    { name: '지연', value: 3, color: '#ef4444' },
-  ] : [
-    { name: '데이터 없음', value: 100, color: '#e2e8f0' }
-  ];
-
-  const contributionStats = isTestUser ? [
-    { label: "최고 기여자", value: "나 (팀장)", icon: Award, color: "text-yellow-500", bg: "bg-yellow-50" },
-    { label: "평균 달성률", value: "88%", icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50" },
-    { label: "주의 멤버", value: "1명", icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
-    { label: "연속 협업일", value: "12일", icon: Flame, color: "text-orange-500", bg: "bg-orange-50" },
-  ] : [
-    { label: "최고 기여자", value: "-", icon: Award, color: "text-gray-400", bg: "bg-gray-50" },
-    { label: "평균 달성률", value: "0%", icon: TrendingUp, color: "text-gray-400", bg: "bg-gray-50" },
-    { label: "주의 멤버", value: "0명", icon: AlertCircle, color: "text-gray-400", bg: "bg-gray-50" },
-    { label: "연속 협업일", value: "0일", icon: Flame, color: "text-gray-400", bg: "bg-gray-50" },
-  ];
+  const handleSelectProject = (project: any) => {
+    setSelectedProject(project);
+    setIsProjectModalOpen(false);
+  };
 
   return (
-    <div className="space-y-6 p-4 pb-24 max-w-5xl mx-auto bg-[#f8faff]">
-      {/* Header Card - Redesigned */}
-      <div className="bg-white rounded-[24px] p-8 text-gray-900 border border-gray-100 shadow-sm relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <p className="text-gray-500 text-xs font-medium">참여중인</p>
-              <h1 className="text-3xl font-bold tracking-tight">프로젝트</h1>
-            </div>
-            <Link to="/notifications" className="p-2 bg-white rounded-full hover:bg-gray-50 transition-colors shadow-sm border border-gray-100">
-              <div className="relative">
-                <Bell className="w-6 h-6 text-gray-600" />
-                {isTestUser && <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></div>}
-              </div>
-            </Link>
-          </div>
-
-          <div className="mt-10">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-600">전체 진행률</span>
-              <span className="text-sm font-bold">{progressPercent}%</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-              <div
-                className="bg-[#6366f1] h-full rounded-full transition-all duration-1000"
-                style={{ width: `${progressPercent}%` }}
-              ></div>
+    <div className="dashboard pb-safe">
+      <section className="card hero-card">
+        <div className="hero-top">
+          <div className="flex items-start gap-4">
+            <div>
+              <div className="hero-meta">{selectedProject.course}</div>
+              <h1 className="hero-title">{selectedProject.name}</h1>
             </div>
           </div>
+          <button 
+            onClick={() => navigate("/notifications")}
+            className="hero-action active:scale-90"
+            title="알림 확인"
+          >
+            <Bell className="w-6 h-6" />
+          </button>
         </div>
-        {/* Subtle decorative circles from the image */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-4 left-10 w-4 h-4 rounded-full border border-gray-300"></div>
-          <div className="absolute top-20 left-40 w-6 h-6 rounded-full border border-gray-300"></div>
-          <div className="absolute top-10 right-20 w-8 h-8 rounded-full border border-gray-300"></div>
-        </div>
-      </div>
 
-      {/* Notice Card - Restored */}
-      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-50">
-        <div className="flex items-center justify-between mb-6">
+        <div className="hero-bottom">
+          <div className="hero-progress-head">
+            <span className="hero-progress-label">전체 진행률</span>
+            <span className="hero-progress-value">{progressPercentage}%</span>
+          </div>
+          <div className="progress-track">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${progressPercentage}%` }}
+            ></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card schedule-card">
+        <div className="card-head">
+          <div className="head-left">
+            <div className="icon-chip">📅</div>
+            <h2 className="card-title">다가오는 일정</h2>
+          </div>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-50 rounded-xl">
-              <Bell className="w-5 h-5 text-orange-500" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900">공지사항</h2>
+            <span className="badge">일정 {todoCount}개</span>
           </div>
-          {isTestUser && <span className="bg-orange-50 text-orange-600 text-[10px] font-bold px-2 py-1 rounded-lg">새 소식 3개</span>}
         </div>
 
-        <div className="space-y-6">
-          {workspace?.notice ? [
-            { title: workspace.notice, date: new Date().toLocaleDateString(), color: "bg-emerald-500", icon: AlertCircle },
-          ].map((item, idx) => (
-            <div key={idx} className="flex items-center gap-4">
-              <div className={`${item.color} p-2.5 rounded-xl shadow-sm`}>
-                <item.icon className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-gray-800">{item.title}</h3>
-                <p className="text-[10px] text-gray-400 font-medium mt-0.5">{item.date}</p>
-              </div>
-            </div>
-          )) : (
-            <div className="text-center py-6">
-              <p className="text-sm font-bold text-gray-400">등록된 공지사항이 없습니다.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Contribution Dashboard - Redesigned */}
-      <div className="space-y-6 pt-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-500" />
-              팀 기여 분석
-            </h2>
-            <p className="text-xs text-gray-400 font-medium">팀원별 활동 내역과 기여도를 확인하세요</p>
-          </div>
-
-          {/* Custom Project Filter Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center justify-between w-[240px] bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 shadow-sm transition-all hover:bg-gray-50 group"
-            >
-              <span className="truncate pr-2">
-                {selectedProject === "all" ? "전체 프로젝트 보기" : projects.find(p => p.id.toString() === selectedProject)?.name}
-              </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-transform duration-200 flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top">
-                <div className="max-h-[240px] overflow-y-auto outline-none py-1.5 scrollbar-hide">
-                  <button
-                    onClick={() => { setSelectedProject("all"); setIsDropdownOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-[14px] font-bold transition-colors flex items-center justify-between ${selectedProject === "all" ? "bg-indigo-50 text-indigo-600" : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                  >
-                    <span>전체 프로젝트 보기</span>
-                    {selectedProject === "all" && <Check className="w-4 h-4 text-indigo-600" />}
-                  </button>
-                  {projects.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSelectedProject(p.id.toString()); setIsDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-[14px] font-bold transition-colors flex items-center justify-between ${selectedProject === p.id.toString() ? "bg-indigo-50 text-indigo-600" : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                    >
-                      <span className="truncate pr-2">{p.name}</span>
-                      {selectedProject === p.id.toString() && <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
-                    </button>
-                  ))}
+        <div className="schedule-list">
+          {tasks.filter(t => t.status === "TODO").slice(0, 3).map((task, idx) => (
+            <div key={task.id} className={`schedule-item ${idx === 0 ? 'purple' : idx === 1 ? 'orange' : 'blue'}`}>
+              <div className="schedule-main">
+                <div className="schedule-icon">
+                  {idx === 0 ? <Users2 className="w-5 h-5" /> : idx === 1 ? <AlertCircle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                </div>
+                <div>
+                  <p className="schedule-title truncate max-w-[180px]">{task.title}</p>
+                  <p className="schedule-date">{task.deadline?.replace(/-/g, '.')}</p>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Contribution Quick Stats - Colors from image */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "총 작업량", value: isTestUser ? "14,283건" : "0건", icon: BarChart3, bg: "bg-[#fff7ed]", iconColor: "text-[#f97316]" },
-            { label: "완료율", value: isTestUser ? "68%" : "0%", icon: CheckCircle2, bg: "bg-[#f0fdf4]", iconColor: "text-[#10b981]" },
-            { label: "남은 작업", value: isTestUser ? "18건" : "0건", icon: AlertCircle, bg: "bg-[#fef2f2]", iconColor: "text-[#ef4444]" },
-            { label: "팀원 수", value: isTestUser ? "12명" : "1명", icon: Users2, bg: "bg-[#f0f7ff]", iconColor: "text-[#2563eb]" },
-          ].map((stat, idx) => (
-            <div key={idx} className="bg-white p-5 rounded-[24px] border border-gray-50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] flex flex-col items-center text-center gap-4 transition-all hover:shadow-md">
-              <div className={`w-12 h-12 rounded-[16px] ${stat.bg} flex items-center justify-center flex-shrink-0`}>
-                <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">{stat.label}</p>
-                <p className="text-[18px] font-black text-gray-900 leading-none">{stat.value}</p>
-              </div>
+              <span className="schedule-status">{idx === 0 ? '대기중' : idx === 1 ? 'D-day' : '예정'}</span>
             </div>
           ))}
+          {todoCount === 0 && <p className="text-center py-4 opacity-50 text-sm">대기 중인 일정이 없습니다.</p>}
+        </div>
+      </section>
+
+      <div className="section-head">
+        <div className="section-title-wrap">
+          <div className="section-kicker">↗ 팀 기여 분석</div>
+          <div className="section-sub">팀원별 활동 내역과 기여도를 확인하세요</div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Team Contribution Bars - Matches image style */}
-          <div className="bg-white p-8 rounded-[32px] border border-gray-50 shadow-sm">
-            <h3 className="font-bold text-sm text-gray-900 mb-8 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-              팀원별 기여도
-            </h3>
-            <div className="space-y-8">
-              {isTestUser ? (selectedProject === "all" ? [
-                { name: "나 (팀장)", percent: 38, color: "bg-[#4f46e5]", tasks: 145 },
-                { name: "김철수", percent: 28, color: "bg-[#10b981]", tasks: 108 },
-                { name: "이영희", percent: 20, color: "bg-[#f59e0b]", tasks: 76 },
-                { name: "박민수", percent: 14, color: "bg-[#ef4444]", tasks: 53 },
-              ] : selectedProject === "p1" ? [
-                { name: "나 (팀장)", percent: 65, color: "bg-[#4f46e5]", tasks: 45 },
-                { name: "김철수", percent: 20, color: "bg-[#10b981]", tasks: 14 },
-                { name: "이영희", percent: 15, color: "bg-[#f59e0b]", tasks: 10 },
-                { name: "박민수", percent: 0, color: "bg-[#ef4444]", tasks: 0 },
-              ] : [
-                { name: "이영희", percent: 55, color: "bg-[#f59e0b]", tasks: 32 },
-                { name: "김철수", percent: 30, color: "bg-[#10b981]", tasks: 18 },
-                { name: "박민수", percent: 10, color: "bg-[#ef4444]", tasks: 6 },
-                { name: "나 (팀장)", percent: 5, color: "bg-[#4f46e5]", tasks: 3 },
-              ]).map((member, idx) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex justify-between items-center text-[11px] font-bold text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-700">{member.name}</span>
-                      <span className="text-[10px] font-medium bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{member.tasks}건</span>
-                    </div>
-                    <span className="text-gray-900">{member.percent}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className={`${member.color} h-full rounded-full transition-all duration-1000`}
-                      style={{ width: `${member.percent}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-sm font-bold text-gray-400">참여자 데이터가 없습니다.</div>
-              )}
-            </div>
-          </div>
-
-          {/* Project Composition Pie Chart - Matches image style */}
-          <div className="bg-white p-8 rounded-[32px] border border-gray-50 shadow-sm">
-            <h3 className="font-bold text-sm text-gray-900 mb-8 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              프로젝트 구성 비율
-            </h3>
-            <div className="flex flex-col items-center">
-              <div className="relative w-[180px] h-[180px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={taskDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={85}
-                      paddingAngle={0}
-                      dataKey="value"
-                      startAngle={90}
-                      endAngle={450}
-                    >
-                      {taskDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Center text for Donut chart */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-bold text-gray-900">100%</span>
-                  <span className="text-[10px] text-gray-400 font-bold">전체</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-8 w-full">
-                {taskDistribution.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></div>
-                      <span className="text-[11px] font-bold text-gray-400">{item.name}</span>
-                    </div>
-                    <span className="text-[11px] font-bold text-gray-900">{item.value}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <button 
+          onClick={() => setIsProjectModalOpen(true)}
+          className="filter-btn active:scale-95"
+        >
+          <span>다른 프로젝트 선택</span>
+          <span>⌄</span>
+        </button>
       </div>
+
+      <section className="stats-grid">
+        <article className="stat-card orange">
+          <div className="stat-icon"><BarChart3 className="w-7 h-7" /></div>
+          <div className="stat-label">총 작업량</div>
+          <div className="stat-value">{totalTasks.toLocaleString()}건</div>
+          <div className="stat-delta positive">+0 vs start</div>
+        </article>
+
+        <article className="stat-card green">
+          <div className="stat-icon"><CheckCircle2 className="w-7 h-7" /></div>
+          <div className="stat-label">완료율</div>
+          <div className="stat-value">{progressPercentage}%</div>
+          <div className="stat-delta positive">Based on {completedCount} tasks</div>
+        </article>
+
+        <article className="stat-card red">
+          <div className="stat-icon"><AlertCircle className="w-7 h-7" /></div>
+          <div className="stat-label">남은 작업</div>
+          <div className="stat-value">{todoCount}건</div>
+          <div className="stat-delta negative">{inProgressCount} in progress</div>
+        </article>
+
+        <article className="stat-card blue">
+          <div className="stat-icon"><Users2 className="w-7 h-7" /></div>
+          <div className="stat-label">팀원 수</div>
+          <div className="stat-value">{initialMembers.length}명</div>
+          <div className="stat-delta">0 vs last week</div>
+        </article>
+      </section>
+
+      <section className="analysis-grid">
+        <article className="card analysis-card">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="analysis-title !mb-0">
+              <span className="analysis-dot"></span> 팀원별 기여도
+            </h3>
+          </div>
+
+          <div className="contribution-list">
+            {initialMembers.map((member, idx) => {
+              const memberTasks = tasks.filter(t => t.assignees.includes(member.id)).length;
+              const percent = totalTasks > 0 ? Math.round((memberTasks / totalTasks) * 100) : 0;
+              const colors = ['purple', 'green', 'orange', 'red'];
+              return (
+                <div key={member.id} className="member-row">
+                  <div className="member-meta">
+                    <span className="member-name truncate max-w-[80px]">{member.name}</span>
+                    <span className="member-count">{memberTasks}건</span>
+                    {idx === 0 && <span className="member-tag">TEAM LEAD</span>}
+                  </div>
+                  <div className="member-percent">{percent}%</div>
+                  <div className={`bar ${colors[idx % 4]}`}><span style={{ width: `${percent}%` }}></span></div>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="card analysis-card donut-card">
+          <h3 className="analysis-title">
+            <span className="analysis-dot"></span> 프로젝트 구성 비중
+          </h3>
+
+          <div className="donut-wrap">
+            <div 
+              className="donut"
+              style={{
+                background: `conic-gradient(
+                  var(--theme-teal) 0% ${Math.round((completedCount/totalTasks)*100)}%, 
+                  var(--theme-blue) ${Math.round((completedCount/totalTasks)*100)}% ${Math.round(((completedCount+inProgressCount)/totalTasks)*100)}%, 
+                  #808ca8 ${Math.round(((completedCount+inProgressCount)/totalTasks)*100)}% ${Math.round(((completedCount+inProgressCount+todoCount)/totalTasks)*100)}%, 
+                  var(--theme-red) ${Math.round(((completedCount+inProgressCount+todoCount)/totalTasks)*100)}% 100%
+                )`
+              } as any}
+            >
+              <div className="donut-center">
+                <div>
+                  <div className="donut-value">100%</div>
+                  <div className="donut-label">전체 {totalTasks}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="legend">
+            <div className="legend-item">
+              <div className="legend-left"><span className="legend-dot done"></span>완료</div>
+              <div className="legend-value">{completedCount}</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-left"><span className="legend-dot progress"></span>진행중</div>
+              <div className="legend-value">{inProgressCount}</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-left"><span className="legend-dot waiting"></span>대기</div>
+              <div className="legend-value">{todoCount}</div>
+            </div>
+            <div className="legend-item">
+              <div className="legend-left"><span className="legend-dot delay"></span>지연</div>
+              <div className="legend-value">0</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      {/* -- Project Selection Modal -- */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-sm:max-w-[calc(100%-2rem)] max-w-sm shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-6 border border-gray-300 dark:border-white/10 dark:bg-[#132038]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="hero-title !text-xl">프로젝트 선택</h2>
+              <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                <X className="w-5 h-5 text-[#7D879C] dark:text-white/60" />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => handleSelectProject(project)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-95 text-left border ${
+                    selectedProject.id === project.id 
+                      ? "bg-[#7C6CFF]/10 border-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.2)]" 
+                      : "bg-white/5 border-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-[#7C6CFF]/20 text-[#7C6CFF]`}>
+                    <project.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-black text-[#1A2340] dark:text-white leading-tight mb-1">{project.name}</p>
+                    <p className="text-[11px] font-bold text-[#7D879C] dark:text-white/40 uppercase">{project.course}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="sparkle"></div>
     </div>
   );
 }
