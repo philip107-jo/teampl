@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight } from "lucide-react";
+import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { authApi } from "../api/authApi";
 
 const DEPARTMENTS = [
   "컴퓨터공학과", "소프트웨어융합보안학과", "AI전공", "정보통신학과",
@@ -20,12 +21,32 @@ export default function Register() {
     department: "",
   });
   const [isDeptOpen, setIsDeptOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.");
-    navigate("/login");
+    if (formData.password !== formData.passwordConfirm) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    try {
+      await authApi.register({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name
+      });
+      alert("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.");
+      navigate("/login");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "회원가입에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,6 +64,13 @@ export default function Register() {
         <div className="bg-white/80 backdrop-blur-2xl rounded-[48px] p-10 border border-white shadow-2xl shadow-gray-200/50">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             
+            {error && (
+              <div className="md:col-span-2 bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-red-600 text-sm animate-in slide-in-from-top-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <p className="font-medium">{error}</p>
+              </div>
+            )}
+
             {/* Name */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-[#7D879C] ml-1">이름</label>
@@ -172,10 +200,11 @@ export default function Register() {
 
             <button
               type="submit"
-              className="md:col-span-2 w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 text-[#1A2340] dark:text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
+              disabled={loading}
+              className="md:col-span-2 w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 text-[#1A2340] dark:text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
             >
-              회원가입 완료
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "회원가입 완료"}
+              {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
             </button>
           </form>
 

@@ -1,13 +1,20 @@
 import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { initialTasks, initialMembers, currentUser } from "../mockData";
+import { initialMembers, currentUser } from "../mockData";
 import { Task, TaskStatus } from "../types";
 import KanbanBoard from "../components/KanbanBoard";
+import { taskApi } from "../api/taskApi";
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    taskApi.getTasks()
+      .then(data => setTasks(data))
+      .catch(err => console.error("태스크 로드 에러:", err));
+  }, []);
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [viewMode, setViewMode] = useState<"list" | "board">("list");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,34 +25,48 @@ export default function Tasks() {
     return task.status === filter;
   });
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      workspaceId: 'workspace-1',
-      title: newTaskTitle,
-      status: 'TODO',
-      priority: 'medium',
-      deadline: new Date().toISOString().split('T')[0],
-      createdById: currentUser.id,
-      assignees: [currentUser.id]
-    };
-    setTasks([newTask, ...tasks]);
-    setNewTaskTitle("");
-    setIsModalOpen(false);
+    try {
+      const newTask = await taskApi.createTask({
+        workspaceId: 'workspace-1',
+        title: newTaskTitle,
+        status: 'TODO',
+        priority: 'medium',
+        deadline: new Date().toISOString().split('T')[0],
+        createdById: currentUser.id,
+        assignees: [currentUser.id]
+      });
+      setTasks([newTask, ...tasks]);
+      setNewTaskTitle("");
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("태스크 추가 실패!");
+    }
   };
 
-  const toggleTaskStatus = (id: string) => {
-    setTasks(tasks.map(t => {
-      if (t.id === id) {
-        return { ...t, status: t.status === 'DONE' ? 'TODO' : 'DONE' };
-      }
-      return t;
-    }));
+  const toggleTaskStatus = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const target = task.status === 'DONE' ? 'TODO' : 'DONE';
+    try {
+      await taskApi.updateTaskStatus(id, target);
+      setTasks(tasks.map(t => t.id === id ? { ...t, status: target } : t));
+    } catch (err) {
+      console.error(err);
+      alert("상태 수정 실패!");
+    }
   };
 
-  const moveTask = (taskId: string, targetStatus: TaskStatus) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
+  const moveTask = async (taskId: string, targetStatus: TaskStatus) => {
+    try {
+      await taskApi.updateTaskStatus(taskId, targetStatus);
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
+    } catch (e) {
+      console.error(e);
+      alert("카드 이동 실패!");
+    }
   };
 
   const getPriorityColor = (priority: string) => {

@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { currentUser as mockUser } from '../mockData';
+import { authApi } from '../api/authApi';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -25,25 +25,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string) => {
-    // 실제로는 API 호출이 있겠지만, 현재는 이메일 확인 후 모의 로그인 처리
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        if (email.includes('@')) {
-          const userData = { ...mockUser, email };
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-          resolve();
-        } else {
-          reject(new Error('유효한 이메일을 입력해주세요.'));
-        }
-      }, 800);
-    });
+  const login = async (email: string, password?: string) => {
+    try {
+      const { user: userData, token } = await authApi.login(email, password);
+      localStorage.setItem('access_token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || '로그인에 실패했습니다 컨텍스트 에러';
+      throw new Error(errMsg);
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('access_token');
   };
 
   return (

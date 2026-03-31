@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MoreVertical, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
 import { Link } from "react-router";
+import { projectApi, Project } from "../api/projectApi";
 
 export default function Projects() {
   const [activeTab, setActiveTab] = useState("전체");
@@ -11,69 +12,35 @@ export default function Projects() {
     description: "",
   });
   
-  const [projects, setProjects] = useState([
-    {
-      id: 1,
-      name: "데이터베이스 설계 프로젝트",
-      course: "데이터베이스",
-      description: "학생 관리 시스템 데이터베이스 설계 및 구현",
-      progress: 75,
-      deadline: "2026.03.20",
-      members: 4,
-      theme: "blue",
-      icon: Database,
-    },
-    {
-      id: 2,
-      name: "모바일 앱 개발",
-      course: "소프트웨어공학",
-      description: "캠퍼스 내 식당 예약 모바일 애플리케이션",
-      progress: 45,
-      deadline: "2026.03.25",
-      members: 5,
-      theme: "green",
-      icon: Zap,
-    },
-    {
-      id: 3,
-      name: "AI 모델 구현",
-      course: "인공지능",
-      description: "이미지 분류를 위한 CNN 모델 구현 및 학습",
-      progress: 30,
-      deadline: "2026.04.01",
-      members: 3,
-      theme: "purple",
-      icon: BarChart3,
-    },
-    {
-      id: 4,
-      name: "웹 서비스 기획",
-      course: "창업과 경영",
-      description: "대학생을 위한 스터디 매칭 플랫폼 기획",
-      progress: 90,
-      deadline: "2026.04.15",
-      members: 3,
-      theme: "orange",
-      icon: Target,
-    },
-  ]);
+  const [projects, setProjects] = useState<any[]>([]);
 
-  const handleAddProject = () => {
+  useEffect(() => {
+    projectApi.getProjects()
+      .then(data => setProjects(data))
+      .catch(err => console.error("프로젝트 불러오기 실패:", err));
+  }, []);
+
+
+  const handleAddProject = async () => {
     if (!newProject.name.trim()) return;
-    const project = {
-      id: Date.now(),
-      name: newProject.name,
-      course: newProject.course || "미지정",
-      description: newProject.description,
-      progress: 0,
-      deadline: new Date().toISOString().split('T')[0],
-      members: 1,
-      theme: "purple",
-      icon: Database,
-    };
-    setProjects([project, ...projects]);
-    setNewProject({ name: "", course: "", description: "" });
-    setIsAddModalOpen(false);
+    try {
+      const p = await projectApi.createProject({
+        name: newProject.name,
+        course: newProject.course || "미지정",
+        description: newProject.description,
+        progress: 0,
+        deadline: new Date().toISOString().split('T')[0],
+        members: 1,
+        color: "purple",
+        icon: "Database",
+      });
+      setProjects([p, ...projects]);
+      setNewProject({ name: "", course: "", description: "" });
+      setIsAddModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("프로젝트 생성 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -136,9 +103,9 @@ export default function Projects() {
             style={{ padding: '1.5rem 1.8rem' }}
           >
             <div className="flex items-start justify-between mb-6">
-              <div className={`schedule-item ${project.theme} !border-none !p-0 bg-transparent`}>
+              <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`}>
                 <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16 }}>
-                  <project.icon className="w-8 h-8" />
+                  {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
                 </div>
               </div>
               <button 

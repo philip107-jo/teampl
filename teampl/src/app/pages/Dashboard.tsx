@@ -1,25 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target } from "lucide-react";
 import { useNavigate } from "react-router";
-import { initialTasks, initialMembers } from "../mockData";
+import { initialMembers } from "../mockData";
 import { Task } from "../types";
+import { taskApi } from "../api/taskApi";
+import { projectApi } from "../api/projectApi";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   
   // -- Local State --
-  const [tasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
   // Available projects for selection (Mockup list)
-  const projects = [
-    { id: 1, name: "데이터베이스 설계 프로젝트", course: "데이터베이스", icon: Database, color: "blue" },
-    { id: 2, name: "모바일 앱 개발", course: "소프트웨어공학", icon: Zap, color: "green" },
-    { id: 3, name: "AI 모델 구현", course: "인공지능", icon: BarChart3, color: "purple" },
-    { id: 4, name: "웹 서비스 기획", course: "창업과 경영", icon: Target, color: "orange" },
-  ];
+  const [projects, setProjects] = useState<any[]>([
+    { id: 1, name: "데이터 로딩중...", course: "기다려주세요", icon: Database, color: "blue" }
+  ]);
   
   const [selectedProject, setSelectedProject] = useState(projects[0]);
+
+  useEffect(() => {
+    Promise.all([taskApi.getTasks(), projectApi.getProjects()])
+      .then(([fetchedTasks, fetchedProjects]) => {
+        setTasks(fetchedTasks);
+        if (fetchedProjects && fetchedProjects.length > 0) {
+          setProjects(fetchedProjects);
+          setSelectedProject(fetchedProjects[0]);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   // Dynamic calculations based on real mock data
   const totalTasks = tasks.length;
@@ -238,7 +249,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-[#7C6CFF]/20 text-[#7C6CFF]`}>
-                    <project.icon className="w-6 h-6" />
+                    {typeof project.icon === 'string' || !project.icon ? <Database className="w-6 h-6"/> : <project.icon className="w-6 h-6" />}
                   </div>
                   <div>
                     <p className="text-[14px] font-black text-[#1A2340] dark:text-white leading-tight mb-1">{project.name}</p>

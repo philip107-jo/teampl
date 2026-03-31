@@ -17,7 +17,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email);
+      await login(email, password);
       navigate("/");
     } catch (err: any) {
       setError(err.message || "로그인에 실패했습니다.");
