@@ -18,6 +18,18 @@ router.post('/', (req, res) => {
     res.status(201).json(newProject);
 });
 
+// POST /api/projects/join
+router.post('/join', (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const { inviteCode, userName } = req.body;
+    if (!inviteCode) return res.status(400).json({ message: 'Invite code is required' });
+    
+    const joinedProject = ProjectsService.join(email, inviteCode, userName);
+    if (!joinedProject) return res.status(404).json({ message: 'Invalid invite code or project not found' });
+    
+    res.status(200).json(joinedProject);
+});
+
 // PATCH /api/projects/:id
 router.patch('/:id', (req, res) => {
     const email = req.header('X-User-Email') || '';
