@@ -24,8 +24,11 @@ import {
   Menu
 } from "lucide-react";
 
+import { projectApi } from "../api/projectApi";
+import { useAuth } from "../context/AuthContext";
+
 // Mock Projects Data
-const projects = [
+const mockProjects = [
   {
     id: 1,
     name: "데이터베이스 설계 프로젝트",
@@ -57,7 +60,7 @@ const projects = [
 ];
 
 // Mock Members
-const members = [
+const mockMembers = [
   {
     id: 1, name: "나 (팀장)", role: "팀장", avatarColor: "bg-[#7C6CFF]", status: "활동중",
     email: "leader@university.ac.kr", phone: "010-1234-5678", department: "컴퓨터공학과", joinDate: "2024.03.01",
@@ -193,6 +196,24 @@ function ProfileModal({ selectedMember, onClose, onMessage }: { selectedMember: 
 }
 
 export default function Chat() {
+  const { user } = useAuth();
+  const isMockUser = user?.email === "test@naver.com";
+  
+  const [realProjects, setRealProjects] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(!isMockUser);
+  
+  useEffect(() => {
+    if (!isMockUser) {
+      projectApi.getProjects()
+        .then(data => setRealProjects(data))
+        .catch(console.error)
+        .finally(() => setIsLoading(false));
+    }
+  }, [isMockUser]);
+
+  const projects = isMockUser ? mockProjects : realProjects;
+  const members = isMockUser ? mockMembers : [];
+
   const [navStep, setNavStep] = useState<NavStep>("LIST");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>("TEAM");
@@ -251,6 +272,26 @@ export default function Chat() {
     });
     setInputText("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-screen bg-[#f8faff] dark:bg-[#0B1020] items-center justify-center">
+        <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#7C6CFF] border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (!isMockUser && projects.length === 0) {
+    return (
+      <div className="flex flex-col h-screen bg-[#f8faff] dark:bg-[#0B1020] items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-white dark:bg-[#12182B] rounded-[24px] flex items-center justify-center mb-6 shadow-sm border border-gray-200 dark:border-white/5">
+          <MessageSquare className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+        </div>
+        <h2 className="text-[20px] font-black text-[#1A2340] dark:text-white mb-2 tracking-tight">참여 중인 채팅방이 없습니다</h2>
+        <p className="text-[13px] font-bold text-[#7D879C]/80 dark:text-white/40 mb-8 max-w-[280px] leading-relaxed">프로젝트에 가입하거나 팀을 생성하면 팀원들과 대화를 시작할 수 있습니다.</p>
+      </div>
+    );
+  }
 
   if (navStep === "LIST") {
     return (

@@ -5,31 +5,37 @@ import { initialMembers } from "../mockData";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
+import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isMockUser = user?.email === "test@naver.com";
   
   // -- Local State --
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Available projects for selection (Mockup list)
-  const [projects, setProjects] = useState<any[]>([
-    { id: 1, name: "데이터 로딩중...", course: "기다려주세요", icon: Database, color: "blue" }
-  ]);
-  
-  const [selectedProject, setSelectedProject] = useState(projects[0]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
 
   useEffect(() => {
-    Promise.all([taskApi.getTasks(), projectApi.getProjects()])
+    Promise.all([
+      taskApi.getTasks().catch(() => []), 
+      projectApi.getProjects().catch(() => [])
+    ])
       .then(([fetchedTasks, fetchedProjects]) => {
         setTasks(fetchedTasks);
         if (fetchedProjects && fetchedProjects.length > 0) {
           setProjects(fetchedProjects);
           setSelectedProject(fetchedProjects[0]);
+        } else {
+          setProjects([]);
+          setSelectedProject(null);
         }
       })
-      .catch(console.error);
+      .finally(() => setIsLoading(false));
   }, []);
 
   // Dynamic calculations based on real mock data
@@ -43,6 +49,43 @@ export default function Dashboard() {
     setSelectedProject(project);
     setIsProjectModalOpen(false);
   };
+
+  if (isLoading) {
+    return (
+      <div className="dashboard pb-safe flex items-center justify-center p-6 h-[70vh]">
+        <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#7C6CFF] border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (!selectedProject) {
+    return (
+      <div className="dashboard pb-safe flex flex-col items-center justify-center p-6 text-center h-[70vh]">
+        <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-[24px] flex items-center justify-center mb-6 opacity-80 shadow-inner">
+          <Database className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+        </div>
+        <h2 className="text-[20px] font-black text-[#1A2340] dark:text-white mb-2 tracking-tight">참여 중인 프로젝트가 없습니다</h2>
+        <p className="text-[13px] font-bold text-[#7D879C]/80 dark:text-white/40 mb-8 max-w-[280px] leading-relaxed">대시보드를 보려면 먼저 프로젝트를 생성하거나 초대를 통해 팀에 합류하세요.</p>
+        <button 
+          onClick={() => navigate("/projects")}
+          className="px-6 py-4 bg-[#7C6CFF] text-white rounded-2xl text-[14px] font-black tracking-widest uppercase shadow-[0_0_20px_rgba(124,108,255,0.3)] hover:opacity-90 active:scale-95 transition-all"
+        >
+          프로젝트 화면으로 가기
+        </button>
+      </div>
+    );
+  }
+
+  const displayMembers = selectedProject?.membersList 
+    ? selectedProject.membersList 
+    : (isMockUser 
+        ? initialMembers 
+        : [{ 
+            id: user?.id || 1, 
+            name: user?.name || "나 (팀장)", 
+            email: user?.email, 
+            department: user?.department 
+          }]);
 
   return (
     <div className="dashboard pb-safe">
@@ -117,7 +160,7 @@ export default function Dashboard() {
           onClick={() => setIsProjectModalOpen(true)}
           className="filter-btn active:scale-95"
         >
-          <span>다른 프로젝트 선택</span>
+          <span className="truncate max-w-[150px]">{selectedProject.name}</span>
           <span>⌄</span>
         </button>
       </div>
@@ -147,7 +190,7 @@ export default function Dashboard() {
         <article className="stat-card blue">
           <div className="stat-icon"><Users2 className="w-7 h-7" /></div>
           <div className="stat-label">팀원 수</div>
-          <div className="stat-value">{initialMembers.length}명</div>
+          <div className="stat-value">{displayMembers.length}명</div>
           <div className="stat-delta">0 vs last week</div>
         </article>
       </section>
@@ -161,8 +204,8 @@ export default function Dashboard() {
           </div>
 
           <div className="contribution-list">
-            {initialMembers.map((member, idx) => {
-              const memberTasks = tasks.filter(t => t.assignees.includes(member.id)).length;
+            {displayMembers.map((member: any, idx: number) => {
+              const memberTasks = tasks.filter(t => t.assignees.includes(String(member.id))).length;
               const percent = totalTasks > 0 ? Math.round((memberTasks / totalTasks) * 100) : 0;
               const colors = ['purple', 'green', 'orange', 'red'];
               return (

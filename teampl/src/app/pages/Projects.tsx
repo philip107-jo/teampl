@@ -1,23 +1,44 @@
 import { useState, useEffect } from "react";
-import { Plus, MoreVertical, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
 import { Link } from "react-router";
 import { projectApi, Project } from "../api/projectApi";
+import { useAuth } from "../context/AuthContext";
 
 export default function Projects() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("전체");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
   const [newProject, setNewProject] = useState({
     name: "",
     course: "",
     description: "",
+    deadline: new Date().toISOString().split('T')[0],
+    color: "#5C6AC4",
   });
   
   const [projects, setProjects] = useState<any[]>([]);
 
+  // 수정 관련 상태
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
+
+  // 삭제 관련 상태
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<any>(null);
+
   useEffect(() => {
-    projectApi.getProjects()
-      .then(data => setProjects(data))
-      .catch(err => console.error("프로젝트 불러오기 실패:", err));
+    const fetchProjects = () => {
+      projectApi.getProjects()
+        .then(data => setProjects(data))
+        .catch(err => console.error("프로젝트 불러오기 실패:", err));
+    };
+
+    fetchProjects();
+    const intervalId = setInterval(fetchProjects, 5000); // 5초마다 자동 갱신 (Polling)
+
+    return () => clearInterval(intervalId);
   }, []);
 
 
@@ -29,17 +50,81 @@ export default function Projects() {
         course: newProject.course || "미지정",
         description: newProject.description,
         progress: 0,
-        deadline: new Date().toISOString().split('T')[0],
+        deadline: newProject.deadline,
+        createdAt: new Date().toISOString().split('T')[0],
         members: 1,
-        color: "purple",
+        color: newProject.color,
         icon: "Database",
+        userName: user?.name || "팀장",
       });
       setProjects([p, ...projects]);
-      setNewProject({ name: "", course: "", description: "" });
+      setNewProject({ name: "", course: "", description: "", deadline: new Date().toISOString().split('T')[0], color: "#5C6AC4" });
       setIsAddModalOpen(false);
     } catch (err) {
       console.error(err);
       alert("프로젝트 생성 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleJoinProject = async () => {
+    if (!inviteCode.trim()) return;
+    try {
+      const p = await projectApi.joinProject(inviteCode.trim().toUpperCase(), user?.name || "팀원");
+      setProjects([p, ...projects]);
+      setInviteCode("");
+      setIsJoinModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("유효하지 않거나 이미 참여한 초대 코드입니다.");
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent, project: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingProject({
+      id: project.id,
+      name: project.name,
+      course: project.course,
+      description: project.description,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, project: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setProjectToDelete(project);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleUpdateProject = async () => {
+    if (!editingProject?.name.trim()) return;
+    try {
+      const updated = await projectApi.updateProject(editingProject.id, {
+        name: editingProject.name,
+        course: editingProject.course || "미지정",
+        description: editingProject.description,
+      });
+      setProjects(projects.map(p => p.id === updated.id ? updated : p));
+      setIsEditModalOpen(false);
+      setEditingProject(null);
+    } catch (err) {
+      console.error(err);
+      alert("프로젝트 수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    try {
+      await projectApi.deleteProject(projectToDelete.id);
+      setProjects(projects.filter(p => p.id !== projectToDelete.id));
+      setIsDeleteModalOpen(false);
+      setProjectToDelete(null);
+    } catch (err) {
+      console.error(err);
+      alert("프로젝트 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -52,13 +137,21 @@ export default function Projects() {
             <div className="hero-meta">관리중인</div>
             <h1 className="hero-title" style={{ fontSize: '2rem' }}>팀 프로젝트</h1>
           </div>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7C6CFF] text-white rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.4)] transition-all hover:scale-105 border border-gray-300 dark:border-white/10 active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            새 프로젝트
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsJoinModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#12182B] text-[#7C6CFF] rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.1)] transition-all hover:scale-105 border border-[#7C6CFF]/30 active:scale-95"
+            >
+              초대코드로 방 입장하기
+            </button>
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#7C6CFF] text-white rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.4)] transition-all hover:scale-105 border border-gray-300 dark:border-white/10 active:scale-95"
+            >
+              <Plus className="w-5 h-5" />
+              새 프로젝트
+            </button>
+          </div>
         </div>
       </section>
 
@@ -103,17 +196,29 @@ export default function Projects() {
             style={{ padding: '1.5rem 1.8rem' }}
           >
             <div className="flex items-start justify-between mb-6">
-              <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`}>
-                <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16 }}>
+              <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`} style={project.color?.startsWith('#') ? {} : undefined}>
+                <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16, ...(project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${project.color}30` } : {}) }}>
                   {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
                 </div>
               </div>
-              <button 
-                className="text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white transition-colors"
-                onClick={(e) => e.preventDefault()}
-              >
-                <MoreVertical className="w-6 h-6" />
-              </button>
+              {(!project.creatorEmail || project.creatorEmail === user?.email) && (
+                <div className="flex items-center gap-1 z-10 relative">
+                  <button 
+                    className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/10 rounded-lg transition-all"
+                    onClick={(e) => handleEditClick(e, project)}
+                    title="수정하기"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                  <button 
+                    className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    onClick={(e) => handleDeleteClick(e, project)}
+                    title="삭제하기"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 mb-6">
@@ -191,12 +296,151 @@ export default function Projects() {
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">마감 날짜</label>
+                  <input
+                    type="date"
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all dark:text-white"
+                    value={newProject.deadline}
+                    onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">프로젝트 색상</label>
+                  <div className="flex items-center gap-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl px-6 py-3.5 transition-all">
+                    <input
+                      type="color"
+                      className="w-8 h-8 rounded shrink-0 cursor-pointer bg-transparent border-0 outline-none p-0"
+                      value={newProject.color}
+                      onChange={(e) => setNewProject({ ...newProject, color: e.target.value })}
+                    />
+                    <span className="text-[14px] font-bold text-[#1A2340] dark:text-white uppercase">{newProject.color}</span>
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={handleAddProject}
                 disabled={!newProject.name.trim()}
                 className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
               >
                 프로젝트 생성하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -- Edit Project Modal -- */}
+      {isEditModalOpen && editingProject && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-8 border border-gray-300 dark:border-white/10 dark:bg-[#132038]">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="hero-title !text-2xl">프로젝트 수정</h2>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-3 hover:bg-white/10 dark:bg-white/10 rounded-2xl transition-all active:scale-90">
+                <X className="w-6 h-6 text-[#7D879C] dark:text-white/60" />
+              </button>
+            </div>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">프로젝트 명</label>
+                <input
+                  type="text"
+                  placeholder="프로젝트 이름을 입력하세요"
+                  autoFocus
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  value={editingProject.name}
+                  onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">과목/카테고리</label>
+                <input
+                  type="text"
+                  placeholder="예: 데이터베이스, 졸업과제"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  value={editingProject.course}
+                  onChange={(e) => setEditingProject({ ...editingProject, course: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">설명</label>
+                <textarea
+                  placeholder="프로젝트에 대한 간단한 설명"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[100px]"
+                  value={editingProject.description}
+                  onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                />
+              </div>
+              <button
+                onClick={handleUpdateProject}
+                disabled={!editingProject.name.trim()}
+                className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
+              >
+                변경사항 저장하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -- Delete Confirmation Modal -- */}
+      {isDeleteModalOpen && projectToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-[360px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
+            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-8 break-keep leading-relaxed">
+              <span className="text-[#1A2340] dark:text-white">'{projectToDelete.name}'</span> 프로젝트에 포함된 모든 할 일, 일정, 채팅 내역이 즉시 영구적으로 삭제되며 되돌릴 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteProject}
+                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95"
+              >
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -- Join Project Modal -- */}
+      {isJoinModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-8 border border-gray-300 dark:border-white/10 dark:bg-[#132038]">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="hero-title !text-2xl">프로젝트 참여</h2>
+              <button onClick={() => setIsJoinModalOpen(false)} className="p-3 hover:bg-white/10 dark:bg-white/10 rounded-2xl transition-all active:scale-90">
+                <X className="w-6 h-6 text-[#7D879C] dark:text-white/60" />
+              </button>
+            </div>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">초대 코드 입력</label>
+                <input
+                  type="text"
+                  placeholder="6자리 영문/숫자 코드"
+                  autoFocus
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white uppercase font-black tracking-widest text-lg"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                />
+              </div>
+              <button
+                onClick={handleJoinProject}
+                disabled={!inviteCode.trim() || inviteCode.trim().length < 2}
+                className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
+              >
+                참여하기
               </button>
             </div>
           </div>

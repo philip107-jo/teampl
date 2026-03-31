@@ -13,6 +13,10 @@ export interface Project {
     iconColor: string;
     progressColor: string;
     icon: string;
+    inviteCode?: string;
+    userName?: string;
+    creatorEmail?: string;
+    membersList?: { id: number; name: string; avatarColor: string }[];
 }
 
 export const projectApi = {
@@ -33,5 +37,10 @@ export const projectApi = {
 
     deleteProject: async (id: number): Promise<void> => {
         await apiClient.delete(`/projects/${id}`);
+    },
+
+    joinProject: async (inviteCode: string, userName?: string): Promise<Project> => {
+        const response = await apiClient.post('/projects/join', { inviteCode, userName });
+        return response.data;
     }
 };
