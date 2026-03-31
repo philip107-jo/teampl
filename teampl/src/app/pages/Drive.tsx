@@ -4,25 +4,32 @@ import {
   Search, Filter, MoreVertical, Plus, Upload, Download,
   ChevronRight, HardDrive, ExternalLink
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function Drive() {
+  const { user } = useAuth();
+  const isMockUser = user?.email === "test@naver.com";
+
   const [currentPath, setCurrentPath] = useState([{ name: "전체 스페이스", id: "root" }]);
   const [activeTab, setActiveTab] = useState("전체");
 
-  const folders = [
+  const mockFolders = [
     { id: "f1", name: "데이터베이스 설계", items: 5, theme: "blue" },
     { id: "f2", name: "UI/UX 디자인 리소스", items: 8, theme: "purple" },
     { id: "f3", name: "기획안 및 회의록", items: 12, theme: "orange" },
     { id: "f4", name: "프론트엔드 에셋", items: 3, theme: "green" },
   ];
 
-  const files = [
+  const mockFiles = [
     { id: "1", name: "요구사항_명세서_최종 (공동문서).docx", type: "word", creator: "나 (팀장)", date: "방금 전", size: "-", isWeb: true, icon: FileText, theme: "blue" },
     { id: "6", name: "발표용_배경에셋.zip", type: "zip", creator: "김철수", date: "1시간 전", size: "14.5MB", isWeb: false, icon: FileCode2, theme: "purple" },
     { id: "4", name: "주간회의록_0310 (공동문서).docx", type: "word", creator: "이영희", date: "1일 전", size: "-", isWeb: true, icon: FileText, theme: "blue" },
     { id: "7", name: "로고_최종본_수정본.png", type: "image", creator: "이영희", date: "2일 전", size: "1.2MB", isWeb: false, icon: FileImage, theme: "green" },
     { id: "5", name: "기획발표_PPT 초안 (공동문서).pptx", type: "ppt", creator: "박민수", date: "3일 전", size: "-", isWeb: true, icon: FileBarChart, theme: "orange" },
   ];
+
+  const displayFolders = isMockUser ? mockFolders : [];
+  const displayFiles = isMockUser ? mockFiles : [];
 
   return (
     <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto">
@@ -91,26 +98,32 @@ export default function Drive() {
           {/* Folders Section */}
           <div className="space-y-4">
             <h2 className="hero-meta px-1">분류 폴더</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {folders.map((folder) => (
-                <div key={folder.id} className="card !p-6 cursor-pointer hover:bg-white/40 dark:bg-[#1A2340] group !border-gray-200 dark:!border-white/5">
-                  <div className="flex items-start justify-between mb-5">
-                    <div className={`schedule-item ${folder.theme} !border-none !p-0 bg-transparent`}>
-                      <div className="schedule-icon" style={{ width: 56, height: 56, borderRadius: 16 }}>
-                        <Folder className="w-7 h-7" />
+            {displayFolders.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {displayFolders.map((folder) => (
+                  <div key={folder.id} className="card !p-6 cursor-pointer hover:bg-white/40 dark:bg-[#1A2340] group !border-gray-200 dark:!border-white/5">
+                    <div className="flex items-start justify-between mb-5">
+                      <div className={`schedule-item ${folder.theme} !border-none !p-0 bg-transparent`}>
+                        <div className="schedule-icon" style={{ width: 56, height: 56, borderRadius: 16 }}>
+                          <Folder className="w-7 h-7" />
+                        </div>
                       </div>
+                      <button className="p-2 text-gray-300 dark:text-white/20 hover:text-[#1A2340] dark:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button className="p-2 text-gray-300 dark:text-white/20 hover:text-[#1A2340] dark:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <h3 className="card-title text-[15px] mb-1 truncate">{folder.name}</h3>
+                    <div className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest leading-none">
+                      {folder.items} ITEMS CONNECTED
+                    </div>
                   </div>
-                  <h3 className="card-title text-[15px] mb-1 truncate">{folder.name}</h3>
-                  <div className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest leading-none">
-                    {folder.items} ITEMS CONNECTED
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card !p-8 flex items-center justify-center border border-dashed border-gray-300 dark:border-white/10 text-center">
+                <div className="text-[#7D879C]/80 dark:text-white/40 font-bold text-[13px]">생성된 폴더가 없습니다.</div>
+              </div>
+            )}
           </div>
 
           {/* Docs & Files Section */}
@@ -138,7 +151,7 @@ export default function Drive() {
                 <div className="col-span-3 text-right">상태 업데이트 / Action</div>
               </div>
               <div className="space-y-3">
-                {files.map((file) => (
+                {displayFiles.length > 0 ? displayFiles.map((file) => (
                   <div key={file.id} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 card !bg-white dark:!bg-[#12182B] hover:!bg-white/40 dark:!bg-[#1A2340] cursor-pointer group !rounded-[24px]">
                     <div className="col-span-12 sm:col-span-5 flex items-center gap-5 pl-2">
                       <div className={`schedule-item ${file.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
@@ -177,7 +190,12 @@ export default function Drive() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="card !p-12 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-white/10 text-center col-span-12">
+                     <FileText className="w-12 h-12 text-gray-200 dark:text-white/10 mb-4" />
+                     <div className="text-[#7D879C]/80 dark:text-white/40 font-bold text-[14px]">업로드된 파일이 없습니다.</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

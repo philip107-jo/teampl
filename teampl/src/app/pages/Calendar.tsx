@@ -1,7 +1,12 @@
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { projectApi } from "../api/projectApi";
 
 export default function Calendar() {
+  const { user } = useAuth();
+  const isMockUser = user?.email === "test@naver.com";
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -17,17 +22,18 @@ export default function Calendar() {
   const [formData, setFormData] = useState({ title: '', project: '', date: '', endDate: '', type: 'other' });
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/schedules', {
-      headers: { 'X-User-Email': 'test@naver.com' }
-    })
-      .then(res => res.json())
-      .then(data => setEvents(data))
-      .catch(console.error);
+    if (isMockUser) {
+      fetch('http://localhost:8080/api/schedules', {
+        headers: { 'X-User-Email': 'test@naver.com' }
+      })
+        .then(res => res.json())
+        .then(data => setEvents(data))
+        .catch(console.error);
+    } else {
+      setEvents([]); // 일반 유저는 임시 일정 데이터 비우기
+    }
 
-    fetch('http://localhost:8080/api/projects', {
-      headers: { 'X-User-Email': 'test@naver.com' }
-    })
-      .then(res => res.json())
+    projectApi.getProjects()
       .then(data => setProjects(data))
       .catch(console.error);
 
@@ -170,11 +176,29 @@ export default function Calendar() {
 
   const getEventsForDate = (dateStr: string) => {
     const targetDate = new Date(dateStr).getTime();
-    return events.filter((event) => {
+    const daySchedules = events.filter((event) => {
       const start = new Date(event.date).getTime();
       const end = new Date(event.endDate || event.date).getTime();
       return targetDate >= start && targetDate <= end;
     });
+
+    const dayProjects = projects.filter((project) => {
+      if (!project.deadline) return false;
+      const startStr = project.createdAt || new Date().toISOString().split('T')[0];
+      const start = new Date(startStr).getTime();
+      const end = new Date(project.deadline).getTime();
+      return targetDate >= start && targetDate <= end;
+    }).map(project => ({
+       id: `proj-${project.id}`,
+       title: `[프로젝트] ${project.name}`,
+       project: project.name,
+       date: project.createdAt || new Date().toISOString().split('T')[0],
+       endDate: project.deadline,
+       type: 'project',
+       color: project.color?.startsWith('#') ? project.color : '#7C6CFF'
+    }));
+
+    return [...dayProjects, ...daySchedules];
   };
 
   const isToday = (day: number | null) => {
@@ -270,7 +294,9 @@ export default function Calendar() {
                       {dayEvents.map((event) => (
                         <div
                           key={event.id}
-                          className={`bg-white/60 dark:bg-white/10 w-full h-1.5 rounded-full shadow-sm`}
+                          className={`w-full h-1.5 rounded-full shadow-sm ${!event.color ? 'bg-white/60 dark:bg-white/10' : ''}`}
+                          style={event.color ? { backgroundColor: event.color } : undefined}
+                          title={event.title}
                         />
                       ))}
                     </div>
@@ -305,9 +331,9 @@ export default function Calendar() {
                 onClick={() => handleEventClick(event)} 
                 className="card !p-6 flex items-center gap-6 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer group"
               >
-                <div className={`schedule-item purple !border-none !p-0 bg-transparent`}>
-                  <div className="schedule-icon" style={{ width: 64, height: 64, borderRadius: 16 }}>
-                    <CalendarIcon className="w-8 h-8 text-[#1A2340] dark:text-white" />
+                <div className={`schedule-item purple !border-none !p-0 bg-transparent`} style={event.color ? {} : undefined}>
+                  <div className="schedule-icon" style={{ width: 64, height: 64, borderRadius: 16, ...(event.color ? { backgroundColor: event.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${event.color}40` } : {}) }}>
+                    <CalendarIcon className="w-8 h-8" />
                   </div>
                 </div>
                 <div className="flex-1">
