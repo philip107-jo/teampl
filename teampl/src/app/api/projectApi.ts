@@ -16,7 +16,10 @@ export interface Project {
     inviteCode?: string;
     userName?: string;
     creatorEmail?: string;
-    membersList?: { id: number; name: string; avatarColor: string }[];
+    membersList?: { id: number; email: string; name: string; avatarColor: string }[];
+    userRole?: string;
+    userStatus?: string;
+    kickReason?: string;
 }
 
 export const projectApi = {
@@ -42,5 +45,29 @@ export const projectApi = {
     joinProject: async (inviteCode: string, userName?: string): Promise<Project> => {
         const response = await apiClient.post('/projects/join', { inviteCode, userName });
         return response.data;
+    },
+
+    regenerateInviteCode: async (id: number): Promise<Project> => {
+        const response = await apiClient.patch(`/projects/${id}/invite-code`);
+        return response.data;
+    },
+
+    transferLeadership: async (id: number, targetUserId: string): Promise<void> => {
+        const response = await apiClient.patch(`/projects/${id}/transfer-leadership`, { targetUserId });
+        return response.data;
+    },
+
+    kickMember: async (id: number, targetUserId: string, kickReason: string): Promise<void> => {
+        const response = await apiClient.patch(`/projects/${id}/kick-member`, { targetUserId, kickReason });
+        return response.data;
+    },
+
+    getKickedAlerts: async (): Promise<{projectId: number, projectName: string, kickReason: string}[]> => {
+        const response = await apiClient.get('/projects/kicked-alerts');
+        return response.data;
+    },
+
+    ackKickedAlert: async (id: number): Promise<void> => {
+        await apiClient.delete(`/projects/${id}/kicked-alert`);
     }
 };

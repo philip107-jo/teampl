@@ -40,6 +40,8 @@ model ProjectMember {
   userEmail String
   projectId Int
   role      String   @default("MEMBER")
+  status    String   @default("ACTIVE")
+  kickReason String?
   joinedAt  DateTime @default(now())
 
   user      User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)

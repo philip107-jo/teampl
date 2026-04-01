@@ -52,4 +52,65 @@ router.delete('/:id', async (req, res) => {
     res.status(204).send();
 });
 
+// PATCH /api/projects/:id/invite-code
+router.patch('/:id/invite-code', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const id = parseInt(req.params.id, 10);
+    try {
+        const updatedProject = await ProjectsService.regenerateInviteCode(email, id);
+        res.json(updatedProject);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// PATCH /api/projects/:id/transfer-leadership
+router.patch('/:id/transfer-leadership', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const id = parseInt(req.params.id, 10);
+    const { targetUserId } = req.body;
+    try {
+        await ProjectsService.transferLeadership(email, id, targetUserId);
+        res.json({ success: true, message: "권한 위임 성공" });
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// PATCH /api/projects/:id/kick-member
+router.patch('/:id/kick-member', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const id = parseInt(req.params.id, 10);
+    const { targetUserId, kickReason } = req.body;
+    try {
+        await ProjectsService.kickMember(email, id, targetUserId, kickReason);
+        res.json({ success: true, message: "팀원을 내보냈습니다." });
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// GET /api/projects/kicked-alerts
+router.get('/kicked-alerts', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    try {
+        const alerts = await ProjectsService.getKickedAlerts(email);
+        res.json(alerts);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// DELETE /api/projects/:id/kicked-alert
+router.delete('/:id/kicked-alert', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const id = parseInt(req.params.id, 10);
+    try {
+        await ProjectsService.ackKickedAlert(email, id);
+        res.status(204).send();
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 export default router;

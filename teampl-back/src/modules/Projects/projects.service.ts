@@ -18,11 +18,12 @@ export const ProjectsService = {
     getAll: async (email: string) => {
         if (!email) return [];
         const memberships = await prisma.projectMember.findMany({
-            where: { userEmail: email },
+            where: { userEmail: email, status: 'ACTIVE' },
             include: { 
                 project: {
                     include: {
                         projectMembers: {
+                            where: { status: 'ACTIVE' },
                             include: { user: true }
                         }
                     }
@@ -32,7 +33,7 @@ export const ProjectsService = {
         });
         
         return memberships.map((m: any) => {
-            const projectData: any = { ...m.project, userRole: m.role };
+            const projectData: any = { ...m.project, userRole: m.role, userStatus: m.status, kickReason: m.kickReason };
             if (projectData.projectMembers) {
                 projectData.membersList = projectData.projectMembers.map((pm: any) => ({
                     id: pm.user.id,
@@ -153,5 +154,83 @@ export const ProjectsService = {
             return project; // 이미 가입된 경우 기존 정보 반환
         }
         return null;
+    },
+
+    regenerateInviteCode: async (email: string, projectId: number) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!member || member.role !== 'LEADER') throw new Error('권한이 없습니다.');
+
+        const newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        return await prisma.project.update({
+            where: { id: projectId },
+            data: { inviteCode: newInviteCode }
+        });
+    },
+
+    transferLeadership: async (email: string, projectId: number, targetUserId: string) => {
+        const me = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!me || me.role !== 'LEADER') throw new Error('권한이 없습니다.');
+
+        const targetMember = await prisma.projectMember.findFirst({
+            where: { projectId, user: { id: targetUserId } }
+        });
+        if (!targetMember) throw new Error('대상 유저를 찾을 수 없습니다.');
+
+        return await prisma.$transaction([
+            prisma.projectMember.update({
+                where: { id: targetMember.id },
+                data: { role: 'LEADER' }
+            }),
+            prisma.projectMember.update({
+                where: { id: me.id },
+                data: { role: 'MEMBER' }
+            })
+        ]);
+    },
+
+    kickMember: async (email: string, projectId: number, targetUserId: string, kickReason: string) => {
+        const me = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!me || me.role !== 'LEADER') throw new Error('권한이 없습니다.');
+
+        const targetMember = await prisma.projectMember.findFirst({
+            where: { projectId, user: { id: targetUserId } }
+        });
+        if (!targetMember) throw new Error('대상 유저를 찾을 수 없습니다.');
+
+        return await prisma.$transaction([
+            prisma.projectMember.update({
+                where: { id: targetMember.id },
+                data: { status: 'KICKED', kickReason }
+            }),
+            prisma.project.update({
+                where: { id: projectId },
+                data: { members: { decrement: 1 } }
+            })
+        ]);
+    },
+
+    getKickedAlerts: async (email: string) => {
+        if (!email) return [];
+        const alerts = await prisma.projectMember.findMany({
+            where: { userEmail: email, status: 'KICKED' },
+            include: { project: { select: { name: true } } }
+        });
+        return alerts.map((a: any) => ({
+            projectId: a.projectId,
+            projectName: a.project.name,
+            kickReason: a.kickReason || '알 수 없는 사유'
+        }));
+    },
+
+    ackKickedAlert: async (email: string, projectId: number) => {
+        return await prisma.projectMember.delete({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
     }
 };

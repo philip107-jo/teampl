@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
 import { Link } from "react-router";
+import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
 
@@ -188,71 +189,86 @@ export default function Projects() {
 
       {/* Projects List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-        {projects.map((project) => (
-          <Link
-            key={project.id}
-            to={`/projects/${project.id}`}
-            className="card !block group transition-transform hover:scale-[1.02] border border-gray-200 dark:border-white/5"
-            style={{ padding: '1.5rem 1.8rem' }}
-          >
-            <div className="flex items-start justify-between mb-6">
-              <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`} style={project.color?.startsWith('#') ? {} : undefined}>
-                <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16, ...(project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${project.color}30` } : {}) }}>
-                  {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
-                </div>
-              </div>
-              {project.userRole === 'LEADER' && (
-                <div className="flex items-center gap-1 z-10 relative">
-                  <button 
-                    className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/10 rounded-lg transition-all"
-                    onClick={(e) => handleEditClick(e, project)}
-                    title="수정하기"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  <button 
-                    className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    onClick={(e) => handleDeleteClick(e, project)}
-                    title="삭제하기"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <span className="badge">{project.course}</span>
-              <h3 className="card-title text-[1.4rem] tracking-tight">{project.name}</h3>
-              <p className="text-[13px] text-[#7D879C] dark:text-white/50 font-medium leading-relaxed">{project.description}</p>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">진척도</span>
-                  <span className="text-[13px] font-black text-[#1A2340] dark:text-white">{project.progress}%</span>
-                </div>
-                <div className={`bar ${project.theme}`}>
-                  <span style={{ width: `${project.progress}%` }}></span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
-                    <Calendar className="w-4 h-4" />
-                    <span>{project.deadline}</span>
+        <AnimatePresence mode="popLayout">
+          {projects.filter(p => p.userStatus !== 'KICKED').map((project) => (
+            <motion.div
+              key={project.id}
+              layout
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -20, transition: { duration: 0.2 } }}
+              transition={{ 
+                duration: 0.4, 
+                ease: [0.25, 0.1, 0.25, 1], // ease-out-quart-ish
+                layout: { duration: 0.3 }
+              }}
+              style={{ width: '100%', height: '100%' }}
+            >
+              <Link
+                to={`/projects/${project.id}`}
+                className="card !block group transition-transform hover:scale-[1.02] border border-gray-200 dark:border-white/5 h-full"
+                style={{ padding: '1.5rem 1.8rem' }}
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`} style={project.color?.startsWith('#') ? {} : undefined}>
+                    <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16, ...(project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${project.color}30` } : {}) }}>
+                      {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
-                    <Users className="w-4 h-4" />
-                    <span>{project.members}명</span>
+                  {project.userRole === 'LEADER' && (
+                    <div className="flex items-center gap-1 z-10 relative">
+                      <button 
+                        className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/10 rounded-lg transition-all"
+                        onClick={(e) => handleEditClick(e, project)}
+                        title="수정하기"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        onClick={(e) => handleDeleteClick(e, project)}
+                        title="삭제하기"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <span className="badge">{project.course}</span>
+                  <h3 className="card-title text-[1.4rem] tracking-tight">{project.name}</h3>
+                  <p className="text-[13px] text-[#7D879C] dark:text-white/50 font-medium leading-relaxed">{project.description}</p>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5 mt-auto">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">진척도</span>
+                      <span className="text-[13px] font-black text-[#1A2340] dark:text-white">{project.progress}%</span>
+                    </div>
+                    <div className={`bar ${project.theme}`}>
+                      <span style={{ width: `${project.progress}%` }}></span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
+                        <Calendar className="w-4 h-4" />
+                        <span>{project.deadline}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
+                        <Users className="w-4 h-4" />
+                        <span>{project.members}명</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </Link>
-        ))}
+              </Link>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* -- Add Project Modal -- */}

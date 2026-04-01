@@ -1,4 +1,5 @@
 import { useOutlet, Link, useLocation, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   LayoutDashboard,
@@ -8,14 +9,46 @@ import {
   MessageSquare,
   LogOut,
   User as UserIcon,
+  AlertOctagon,
+  X
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { projectApi } from "../api/projectApi";
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const element = useOutlet();
+
+  // Kicked Alerts State
+  const [kickedAlerts, setKickedAlerts] = useState<{projectId: number, projectName: string, kickReason: string}[]>([]);
+
+  useEffect(() => {
+    if (!user || user.email === "test@naver.com") return;
+
+    const fetchAlerts = async () => {
+      try {
+        const alerts = await projectApi.getKickedAlerts();
+        setKickedAlerts(alerts);
+      } catch (error) {
+        // console.error("Failed to fetch kicked alerts", error);
+      }
+    };
+
+    fetchAlerts();
+    const intervalId = setInterval(fetchAlerts, 5000);
+    return () => clearInterval(intervalId);
+  }, [user]);
+
+  const handleAckAlert = async (projectId: number) => {
+    try {
+      await projectApi.ackKickedAlert(projectId);
+      setKickedAlerts(prev => prev.filter(a => a.projectId !== projectId));
+    } catch (e) {
+      alert("알림 확인 처리에 실패했습니다.");
+    }
+  };
 
   const navItems = [
     { path: "/", icon: LayoutDashboard, label: "홈" },
@@ -108,6 +141,56 @@ export default function Layout() {
           })}
         </div>
       </nav>
+
+      {/* Global Kicked Alert Modal */}
+      <AnimatePresence>
+        {kickedAlerts.length > 0 && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-[#132038] w-full max-w-sm rounded-[24px] shadow-2xl border border-red-500/20 overflow-hidden"
+            >
+              <div className="bg-red-50 dark:bg-red-500/10 p-6 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                  <AlertOctagon className="w-8 h-8" />
+                </div>
+                <h2 className="text-xl font-black text-[#1A2340] dark:text-red-400 mb-2">프로젝트 강퇴 알림</h2>
+                <p className="text-sm font-bold text-[#7D879C] dark:text-white/60">
+                  다음 프로젝트에서 팀장에 의해 내보내졌습니다.
+                </p>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/10">
+                  <p className="text-xs font-bold text-[#7D879C] uppercase tracking-wider mb-1">프로젝트명</p>
+                  <p className="text-base font-black text-[#1A2340] dark:text-white truncate">
+                    {kickedAlerts[0].projectName}
+                  </p>
+                </div>
+                
+                <div className="bg-red-50 dark:bg-red-500/5 rounded-2xl p-4 border border-red-100 dark:border-red-500/10">
+                  <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">내보내진 사유</p>
+                  <p className="text-sm font-medium text-red-600 dark:text-red-300">
+                    {kickedAlerts[0].kickReason}
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={() => handleAckAlert(kickedAlerts[0].projectId)}
+                    className="w-full py-4 bg-[#1A2340] dark:bg-white text-white dark:text-[#132038] font-black rounded-2xl transition-all shadow-lg active:scale-95 hover:bg-black dark:hover:bg-gray-100"
+                  >
+                    확인 및 닫기
+                  </button>
+                  <p className="text-center text-[10px] text-gray-400 mt-3 font-medium">안내를 확인하면 해당 알림은 완전히 삭제됩니다.</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
