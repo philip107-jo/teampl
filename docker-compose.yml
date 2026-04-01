@@ -32,8 +32,8 @@ services:
       - /app/node_modules
     depends_on:
       - db
-    # 컨테이너 구동 시 의존성 동기화 후 구동 및 스키마 충돌 시 자동 초기화(개발환경 전용)
-    command: sh -c "npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run dev"
+    # 컨테이너 구동 시 의존성 동기화 후 구동 및 스키마 충돌 시 자동 초기화(개발환경 전용) + 무조건 어드민 계정 자동 시딩
+    command: sh -c "npm install && npx prisma generate && npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"
 
   frontend:
     build:
