@@ -15,6 +15,8 @@ model User {
   studentId  String?
   department String?
   createdAt  DateTime @default(now())
+  
+  projectMembers ProjectMember[]
 }
 
 model Project {
@@ -29,6 +31,21 @@ model Project {
   icon        String?  @default("Database")
   inviteCode  String?  @unique
   createdAt   DateTime @default(now())
+
+  projectMembers ProjectMember[]
+}
+
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  userEmail String
+  projectId Int
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userEmail, projectId])
 }
 
 model Task {
@@ -38,7 +55,7 @@ model Task {
   status      String   @default("TODO")
   priority    String   @default("medium")
   deadline    String
-  createdById String?
+  ownerEmail  String?
   assignees   String[] // We can use string array to match current frontend array
   createdAt   DateTime @default(now())
 }
@@ -48,8 +65,9 @@ model Schedule {
   title   String
   project String?
   date    String
-  endDate String?
-  type    String  @default("other")
-  color   String  @default("bg-gray-500")
-  dot     String  @default("bg-gray-500")
+  endDate    String?
+  type       String  @default("other")
+  color      String  @default("bg-gray-500")
+  dot        String  @default("bg-gray-500")
+  ownerEmail String?
 }

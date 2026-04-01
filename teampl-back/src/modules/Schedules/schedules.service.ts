@@ -9,11 +9,14 @@ export interface Schedule {
   type: string;
   color: string;
   dot: string;
+  ownerEmail?: string;
 }
 
 export const SchedulesService = {
   getAll: async (email: string) => {
+    if (!email) return [];
     return await prisma.schedule.findMany({
+        where: { ownerEmail: email },
         orderBy: { id: 'asc' }
     });
   },
@@ -33,7 +36,8 @@ export const SchedulesService = {
         endDate: data.endDate || data.date || new Date().toISOString().split('T')[0],
         type: data.type || 'other',
         color: data.color || color,
-        dot: data.dot || color
+        dot: data.dot || color,
+        ownerEmail: email || 'unknown'
       }
     });
   },
