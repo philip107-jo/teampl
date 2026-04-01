@@ -19,10 +19,31 @@ export const ProjectsService = {
         if (!email) return [];
         const memberships = await prisma.projectMember.findMany({
             where: { userEmail: email },
-            include: { project: true },
+            include: { 
+                project: {
+                    include: {
+                        projectMembers: {
+                            include: { user: true }
+                        }
+                    }
+                } 
+            },
             orderBy: { project: { id: 'desc' } }
         });
-        return memberships.map(m => m.project);
+        
+        return memberships.map((m: any) => {
+            const projectData: any = { ...m.project, userRole: m.role };
+            if (projectData.projectMembers) {
+                projectData.membersList = projectData.projectMembers.map((pm: any) => ({
+                    id: pm.user.id,
+                    email: pm.user.email,
+                    name: pm.user.name,
+                    avatarColor: pm.role === 'LEADER' ? 'bg-[#7C6CFF]' : 'bg-[#27D7A1]'
+                }));
+                delete projectData.projectMembers;
+            }
+            return projectData;
+        });
     },
 
     create: async (email: string, data: Partial<Project>) => {
@@ -61,6 +82,13 @@ export const ProjectsService = {
     },
 
     update: async (email: string, id: number, data: Partial<Project>) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId: Number(id) } }
+        });
+        if (!member || member.role !== 'LEADER') {
+            throw new Error('프로젝트 수정 권한이 없습니다.');
+        }
+
         let formattedDeadline = data.deadline;
         if (formattedDeadline && formattedDeadline.indexOf('-') !== -1) {
             formattedDeadline = formattedDeadline.replace(/-/g, '.');
@@ -84,6 +112,13 @@ export const ProjectsService = {
 
     delete: async (email: string, id: number) => {
         try {
+            const member = await prisma.projectMember.findUnique({
+                where: { userEmail_projectId: { userEmail: email, projectId: Number(id) } }
+            });
+            if (!member || member.role !== 'LEADER') {
+                return false;
+            }
+
             await prisma.project.delete({ where: { id: Number(id) } });
             return true;
         } catch (e) {

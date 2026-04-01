@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import tasksRouter from './modules/tasks/tasks.controller';
-import projectsRouter from './modules/projects/projects.controller';
-import authRouter from './modules/auth/auth.controller';
-import schedulesRouter from './modules/schedules/schedules.controller';
+import tasksRouter from './modules/Tasks/tasks.controller';
+import projectsRouter from './modules/Projects/projects.controller';
+import authRouter from './modules/Auth/auth.controller';
+import schedulesRouter from './modules/Schedules/schedules.controller';
 
 dotenv.config();
 

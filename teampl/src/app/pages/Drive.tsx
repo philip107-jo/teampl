@@ -1,13 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { 
   Folder, FileText, FileImage, FileBarChart, FileCode2,
   Search, Filter, MoreVertical, Plus, Upload, Download,
-  ChevronRight, HardDrive, ExternalLink
+  ChevronRight, HardDrive, ExternalLink, ChevronLeft
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Drive() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isMockUser = user?.email === "test@naver.com";
 
   const [currentPath, setCurrentPath] = useState([{ name: "전체 스페이스", id: "root" }]);
@@ -33,6 +35,19 @@ export default function Drive() {
 
   return (
     <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto">
+      {/* Top Navigation */}
+      <div className="hero-top mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate(-1)}
+            className="hero-action flex items-center justify-center p-0"
+            title="이전 페이지로"
+          >
+            <ChevronLeft className="w-6 h-6 text-[#1A2340] dark:text-white" />
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
       <section className="card hero-card mb-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-2 relative z-10">

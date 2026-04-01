@@ -8,24 +8,44 @@ import { useState, useEffect } from "react";
 import { initialMembers, initialMessages } from "../mockData";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
+import { projectApi } from "../api/projectApi";
+import { useAuth } from "../context/AuthContext";
 
 export default function MemberTasks() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isMockUser = user?.email === "test@naver.com";
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<any[]>(isMockUser ? initialMembers : []);
 
   useEffect(() => {
-    taskApi.getTasks()
-      .then(data => {
-        setTasks(data);
-        setLoading(false);
-      })
-      .catch(err => {
+    const fetchData = async () => {
+      try {
+        const tasksData = await taskApi.getTasks();
+        setTasks(tasksData);
+
+        if (!isMockUser) {
+          const projects = await projectApi.getProjects();
+          const p = projects.find(proj => String(proj.id) === String(projectId));
+          if (p && p.membersList && p.membersList.length > 0) {
+            setMembers(p.membersList);
+          } else {
+             setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
+          }
+        }
+      } catch(err) {
         console.error(err);
+      } finally {
         setLoading(false);
-      });
-  }, [projectId]);
+      }
+    };
+    fetchData(); // initial fetch
+    const intervalId = setInterval(fetchData, 3000); // Poll every 3 seconds
+    return () => clearInterval(intervalId);
+  }, [projectId, isMockUser, user]);
 
   const calculateStats = (memberId: string) => {
     const memberTasks = tasks.filter(t => t.assignees.includes(memberId));
@@ -82,7 +102,7 @@ export default function MemberTasks() {
         </div>
         
         <div className="flex -space-x-4">
-          {initialMembers.map((m, i) => (
+          {members.map((m, i) => (
             <div key={m.id} className="group relative">
                <div className={`w-12 h-12 rounded-2xl ${m.avatarColor || 'bg-[#7C6CFF]'} border-4 border-[var(--theme-bg)] flex items-center justify-center text-white font-black shadow-lg hover:-translate-y-2 transition-all cursor-pointer`}>
                 {m.name[0]}
@@ -102,9 +122,9 @@ export default function MemberTasks() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-12">
-          {initialMembers.map((member, index) => {
-            const stats = calculateStats(member.id);
-            const memberTasks = tasks.filter(t => t.assignees.includes(member.id));
+          {members.map((member, index) => {
+            const stats = calculateStats(String(member.id));
+            const memberTasks = tasks.filter(t => t.assignees.includes(String(member.id)));
             const inProgressTasks = memberTasks.filter(t => t.status !== 'DONE');
             const completedTasks = memberTasks.filter(t => t.status === 'DONE');
 

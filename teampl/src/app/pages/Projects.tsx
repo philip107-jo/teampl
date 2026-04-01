@@ -201,7 +201,7 @@ export default function Projects() {
                   {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
                 </div>
               </div>
-              {(!project.creatorEmail || project.creatorEmail === user?.email) && (
+              {project.userRole === 'LEADER' && (
                 <div className="flex items-center gap-1 z-10 relative">
                   <button 
                     className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/10 rounded-lg transition-all"

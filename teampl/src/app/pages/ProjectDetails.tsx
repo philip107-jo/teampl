@@ -17,15 +17,21 @@ export default function ProjectDetails() {
   const [isLoading, setIsLoading] = useState(!isMockUser);
 
   useEffect(() => {
-    if (!isMockUser) {
-      projectApi.getProjects()
-        .then(projects => {
-          const found = projects.find(p => String(p.id) === String(projectId));
-          setRealProject(found);
-        })
-        .catch(console.error)
-        .finally(() => setIsLoading(false));
-    }
+    const fetchProject = () => {
+      if (!isMockUser) {
+        projectApi.getProjects()
+          .then(projects => {
+            const found = projects.find(p => String(p.id) === String(projectId));
+            setRealProject(found);
+          })
+          .catch(console.error)
+          .finally(() => setIsLoading(false));
+      }
+    };
+
+    fetchProject();
+    const intervalId = setInterval(fetchProject, 3000);
+    return () => clearInterval(intervalId);
   }, [isMockUser, projectId]);
 
   // Mock data for the specific project
