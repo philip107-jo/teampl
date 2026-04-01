@@ -1,10 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import tasksRouter from './modules/Tasks/tasks.controller';
-import projectsRouter from './modules/Projects/projects.controller';
-import authRouter from './modules/Auth/auth.controller';
-import schedulesRouter from './modules/Schedules/schedules.controller';
+import tasksRouter from './modules/tasks/tasks.controller';
+import projectsRouter from './modules/projects/projects.controller';
+import authRouter from './modules/auth/auth.controller';
+import schedulesRouter from './modules/schedules/schedules.controller';
+import usersRouter from './modules/users/users.controller';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/schedules', schedulesRouter);
+app.use('/api/users', usersRouter);
 
 import { errorHandler } from './middlewares/errorHandler';
 // Global Error Handler

@@ -96,3 +96,11 @@ model Schedule {
   dot        String  @default("bg-gray-500")
   ownerEmail String?
 }
+
+model ProjectDeleteAlert {
+  id            Int      @id @default(autoincrement())
+  userEmail     String
+  projectName   String
+  deleteReason  String
+  createdAt     DateTime @default(now())
+}

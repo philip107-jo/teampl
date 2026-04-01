@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   ChevronLeft, Database, Plus, Users, Calendar, Clock, 
   CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard,
-  Settings, UserX, UserCheck, RefreshCw, X
+  Settings, UserX, UserCheck, RefreshCw, X, Crown
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
@@ -27,6 +27,8 @@ export default function ProjectDetails() {
   const [customKickReason, setCustomKickReason] = useState("");
   const [isKickedProcessed, setIsKickedProcessed] = useState(false);
   const [confirmKickOpen, setConfirmKickOpen] = useState(false);
+  const [confirmTransferOpen, setConfirmTransferOpen] = useState(false);
+  const prevUserRoleRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchProject = () => {
@@ -44,6 +46,16 @@ export default function ProjectDetails() {
               return;
             }
             setRealProject(found);
+            // 팀장 위임 알림: 이전 역할이 MEMBER였는데 LEADER로 바뀐 경우
+            if (
+              found &&
+              prevUserRoleRef.current !== null &&
+              prevUserRoleRef.current !== 'LEADER' &&
+              found.userRole === 'LEADER'
+            ) {
+              showToast('🎉 축하합니다! 팀장으로 임명되었습니다!', 'success');
+            }
+            prevUserRoleRef.current = found?.userRole ?? null;
           })
           .catch(console.error)
           .finally(() => setIsLoading(false));
@@ -97,11 +109,17 @@ export default function ProjectDetails() {
     members: 1
   });
 
-  const displayMembers = project.membersList 
+  const rawMembers = project.membersList 
     ? project.membersList 
     : (isMockUser 
         ? mockProject.members 
         : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
+
+  const displayMembers = [...rawMembers].sort((a: any, b: any) => {
+    if (a.role === 'LEADER') return -1;
+    if (b.role === 'LEADER') return 1;
+    return 0;
+  });
 
   const handleRegenerateInviteCode = async () => {
     if (!project || isMockUser) return;
@@ -116,14 +134,17 @@ export default function ProjectDetails() {
     }
   };
 
-  const handleTransferLeadership = async () => {
+  const handleTransferLeadership = () => {
     if (!selectedUser) return showToast('위임할 팀원을 먼저 선택하세요.', 'error');
+    setConfirmTransferOpen(true);
+  };
+
+  const executeTransferLeadership = async () => {
     try {
-      if (confirm('정말로 이 팀원에게 방장 권한을 위임하시겠습니까? 이후 회원님은 일반 팀원으로 강등됩니다.')) {
-        await projectApi.transferLeadership(Number(projectId), selectedUser);
-        showToast('성공적으로 위임되었습니다.', 'success');
-        setIsSettingModalOpen(false);
-      }
+      await projectApi.transferLeadership(Number(projectId), selectedUser);
+      showToast('성공적으로 위임되었습니다.', 'success');
+      setIsSettingModalOpen(false);
+      setConfirmTransferOpen(false);
     } catch (e: any) {
       showToast(e.response?.data?.message || e.message, 'error');
     }
@@ -258,15 +279,25 @@ export default function ProjectDetails() {
                 </button>
               </div>
               <div className="flex -space-x-3">
-                {displayMembers.map((member: any) => (
-                  <div 
-                    key={member.id} 
-                    className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] border-[#151C31] flex items-center justify-center text-[#1A2340] dark:text-white text-[13px] font-black shadow-md z-10 relative`}
-                    title={member.name}
-                  >
-                    {member.name[0]}
-                  </div>
-                ))}
+                {displayMembers.map((member: any) => {
+                  const isLeader = member.role === 'LEADER';
+                  return (
+                    <div
+                      key={member.id}
+                      className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] ${
+                        isLeader ? 'border-[#FFB547] shadow-[0_0_8px_rgba(255,181,71,0.7)]' : 'border-[#151C31]'
+                      } flex items-center justify-center text-white text-[13px] font-black shadow-md z-10 relative`}
+                      title={isLeader ? `${member.name} (팀장)` : member.name}
+                    >
+                      {member.name[0]}
+                      {isLeader && (
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                          <Crown className="w-3.5 h-3.5 text-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.9)] fill-[#FFB547]" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
                   <Plus className="w-5 h-5" />
                 </button>
@@ -610,6 +641,38 @@ export default function ProjectDetails() {
                 className="flex-1 py-3.5 bg-red-500 text-white font-black rounded-2xl active:scale-95 transition-all shadow-lg"
               >
                 네, 내보냅니다
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirm Transfer Leadership Custom Modal */}
+      {confirmTransferOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmTransferOpen(false)} />
+          <div className="relative bg-white dark:bg-[#151C31] w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#FFB547]/10 p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-[#FFB547]/20 text-[#FFB547] rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <UserCheck className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-black text-[#1A2340] dark:text-[#FFB547] mb-2">팀장 권한 위임</h2>
+              <p className="text-sm font-bold text-[#7D879C] dark:text-white/70">
+                정말로 이 팀원에게 방장 권한을<br/>위임하시겠습니까?<br/>
+                <span className="text-[#FFB547] font-black">이후 회원님은 일반 팀원으로 강등됩니다.</span>
+              </p>
+            </div>
+            <div className="p-6 flex gap-3">
+              <button
+                onClick={() => setConfirmTransferOpen(false)}
+                className="flex-1 py-3.5 bg-gray-100 dark:bg-white/5 text-[#1A2340] dark:text-white font-bold rounded-2xl active:scale-95 transition-all"
+              >
+                취소
+              </button>
+              <button
+                onClick={executeTransferLeadership}
+                className="flex-1 py-3.5 bg-[#FFB547] hover:bg-[#F2A332] text-white font-black rounded-2xl active:scale-95 transition-all shadow-lg shadow-[#FFB547]/30"
+              >
+                네, 위임합니다
               </button>
             </div>
           </div>

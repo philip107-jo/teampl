@@ -28,12 +28,12 @@ export const AuthService = {
     login: async (email: string, password: string) => {
         const user = await UsersService.findByEmail(email);
         if (!user) {
-            throw new UnauthorizedError('Invalid credentials');
+            throw new UnauthorizedError('존재하지 않는 아이디 입니다!');
         }
         
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            throw new UnauthorizedError('Invalid credentials');
+            throw new UnauthorizedError('비밀번호가 일치하지 않습니다.');
         }
         
         const token = jwt.sign(

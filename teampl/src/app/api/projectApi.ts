@@ -16,7 +16,7 @@ export interface Project {
     inviteCode?: string;
     userName?: string;
     creatorEmail?: string;
-    membersList?: { id: number; email: string; name: string; avatarColor: string }[];
+    membersList?: { id: number; email: string; name: string; role: string; avatarColor: string }[];
     userRole?: string;
     userStatus?: string;
     kickReason?: string;
@@ -38,8 +38,8 @@ export const projectApi = {
         return response.data;
     },
 
-    deleteProject: async (id: number): Promise<void> => {
-        await apiClient.delete(`/projects/${id}`);
+    deleteProject: async (id: number, deleteReason?: string): Promise<void> => {
+        await apiClient.delete(`/projects/${id}`, { data: { deleteReason } });
     },
 
     joinProject: async (inviteCode: string, userName?: string): Promise<Project> => {
@@ -69,5 +69,14 @@ export const projectApi = {
 
     ackKickedAlert: async (id: number): Promise<void> => {
         await apiClient.delete(`/projects/${id}/kicked-alert`);
+    },
+
+    getDeleteAlerts: async (): Promise<{id: number, projectName: string, deleteReason: string, createdAt: string}[]> => {
+        const response = await apiClient.get('/projects/delete-alerts');
+        return response.data;
+    },
+
+    ackDeleteAlert: async (alertId: number): Promise<void> => {
+        await apiClient.delete(`/projects/${alertId}/delete-alert`);
     }
 };

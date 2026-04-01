@@ -1,15 +1,34 @@
-feat(Project): 프로젝트 관리 기능 고도화 및 전역 알림(Toast) 시스템 도입
-[Backend & Database]
-- Prisma Schema: ProjectMember 모델에 status 필드(KICKED 포함) 및 kickReason 필드 추가
-- 팀장 권한 위임 API (transferLeadership) 구현
-- 팀원 강퇴/내보내기 API (kickMember) 구현 (프로젝트 잔여 인원 동기화)
-- 초대코드 재발급 API (regenerateInviteCode) 구현 및 기존 코드 무효화 지원
-- 강퇴당한 프로젝트의 정보가 API 목록(getAll)에서 원천 차단되도록 보안 필터 추가
-- 모듈 및 컨트롤러 import 경로의 대소문자를 일치시켜 TS1261 폴더 구조 컴파일 에러 완벽 해결
-[Frontend & UI/UX]
-- 전역 커스텀 알림(ToastContext/Toast) 시스템 도입: 기존의 투박한 브라우저 자체 alert() 및 confirm() 창을 다크 글래스모피즘 테마에 맞춘 부드러운 애니메이션 팝업으로 대체
-- Layout.tsx에 5초 폴링을 적용한 강퇴 감지 보안 모달 도입 (강퇴된 인원이 접속 시 영구 안내 팝업 출력)
-- 메인 화면(Projects.tsx)의 프로젝트 카드 리스트 및 생성 시 부드러운 스위칭 모션(framer-motion AnimatePresence) 적용
-- 프로젝트 관리 메뉴의 '점 세 개(MoreVertical)' 아이콘을 직관적인 톱니바퀴(Settings) 아이콘으로 교체
-- 프로젝트 세부 설정에 강퇴자 사유 입력, 초대 코드 재생성 기능, 방 위임 권한 모달 페이지 UI 구현 지원
 
+1. 회원가입 성공 알림 개선
+   - 브라우저 기본 alert() → 상단 토스트 알림으로 교체
+   - 파일: Register.tsx
+
+2. 회원정보 수정 페이지 신규 구현
+   - 이름, 학번, 학과 수정 가능한 전용 페이지(/mypage/edit) 추가
+   - 수정 즉시 전역 상태 반영, 성공 시 토스트 알림
+   - 파일: EditProfile.tsx(신규), userApi.ts(신규), users.controller.ts(신규),
+           users.service.ts, AuthContext.tsx, MyPage.tsx, routes.ts, main.ts
+
+3. 팀장 권한 위임 확인 모달 개선
+   - 브라우저 기본 confirm() → 커스텀 디자인 모달로 교체
+   - 파일: ProjectDetails.tsx
+
+4. 팀원 아바타 팀장 시각적 표시
+   - 팀장 아바타에 왕관 아이콘 + 노란 테두리 표시, 항상 맨 앞 정렬
+   - 백엔드 membersList 응답에 role 필드 누락 → 추가
+   - 파일: ProjectDetails.tsx, projects.service.ts
+
+5. 팀장 위임 수신 실시간 알림
+   - 내 역할이 MEMBER → LEADER로 바뀌면 축하 토스트 자동 표시
+   - 파일: ProjectDetails.tsx
+
+6. 대시보드 팀원 기여도 실시간 갱신
+   - "TEAM LEAD" 텍스트 → 왕관 아이콘으로 교체, 실제 role 기준으로 표시
+   - 5초 폴링 적용으로 팀장 변경 등이 페이지 이동 없이 자동 반영
+   - 파일: Dashboard.tsx
+
+7. 프로젝트 삭제 시 팀원 알림 발송
+   - 팀장이 삭제 사유 입력 후 삭제 → 모든 팀원에게 5초 이내 알림 자동 표시
+   - ProjectDeleteAlert DB 모델 신규 추가
+   - 파일: schema.prisma, projects.service.ts, projects.controller.ts,
+           projectApi.ts, Projects.tsx

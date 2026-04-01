@@ -39,6 +39,7 @@ export const ProjectsService = {
                     id: pm.user.id,
                     email: pm.user.email,
                     name: pm.user.name,
+                    role: pm.role,
                     avatarColor: pm.role === 'LEADER' ? 'bg-[#7C6CFF]' : 'bg-[#27D7A1]'
                 }));
                 delete projectData.projectMembers;
@@ -111,13 +112,34 @@ export const ProjectsService = {
         });
     },
 
-    delete: async (email: string, id: number) => {
+    delete: async (email: string, id: number, deleteReason?: string) => {
         try {
             const member = await prisma.projectMember.findUnique({
                 where: { userEmail_projectId: { userEmail: email, projectId: Number(id) } }
             });
             if (!member || member.role !== 'LEADER') {
                 return false;
+            }
+
+            // 삭제 전 모든 활성 팀원 목록 조회
+            const allMembers = await prisma.projectMember.findMany({
+                where: { projectId: Number(id), status: 'ACTIVE', userEmail: { not: email } }
+            });
+
+            // 프로젝트 이름 조회
+            const project = await prisma.project.findUnique({ where: { id: Number(id) } });
+            const projectName = project?.name || '알 수 없는 프로젝트';
+            const reason = deleteReason || '팀장이 프로젝트를 종료했습니다.';
+
+            // 각 팀원에게 삭제 알림 생성
+            if (allMembers.length > 0) {
+                await prisma.projectDeleteAlert.createMany({
+                    data: allMembers.map(m => ({
+                        userEmail: m.userEmail,
+                        projectName,
+                        deleteReason: reason,
+                    }))
+                });
             }
 
             await prisma.project.delete({ where: { id: Number(id) } });
@@ -231,6 +253,20 @@ export const ProjectsService = {
     ackKickedAlert: async (email: string, projectId: number) => {
         return await prisma.projectMember.delete({
             where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+    },
+
+    getDeleteAlerts: async (email: string) => {
+        if (!email) return [];
+        return await prisma.projectDeleteAlert.findMany({
+            where: { userEmail: email },
+            orderBy: { createdAt: 'desc' }
+        });
+    },
+
+    ackDeleteAlert: async (email: string, alertId: number) => {
+        return await prisma.projectDeleteAlert.deleteMany({
+            where: { id: alertId, userEmail: email }
         });
     }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target } from "lucide-react";
+import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target, Crown } from "lucide-react";
 import { useNavigate } from "react-router";
 import { initialMembers } from "../mockData";
 import { Task } from "../types";
@@ -21,21 +21,32 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
 
   useEffect(() => {
-    Promise.all([
-      taskApi.getTasks().catch(() => []), 
-      projectApi.getProjects().catch(() => [])
-    ])
-      .then(([fetchedTasks, fetchedProjects]) => {
-        setTasks(fetchedTasks);
-        if (fetchedProjects && fetchedProjects.length > 0) {
-          setProjects(fetchedProjects);
-          setSelectedProject(fetchedProjects[0]);
-        } else {
-          setProjects([]);
-          setSelectedProject(null);
-        }
-      })
-      .finally(() => setIsLoading(false));
+    const fetchData = () => {
+      Promise.all([
+        taskApi.getTasks().catch(() => []), 
+        projectApi.getProjects().catch(() => [])
+      ])
+        .then(([fetchedTasks, fetchedProjects]) => {
+          setTasks(fetchedTasks);
+          if (fetchedProjects && fetchedProjects.length > 0) {
+            setProjects(fetchedProjects);
+            // 선택된 프로젝트 정보도 최신 데이터로 갱신 (팀장 위임 등 반영)
+            setSelectedProject((prev: any) => {
+              if (!prev) return fetchedProjects[0];
+              const updated = fetchedProjects.find((p: any) => p.id === prev.id);
+              return updated ?? prev;
+            });
+          } else {
+            setProjects([]);
+            setSelectedProject(null);
+          }
+        })
+        .finally(() => setIsLoading(false));
+    };
+
+    fetchData();
+    const intervalId = setInterval(fetchData, 5000);
+    return () => clearInterval(intervalId);
   }, []);
 
   // Dynamic calculations based on real mock data
@@ -76,7 +87,7 @@ export default function Dashboard() {
     );
   }
 
-  const displayMembers = selectedProject?.membersList 
+  const rawMembers = selectedProject?.membersList 
     ? selectedProject.membersList 
     : (isMockUser 
         ? initialMembers 
@@ -86,6 +97,12 @@ export default function Dashboard() {
             email: user?.email, 
             department: user?.department 
           }]);
+
+  const displayMembers = [...rawMembers].sort((a: any, b: any) => {
+    if (a.role === 'LEADER') return -1;
+    if (b.role === 'LEADER') return 1;
+    return 0;
+  });
 
   return (
     <div className="dashboard pb-safe">
@@ -213,7 +230,9 @@ export default function Dashboard() {
                   <div className="member-meta">
                     <span className="member-name truncate max-w-[80px]">{member.name}</span>
                     <span className="member-count">{memberTasks}건</span>
-                    {idx === 0 && <span className="member-tag">TEAM LEAD</span>}
+                    {member.role === 'LEADER' && (
+                      <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)] flex-shrink-0" />
+                    )}
                   </div>
                   <div className="member-percent">{percent}%</div>
                   <div className={`bar ${colors[idx % 4]}`}><span style={{ width: `${percent}%` }}></span></div>

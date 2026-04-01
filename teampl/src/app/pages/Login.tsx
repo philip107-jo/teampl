@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { LogIn, Mail, Lock, AlertCircle, Loader2, Compass } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +20,7 @@ export default function Login() {
 
     try {
       await login(email, password);
+      showToast("로그인에 성공했습니다!", "success");
       navigate("/");
     } catch (err: any) {
       setError(err.message || "로그인에 실패했습니다.");

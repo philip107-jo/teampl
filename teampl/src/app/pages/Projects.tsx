@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 export default function Projects() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("전체");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -28,6 +30,8 @@ export default function Projects() {
   // 삭제 관련 상태
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const processedDeleteAlertIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchProjects = () => {
@@ -41,6 +45,27 @@ export default function Projects() {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // 프로젝트 삭제 알림 폴링
+  useEffect(() => {
+    const checkDeleteAlerts = () => {
+      projectApi.getDeleteAlerts().then(alerts => {
+        alerts.forEach(alert => {
+          if (!processedDeleteAlertIdsRef.current.has(alert.id)) {
+            processedDeleteAlertIdsRef.current.add(alert.id);
+            showToast(`🗑️ '${alert.projectName}' 프로젝트가 삭제되었습니다. 사유: ${alert.deleteReason}`, 'error');
+            projectApi.ackDeleteAlert(alert.id).catch(() => {});
+          }
+        });
+      }).catch(() => {});
+    };
+
+    if (user?.email !== 'test@naver.com') {
+      checkDeleteAlerts();
+      const alertInterval = setInterval(checkDeleteAlerts, 5000);
+      return () => clearInterval(alertInterval);
+    }
+  }, [user]);
 
 
   const handleAddProject = async () => {
@@ -96,6 +121,7 @@ export default function Projects() {
     e.preventDefault();
     e.stopPropagation();
     setProjectToDelete(project);
+    setDeleteReason("");
     setIsDeleteModalOpen(true);
   };
 
@@ -118,14 +144,19 @@ export default function Projects() {
 
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
+    if (!deleteReason.trim()) {
+      showToast('삭제 사유를 입력해주세요.', 'error');
+      return;
+    }
     try {
-      await projectApi.deleteProject(projectToDelete.id);
+      await projectApi.deleteProject(projectToDelete.id, deleteReason);
       setProjects(projects.filter(p => p.id !== projectToDelete.id));
       setIsDeleteModalOpen(false);
       setProjectToDelete(null);
+      setDeleteReason("");
     } catch (err) {
       console.error(err);
-      alert("프로젝트 삭제 중 오류가 발생했습니다.");
+      showToast('프로젝트 삭제 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -403,14 +434,23 @@ export default function Projects() {
       {/* -- Delete Confirmation Modal -- */}
       {isDeleteModalOpen && projectToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="card w-full max-w-[360px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
+          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
               <AlertCircle className="w-8 h-8" />
             </div>
             <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
-            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-8 break-keep leading-relaxed">
+            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
               <span className="text-[#1A2340] dark:text-white">'{projectToDelete.name}'</span> 프로젝트에 포함된 모든 할 일, 일정, 채팅 내역이 즉시 영구적으로 삭제되며 되돌릴 수 없습니다.
             </p>
+            <div className="space-y-2 mb-6">
+              <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">삭제 사유 (팀원에게 전달됩니다)</label>
+              <textarea
+                placeholder="예: 프로젝트 방향이 변경되어 종료합니다."
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-red-400 focus:shadow-[0_0_15px_rgba(239,68,68,0.15)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[80px] text-sm font-medium resize-none"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+              />
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
@@ -420,7 +460,8 @@ export default function Projects() {
               </button>
               <button
                 onClick={confirmDeleteProject}
-                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95"
+                disabled={!deleteReason.trim()}
+                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 disabled:opacity-30"
               >
                 삭제하기
               </button>

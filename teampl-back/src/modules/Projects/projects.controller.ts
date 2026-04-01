@@ -43,7 +43,8 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     const email = req.header('X-User-Email') || '';
     const id = parseInt(req.params.id, 10);
-    const success = await ProjectsService.delete(email, id);
+    const { deleteReason } = req.body;
+    const success = await ProjectsService.delete(email, id, deleteReason);
     if (!success) return res.status(404).json({ message: 'Project not found' });
 
     // CASCADE delete tasks associated with this project
@@ -107,6 +108,29 @@ router.delete('/:id/kicked-alert', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     try {
         await ProjectsService.ackKickedAlert(email, id);
+        res.status(204).send();
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// GET /api/projects/delete-alerts
+router.get('/delete-alerts', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    try {
+        const alerts = await ProjectsService.getDeleteAlerts(email);
+        res.json(alerts);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// DELETE /api/projects/:id/delete-alert
+router.delete('/:id/delete-alert', async (req, res) => {
+    const email = req.header('X-User-Email') || '';
+    const alertId = parseInt(req.params.id, 10);
+    try {
+        await ProjectsService.ackDeleteAlert(email, alertId);
         res.status(204).send();
     } catch (e: any) {
         res.status(500).json({ message: e.message });

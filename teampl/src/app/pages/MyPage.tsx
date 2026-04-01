@@ -60,7 +60,9 @@ export default function MyPage() {
               </div>
             </div>
             
-            <button className="px-8 py-4 bg-white/50 dark:bg-white/5 text-[#1A2340] dark:text-white text-[14px] font-black uppercase tracking-widest rounded-2xl hover:bg-white/60 dark:bg-white/10 transition-all border border-gray-300 dark:border-white/10 active:scale-95">
+            <button
+              onClick={() => navigate("/mypage/edit")}
+              className="px-8 py-4 bg-white/50 dark:bg-white/5 text-[#1A2340] dark:text-white text-[14px] font-black uppercase tracking-widest rounded-2xl hover:bg-white/60 dark:bg-white/10 transition-all border border-gray-300 dark:border-white/10 active:scale-95">
               정보수정
             </button>
           </div>

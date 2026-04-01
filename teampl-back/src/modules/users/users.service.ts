@@ -7,7 +7,13 @@ export const UsersService = {
   findByEmail: async (email: string) => {
     return await prisma.user.findUnique({ where: { email } });
   },
-  findById: async (id: number) => {
+  findById: async (id: string) => {
     return await prisma.user.findUnique({ where: { id } });
+  },
+  updateProfile: async (id: string, data: { name?: string; studentId?: string; department?: string }) => {
+    return await prisma.user.update({
+      where: { id },
+      data
+    });
   }
 };

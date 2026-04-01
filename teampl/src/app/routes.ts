@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 import Notifications from "./pages/Notifications";
 import Drive from "./pages/Drive";
 import MemberTasks from "./pages/MemberTasks";
+import EditProfile from "./pages/EditProfile";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
           { path: "projects/:projectId/members", Component: MemberTasks },
           { path: "tasks", Component: Tasks },
           { path: "mypage", Component: MyPage },
+          { path: "mypage/edit", Component: EditProfile },
           { path: "calendar", Component: Calendar },
           { path: "chat", Component: Chat },
           { path: "notifications", Component: Notifications },

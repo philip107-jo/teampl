@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { authApi } from "../api/authApi";
+import { useToast } from "../context/ToastContext";
 
 const DEPARTMENTS = [
   "컴퓨터공학과", "소프트웨어융합보안학과", "AI전공", "정보통신학과",
@@ -24,6 +25,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function Register() {
         password: formData.password,
         name: formData.name
       });
-      alert("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.");
+      showToast("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.", "success");
       navigate("/login");
     } catch (err: any) {
       setError(err.response?.data?.message || "회원가입에 실패했습니다.");
