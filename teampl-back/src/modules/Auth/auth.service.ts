@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UsersService } from '../users/users.service';
+import { ConflictError, UnauthorizedError } from '../../common/errors';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -8,7 +9,7 @@ export const AuthService = {
     register: async (email: string, password: string, name?: string) => {
         const existing = await UsersService.findByEmail(email);
         if (existing) {
-            throw new Error('User already exists');
+            throw new ConflictError('User already exists');
         }
         
         const salt = await bcrypt.genSalt(10);
@@ -27,12 +28,12 @@ export const AuthService = {
     login: async (email: string, password: string) => {
         const user = await UsersService.findByEmail(email);
         if (!user) {
-            throw new Error('Invalid credentials');
+            throw new UnauthorizedError('Invalid credentials');
         }
         
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            throw new Error('Invalid credentials');
+            throw new UnauthorizedError('Invalid credentials');
         }
         
         const token = jwt.sign(

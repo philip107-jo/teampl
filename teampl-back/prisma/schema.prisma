@@ -7,6 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ProjectRole {
+  LEADER
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  KICKED
+  LEFT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+}
+
 model User {
   id         String   @id @default(uuid())
   email      String   @unique
@@ -36,11 +59,11 @@ model Project {
 }
 
 model ProjectMember {
-  id        Int      @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   userEmail String
   projectId Int
-  role      String   @default("MEMBER")
-  status    String   @default("ACTIVE")
+  role      ProjectRole  @default(MEMBER)
+  status    MemberStatus @default(ACTIVE)
   kickReason String?
   joinedAt  DateTime @default(now())
 
@@ -54,8 +77,8 @@ model Task {
   id          String   @id @default(uuid())
   workspaceId String?
   title       String
-  status      String   @default("TODO")
-  priority    String   @default("medium")
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(medium)
   deadline    String
   ownerEmail  String?
   assignees   String[] // We can use string array to match current frontend array
