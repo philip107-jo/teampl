@@ -32,3 +32,6 @@
    - ProjectDeleteAlert DB 모델 신규 추가
    - 파일: schema.prisma, projects.service.ts, projects.controller.ts,
            projectApi.ts, Projects.tsx
+
+
+docker-compose up-d --build 한번 하셈
