@@ -5,6 +5,7 @@ export type User = {
   studentId?: string;
   department?: string;
   avatarUrl?: string;
+  avatarColor?: string;
 };
 
 export type Workspace = {
@@ -25,7 +26,9 @@ export type Task = {
   description?: string;
   status: TaskStatus;
   priority: 'high' | 'medium' | 'low';
+  difficulty: number; // 1-5
   deadline?: string;
+  completedAt?: string;
   createdById: string;
   assignees: string[]; // User IDs
 };

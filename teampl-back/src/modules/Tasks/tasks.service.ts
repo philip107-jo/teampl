@@ -7,13 +7,15 @@ export interface Task {
   status: string;
   priority: string;
   deadline: string;
-  createdById?: string;
+  ownerEmail?: string;
   assignees?: string[];
 }
 
 export const TasksService = {
   getAll: async (email: string) => {
+    if (!email) return [];
     return await prisma.task.findMany({
+        where: { ownerEmail: email },
         orderBy: { createdAt: 'desc' }
     });
   },
@@ -26,7 +28,7 @@ export const TasksService = {
         status: data.status || 'TODO',
         priority: data.priority || 'medium',
         deadline: data.deadline || new Date().toISOString().split('T')[0],
-        createdById: data.createdById || 'user-1',
+        ownerEmail: email || 'unknown',
         assignees: data.assignees || [],
       }
     });

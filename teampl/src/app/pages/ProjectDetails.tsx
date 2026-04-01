@@ -155,23 +155,32 @@ export default function ProjectDetails() {
                 </div>
               </div>
               <div className="w-px h-12 bg-white/60 dark:bg-white/10"></div>
-              <div>
-                <p className="hero-meta mb-2 uppercase">참여 팀원</p>
-                <div className="flex -space-x-3">
-                  {displayMembers.map((member: any) => (
-                    <div 
-                      key={member.id} 
-                      className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] border-[#151C31] flex items-center justify-center text-[#1A2340] dark:text-white text-[13px] font-black shadow-md z-10 relative`}
-                      title={member.name}
-                    >
-                      {member.name[0]}
-                    </div>
-                  ))}
-                  <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="hero-meta uppercase">참여 팀원</p>
+                <button 
+                  onClick={() => navigate(`/projects/${projectId}/members`)}
+                  className="text-[12px] font-black text-[#7C6CFF] hover:underline flex items-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  기여도 분석
+                </button>
               </div>
+              <div className="flex -space-x-3">
+                {displayMembers.map((member: any) => (
+                  <div 
+                    key={member.id} 
+                    className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] border-[#151C31] flex items-center justify-center text-[#1A2340] dark:text-white text-[13px] font-black shadow-md z-10 relative`}
+                    title={member.name}
+                  >
+                    {member.name[0]}
+                  </div>
+                ))}
+                <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
             </div>
           </div>
 

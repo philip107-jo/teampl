@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Notifications from "./pages/Notifications";
 import Drive from "./pages/Drive";
+import MemberTasks from "./pages/MemberTasks";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
           { index: true, Component: Dashboard },
           { path: "projects", Component: Projects },
           { path: "projects/:projectId", Component: ProjectDetails },
+          { path: "projects/:projectId/members", Component: MemberTasks },
           { path: "tasks", Component: Tasks },
           { path: "mypage", Component: MyPage },
           { path: "calendar", Component: Calendar },

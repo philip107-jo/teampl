@@ -16,9 +16,13 @@ export interface Project {
 
 export const ProjectsService = {
     getAll: async (email: string) => {
-        return await prisma.project.findMany({
-            orderBy: { id: 'desc' }
+        if (!email) return [];
+        const memberships = await prisma.projectMember.findMany({
+            where: { userEmail: email },
+            include: { project: true },
+            orderBy: { project: { id: 'desc' } }
         });
+        return memberships.map(m => m.project);
     },
 
     create: async (email: string, data: Partial<Project>) => {
@@ -29,7 +33,7 @@ export const ProjectsService = {
 
         const generatedInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        return await prisma.project.create({
+        const newProject = await prisma.project.create({
             data: {
                 name: data.name || '새 프로젝트',
                 course: data.course || '기타',
@@ -42,6 +46,18 @@ export const ProjectsService = {
                 inviteCode: generatedInviteCode,
             }
         });
+
+        if (email) {
+            await prisma.projectMember.create({
+                data: {
+                    userEmail: email,
+                    projectId: newProject.id,
+                    role: 'LEADER'
+                }
+            });
+        }
+
+        return newProject;
     },
 
     update: async (email: string, id: number, data: Partial<Project>) => {
@@ -81,10 +97,25 @@ export const ProjectsService = {
         });
         
         if (project) {
-            return await prisma.project.update({
-                where: { id: project.id },
-                data: { members: project.members + 1 }
+            // 이미 가입했는지 확인
+            const existing = await prisma.projectMember.findUnique({
+                where: { userEmail_projectId: { userEmail: email, projectId: project.id } }
             });
+            
+            if (!existing) {
+                await prisma.projectMember.create({
+                    data: {
+                        userEmail: email,
+                        projectId: project.id,
+                        role: 'MEMBER'
+                    }
+                });
+                return await prisma.project.update({
+                    where: { id: project.id },
+                    data: { members: project.members + 1 }
+                });
+            }
+            return project; // 이미 가입된 경우 기존 정보 반환
         }
         return null;
     }

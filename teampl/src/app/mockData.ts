@@ -7,13 +7,14 @@ export const currentUser: User = {
   studentId: '20240001',
   department: '컴퓨터공학과',
   avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky',
+  avatarColor: 'bg-[#7C6CFF]'
 };
 
 export const initialMembers: User[] = [
   currentUser,
-  { id: 'user-2', email: 'kim@example.com', name: '김철수', department: '컴퓨터공학과' },
-  { id: 'user-3', email: 'lee@example.com', name: '이영희', department: '디자인학과' },
-  { id: 'user-4', email: 'park@example.com', name: '박민수', department: '소프트웨어공학' },
+  { id: 'user-2', email: 'kim@example.com', name: '김철수', department: '컴퓨터공학과', avatarColor: 'bg-[#23D7A1]' },
+  { id: 'user-3', email: 'lee@example.com', name: '이영희', department: '디자인학과', avatarColor: 'bg-[#FF6B7A]' },
+  { id: 'user-4', email: 'park@example.com', name: '박민수', department: '소프트웨어공학', avatarColor: 'bg-[#FFB547]' },
 ];
 
 export const initialWorkspace: Workspace = {
@@ -33,7 +34,9 @@ export const initialTasks: Task[] = [
     description: '데이터베이스 설계를 위한 ERD 완성',
     status: 'DONE',
     priority: 'high',
+    difficulty: 5,
     deadline: '2026-03-12',
+    completedAt: '2026-03-10',
     createdById: 'user-1',
     assignees: ['user-2'],
   },
@@ -44,6 +47,7 @@ export const initialTasks: Task[] = [
     description: 'Figma 디자인 시안 검토',
     status: 'IN_PROGRESS',
     priority: 'high',
+    difficulty: 3,
     deadline: '2026-03-15',
     createdById: 'user-1',
     assignees: ['user-3'],
@@ -55,6 +59,7 @@ export const initialTasks: Task[] = [
     description: '백엔드 연동을 위한 API 명세서 작성',
     status: 'TODO',
     priority: 'medium',
+    difficulty: 4,
     deadline: '2026-03-20',
     createdById: 'user-1',
     assignees: ['user-1', 'user-2'],
