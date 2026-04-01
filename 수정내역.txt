@@ -1,0 +1,15 @@
+feat(Project): 프로젝트 관리 기능 고도화 및 전역 알림(Toast) 시스템 도입
+[Backend & Database]
+- Prisma Schema: ProjectMember 모델에 status 필드(KICKED 포함) 및 kickReason 필드 추가
+- 팀장 권한 위임 API (transferLeadership) 구현
+- 팀원 강퇴/내보내기 API (kickMember) 구현 (프로젝트 잔여 인원 동기화)
+- 초대코드 재발급 API (regenerateInviteCode) 구현 및 기존 코드 무효화 지원
+- 강퇴당한 프로젝트의 정보가 API 목록(getAll)에서 원천 차단되도록 보안 필터 추가
+- 모듈 및 컨트롤러 import 경로의 대소문자를 일치시켜 TS1261 폴더 구조 컴파일 에러 완벽 해결
+[Frontend & UI/UX]
+- 전역 커스텀 알림(ToastContext/Toast) 시스템 도입: 기존의 투박한 브라우저 자체 alert() 및 confirm() 창을 다크 글래스모피즘 테마에 맞춘 부드러운 애니메이션 팝업으로 대체
+- Layout.tsx에 5초 폴링을 적용한 강퇴 감지 보안 모달 도입 (강퇴된 인원이 접속 시 영구 안내 팝업 출력)
+- 메인 화면(Projects.tsx)의 프로젝트 카드 리스트 및 생성 시 부드러운 스위칭 모션(framer-motion AnimatePresence) 적용
+- 프로젝트 관리 메뉴의 '점 세 개(MoreVertical)' 아이콘을 직관적인 톱니바퀴(Settings) 아이콘으로 교체
+- 프로젝트 세부 설정에 강퇴자 사유 입력, 초대 코드 재생성 기능, 방 위임 권한 모달 페이지 UI 구현 지원
+
