@@ -7,12 +7,16 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export default function Drive() {
+interface DriveProps {
+  projectId?: number;
+}
+
+export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMockUser = user?.email === "test@naver.com";
 
-  const [currentPath, setCurrentPath] = useState([{ name: "전체 스페이스", id: "root" }]);
+  const [currentPath, setCurrentPath] = useState([{ name: propProjectId ? "프로젝트 파일" : "전체 스페이스", id: "root" }]);
   const [activeTab, setActiveTab] = useState("전체");
 
   const mockFolders = [
@@ -36,6 +40,7 @@ export default function Drive() {
   return (
     <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto">
       {/* Top Navigation */}
+      {!propProjectId && (
       <div className="hero-top mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
@@ -47,8 +52,10 @@ export default function Drive() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Header */}
+      {!propProjectId && (
       <section className="card hero-card mb-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-2 relative z-10">
           <div className="space-y-1">
@@ -74,6 +81,7 @@ export default function Drive() {
           </div>
         </div>
       </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Content Area */}

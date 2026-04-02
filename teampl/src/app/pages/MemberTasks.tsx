@@ -11,30 +11,33 @@ import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
 
-export default function MemberTasks() {
-  const { projectId } = useParams();
+interface MemberTasksProps {
+  projectId?: number;
+}
+
+export default function MemberTasks({ projectId: propProjectId }: MemberTasksProps = {}) {
+  const params = useParams();
+  const numProjectId = propProjectId || Number(params.projectId);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isMockUser = user?.email === "test@naver.com";
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState<any[]>(isMockUser ? initialMembers : []);
+  const [members, setMembers] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const tasksData = await taskApi.getTasks();
+        if (!numProjectId) return;
+        const tasksData = await taskApi.getTasks(numProjectId);
         setTasks(tasksData);
 
-        if (!isMockUser) {
-          const projects = await projectApi.getProjects();
-          const p = projects.find(proj => String(proj.id) === String(projectId));
-          if (p && p.membersList && p.membersList.length > 0) {
-            setMembers(p.membersList);
-          } else {
-             setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
-          }
+        const projects = await projectApi.getProjects();
+        const p = projects.find(proj => String(proj.id) === String(numProjectId));
+        if (p && p.membersList && p.membersList.length > 0) {
+          setMembers(p.membersList);
+        } else {
+          setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
         }
       } catch(err) {
         console.error(err);
@@ -42,10 +45,10 @@ export default function MemberTasks() {
         setLoading(false);
       }
     };
-    fetchData(); // initial fetch
-    const intervalId = setInterval(fetchData, 3000); // Poll every 3 seconds
+    fetchData();
+    const intervalId = setInterval(fetchData, 5000);
     return () => clearInterval(intervalId);
-  }, [projectId, isMockUser, user]);
+  }, [numProjectId, user]);
 
   const calculateStats = (memberId: string) => {
     const memberTasks = tasks.filter(t => t.assignees.includes(memberId));
@@ -87,7 +90,7 @@ export default function MemberTasks() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => navigate(`/projects/${projectId}`)}
+            onClick={() => navigate(`/projects/${numProjectId}`)}
             className="w-12 h-12 rounded-2xl bg-white dark:bg-[#1A2340] flex items-center justify-center shadow-xl shadow-black/5 hover:scale-110 active:scale-95 transition-all text-[#1A2340] dark:text-white border border-gray-100 dark:border-white/5"
           >
             <ChevronLeft className="w-6 h-6" />

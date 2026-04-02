@@ -3,15 +3,10 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
-import Tasks from "./pages/Tasks";
 import MyPage from "./pages/MyPage";
-import Calendar from "./pages/Calendar";
-import Chat from "./pages/Chat";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Notifications from "./pages/Notifications";
-import Drive from "./pages/Drive";
-import MemberTasks from "./pages/MemberTasks";
 import EditProfile from "./pages/EditProfile";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -35,14 +30,9 @@ export const router = createBrowserRouter([
           { index: true, Component: Dashboard },
           { path: "projects", Component: Projects },
           { path: "projects/:projectId", Component: ProjectDetails },
-          { path: "projects/:projectId/members", Component: MemberTasks },
-          { path: "tasks", Component: Tasks },
           { path: "mypage", Component: MyPage },
           { path: "mypage/edit", Component: EditProfile },
-          { path: "calendar", Component: Calendar },
-          { path: "chat", Component: Chat },
           { path: "notifications", Component: Notifications },
-          { path: "drive", Component: Drive },
         ],
       },
     ],

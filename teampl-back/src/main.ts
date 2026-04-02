@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import tasksRouter from './modules/tasks/tasks.controller';
 import projectsRouter from './modules/projects/projects.controller';
 import authRouter from './modules/auth/auth.controller';
-import schedulesRouter from './modules/schedules/schedules.controller';
 import usersRouter from './modules/users/users.controller';
+import tasksRouter from './modules/tasks/tasks.controller';
+import schedulesRouter from './modules/schedules/schedules.controller';
 
 dotenv.config();
 
@@ -21,11 +21,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Teampl Backend is running' });
 });
 
-app.use('/api/tasks', tasksRouter);
+// 기존 글로벌 라우트
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/schedules', schedulesRouter);
 app.use('/api/users', usersRouter);
+
+// 프로젝트 하위 라우트 (방 기반 구조)
+app.use('/api/projects/:projectId/tasks', tasksRouter);
+app.use('/api/projects/:projectId/schedules', schedulesRouter);
 
 import { errorHandler } from './middlewares/errorHandler';
 // Global Error Handler

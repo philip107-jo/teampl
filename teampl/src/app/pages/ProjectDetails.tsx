@@ -1,23 +1,31 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { 
-  ChevronLeft, Database, Plus, Users, Calendar, Clock, 
+  ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
   CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard,
-  Settings, UserX, UserCheck, RefreshCw, X, Crown
+  Settings, UserX, UserCheck, RefreshCw, X, Crown,
+  CheckSquare, FolderOpen
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
 import { useToast } from "../context/ToastContext";
+import Tasks from "./Tasks";
+import Calendar from "./Calendar";
+import Chat from "./Chat";
+import Drive from "./Drive";
+import MemberTasks from "./MemberTasks";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
+  const numProjectId = Number(projectId);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const isMockUser = user?.email === "test@naver.com";
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'calendar' | 'chat' | 'drive'>('overview');
 
   const [realProject, setRealProject] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(!isMockUser);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSettingModalOpen, setIsSettingModalOpen] = useState(false);
@@ -32,8 +40,7 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     const fetchProject = () => {
-      if (!isMockUser) {
-        projectApi.getProjects()
+      projectApi.getProjects()
           .then(projects => {
             const found = projects.find(p => String(p.id) === String(projectId));
             if (found && found.userStatus === 'KICKED') {
@@ -59,13 +66,12 @@ export default function ProjectDetails() {
           })
           .catch(console.error)
           .finally(() => setIsLoading(false));
-      }
     };
 
     fetchProject();
     const intervalId = setInterval(fetchProject, 3000);
     return () => clearInterval(intervalId);
-  }, [isMockUser, projectId]);
+  }, [projectId]);
 
   // Mock data for the specific project
   const mockProject = {
@@ -97,7 +103,7 @@ export default function ProjectDetails() {
     { id: 2, name: "ERD_초안_draft.png", size: "1.1MB", uploader: "나 (팀장)", date: "03.08" },
   ];
 
-  const project = isMockUser ? mockProject : (realProject ? { ...realProject, theme: realProject.color || "blue" } : {
+  const project = realProject ? { ...realProject, theme: realProject.color || "blue" } : {
     id: projectId,
     name: "알 수 없는 프로젝트",
     course: "미지정",
@@ -107,13 +113,11 @@ export default function ProjectDetails() {
     theme: "blue",
     icon: Database,
     members: 1
-  });
+  };
 
   const rawMembers = project.membersList 
     ? project.membersList 
-    : (isMockUser 
-        ? mockProject.members 
-        : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
+    : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }];
 
   const displayMembers = [...rawMembers].sort((a: any, b: any) => {
     if (a.role === 'LEADER') return -1;
@@ -122,7 +126,7 @@ export default function ProjectDetails() {
   });
 
   const handleRegenerateInviteCode = async () => {
-    if (!project || isMockUser) return;
+    if (!project) return;
     try {
       if (confirm('초대 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다.')) {
         await projectApi.regenerateInviteCode(Number(projectId));
@@ -169,11 +173,6 @@ export default function ProjectDetails() {
       showToast(e.response?.data?.message || e.message, 'error');
     }
   };
-
-  if (isLoading) return <div className="p-8">로딩 중...</div>;
-
-  const recentTasks = isMockUser ? mockRecentTasks : [];
-  const recentFiles = isMockUser ? mockRecentFiles : [];
 
   if (isLoading) {
     return (
@@ -247,184 +246,120 @@ export default function ProjectDetails() {
 
       {/* Project Overview Card */}
       <section className="card hero-card mb-8">
-        <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
-          <div className="space-y-8 flex-1">
-            <div>
-              <h2 className="hero-title mb-3" style={{ fontSize: '2rem' }}>{project.name}</h2>
-              <p className="text-[15px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed max-w-2xl">{project.description}</p>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-8">
-              <div className="flex items-center gap-4">
-                <div className="schedule-item orange !p-0 !border-none !bg-transparent">
-                  <div className="schedule-icon" style={{ width: 40, height: 40, borderRadius: 10 }}>
-                    <Calendar className="w-5 h-5 text-[#1A2340] dark:text-white" />
-                  </div>
-                </div>
-                <div>
-                  <p className="hero-meta mb-1 uppercase">마감일</p>
-                  <p className="text-[16px] font-black text-[#1A2340] dark:text-white">{project.deadline}</p>
-                </div>
-              </div>
-              <div className="w-px h-12 bg-white/60 dark:bg-white/10"></div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="hero-meta uppercase">참여 팀원</p>
-                <button 
-                  onClick={() => navigate(`/projects/${projectId}/members`)}
-                  className="text-[12px] font-black text-[#7C6CFF] hover:underline flex items-center gap-1"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  기여도 분석
-                </button>
-              </div>
-              <div className="flex -space-x-3">
-                {displayMembers.map((member: any) => {
-                  const isLeader = member.role === 'LEADER';
-                  return (
-                    <div
-                      key={member.id}
-                      className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] ${
-                        isLeader ? 'border-[#FFB547] shadow-[0_0_8px_rgba(255,181,71,0.7)]' : 'border-[#151C31]'
-                      } flex items-center justify-center text-white text-[13px] font-black shadow-md z-10 relative`}
-                      title={isLeader ? `${member.name} (팀장)` : member.name}
-                    >
-                      {member.name[0]}
-                      {isLeader && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                          <Crown className="w-3.5 h-3.5 text-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.9)] fill-[#FFB547]" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <button className="w-10 h-10 rounded-full bg-white dark:bg-[#12182B] border-[3px] border-[#151C31] flex items-center justify-center text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-md z-0 relative">
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            </div>
-          </div>
 
-          {/* Progress Circle Section */}
-          <div className="bg-white dark:bg-[#12182B] rounded-[32px] p-8 flex flex-col items-center justify-center min-w-[220px] border border-gray-200 dark:border-white/5 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
-            <div className="relative w-28 h-28 flex items-center justify-center mb-4">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/5" />
-                <circle 
-                  cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" 
-                  strokeDasharray="301.6" 
-                  strokeDashoffset={301.6 - (301.6 * project.progress) / 100}
-                  className="text-[#7C6CFF] shadow-[0_0_20px_rgba(124,108,255,0.6)]" 
-                  strokeLinecap="round" 
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-[28px] font-black text-[#1A2340] dark:text-white tracking-tight">{project.progress}%</span>
-              </div>
-            </div>
-            <p className="hero-meta uppercase mt-1">전체 진척도</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Recent Tasks */}
-        <div className="space-y-4">
-          <div className="section-head">
-            <div className="section-kicker">
-              <span className="analysis-dot"></span>
-              최근 작업
-            </div>
-            <button className="text-[14px] font-black text-[#7C6CFF] hover:text-[#1A2340] dark:text-white dark:hover:text-white/80 hover:underline transition-all">전체보기</button>
-          </div>
-          
-          <div className="card space-y-3">
-            {recentTasks.length > 0 ? recentTasks.map((task) => (
-              <div key={task.id} className="p-5 rounded-[18px] bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:bg-white/10 transition-all cursor-pointer flex items-center justify-between border border-gray-200 dark:border-white/5">
-                <div className="flex items-center gap-4">
-                  <div className={`w-3.5 h-3.5 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.5)] ${
-                    task.status === "완료" ? "bg-[#27D7A1] shadow-[#27D7A1]" :
-                    task.status === "진행중" ? "bg-[#7C6CFF] shadow-[#7C6CFF]" : "bg-white/20"
-                  }`}></div>
-                  <div>
-                    <h4 className="text-[15px] font-black text-[#1A2340] dark:text-white hover:text-[#7C6CFF] transition-colors">{task.title}</h4>
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mt-1">
-                      <span>{task.assignee}</span>
-                      <span className="opacity-30">•</span>
-                      <span>{task.date} 업데이트</span>
-                    </div>
-                  </div>
-                </div>
-                <span className={`badge ${
-                  task.status === "완료" ? "!text-[#27D7A1] !bg-[#27D7A1]/10 !border-[#27D7A1]/20" :
-                  task.status === "진행중" ? "!text-[#7C6CFF] !bg-[#7C6CFF]/10 !border-[#7C6CFF]/20" : "!text-[#7D879C]/80 dark:!text-white/40 !bg-white/50 dark:!bg-white/5 !border-gray-200 dark:!border-white/5"
-                }`}>
-                  {task.status}
-                </span>
-              </div>
-            )) : (
-              <p className="text-center py-6 text-[#7D879C]/60 text-[13px] font-bold">아직 최근 작업이 없습니다.</p>
-            )}
-            <button className="w-full p-4 rounded-[18px] border-2 border-dashed border-gray-300 dark:border-white/10 text-[#7D879C]/80 dark:text-white/40 hover:border-[#7C6CFF]/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/5 transition-all flex items-center justify-center gap-2 text-[13px] font-black uppercase mt-4 mb-1">
-              <Plus className="w-5 h-5" />
-              새 작업 추가
+      {/* ===== Workspace Tab Bar ===== */}
+      <div className="flex gap-1 mb-6 bg-white/60 dark:bg-[#151C31]/60 backdrop-blur-xl rounded-2xl p-1.5 border border-gray-200 dark:border-white/10 shadow-lg overflow-x-auto">
+        {[
+          { key: 'overview' as const, label: '개요', icon: LayoutDashboard },
+          { key: 'tasks' as const, label: '할 일', icon: CheckSquare },
+          { key: 'calendar' as const, label: '일정', icon: CalendarIcon },
+          { key: 'chat' as const, label: '채팅', icon: MessageSquare },
+          { key: 'drive' as const, label: '파일', icon: FolderOpen },
+        ].map(tab => {
+          const TabIcon = tab.icon;
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-black transition-all whitespace-nowrap ${
+                active
+                  ? 'bg-[#7C6CFF] text-white shadow-lg shadow-[#7C6CFF]/30'
+                  : 'text-[#7D879C] dark:text-white/50 hover:bg-white/80 dark:hover:bg-white/10 hover:text-[#1A2340] dark:hover:text-white'
+              }`}
+            >
+              <TabIcon className="w-4 h-4" />
+              {tab.label}
             </button>
-          </div>
-        </div>
+          );
+        })}
+      </div>
 
-        {/* Files & Discussions */}
-        <div className="space-y-6">
-          {/* Files */}
-          <div className="space-y-4">
-            <div className="section-head">
-              <div className="section-kicker">
-                <span className="analysis-dot" style={{ background: '#FFB547', boxShadow: '0 0 8px #FFB547' }}></span>
-                파일 및 문서
-              </div>
-              <button onClick={() => navigate("/drive")} className="text-[14px] font-black text-[#FFB547] hover:text-[#1A2340] dark:text-white dark:hover:text-white/80 hover:underline transition-all">전체보기</button>
-            </div>
-            
-            <div className="card space-y-3">
-              {recentFiles.length > 0 ? recentFiles.map((file) => (
-                <div key={file.id} className="p-4 rounded-[18px] border border-gray-200 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:bg-white/10 hover:border-[#FFB547]/30 transition-all flex items-center justify-between cursor-pointer">
+      {/* ===== Tab Content ===== */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Overview Info Card */}
+          <div className="card hero-card mb-8">
+            <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
+              <div className="space-y-8 flex-1">
+                <div>
+                  <h2 className="hero-title mb-3" style={{ fontSize: '2rem' }}>{project.name}</h2>
+                  <p className="text-[15px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed max-w-2xl">{project.description}</p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-8">
                   <div className="flex items-center gap-4">
                     <div className="schedule-item orange !p-0 !border-none !bg-transparent">
-                      <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                        <FileText className="w-6 h-6 text-[#1A2340] dark:text-white" />
+                      <div className="schedule-icon" style={{ width: 40, height: 40, borderRadius: 10 }}>
+                        <CalendarIcon className="w-5 h-5 text-[#1A2340] dark:text-white" />
                       </div>
                     </div>
                     <div>
-                      <p className="text-[14px] font-black text-[#1A2340] dark:text-white hover:text-[#FFB547] transition-colors">{file.name}</p>
-                      <p className="hero-meta mt-1">{file.size} • {file.uploader}</p>
+                      <p className="hero-meta mb-1 uppercase">마감일</p>
+                      <p className="text-[16px] font-black text-[#1A2340] dark:text-white">{project.deadline}</p>
+                    </div>
+                  </div>
+                  <div className="w-px h-12 bg-white/60 dark:bg-white/10"></div>
+                  <div>
+                    <p className="hero-meta uppercase mb-2">참여 팀원</p>
+                    <div className="flex -space-x-3">
+                      {displayMembers.map((member: any) => {
+                        const isLeader = member.role === 'LEADER';
+                        return (
+                          <div
+                            key={member.id}
+                            className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] ${
+                              isLeader ? 'border-[#FFB547] shadow-[0_0_8px_rgba(255,181,71,0.7)]' : 'border-[#151C31]'
+                            } flex items-center justify-center text-white text-[13px] font-black shadow-md z-10 relative`}
+                            title={isLeader ? `${member.name} (팀장)` : member.name}
+                          >
+                            {member.name[0]}
+                            {isLeader && (
+                              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                                <Crown className="w-3.5 h-3.5 text-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.9)] fill-[#FFB547]" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
-              )) : (
-                <p className="text-center py-5 text-[#7D879C]/60 text-[13px] font-bold">업로드된 파일이 없습니다.</p>
-              )}
+              </div>
+
+              {/* Progress Circle */}
+              <div className="bg-white dark:bg-[#12182B] rounded-[32px] p-8 flex flex-col items-center justify-center min-w-[220px] border border-gray-200 dark:border-white/5 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                <div className="relative w-28 h-28 flex items-center justify-center mb-4">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/5" />
+                    <circle 
+                      cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" 
+                      strokeDasharray="301.6" 
+                      strokeDashoffset={301.6 - (301.6 * (project.progress || 0)) / 100}
+                      className="text-[#7C6CFF] shadow-[0_0_20px_rgba(124,108,255,0.6)]" 
+                      strokeLinecap="round" 
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center">
+                    <span className="text-[28px] font-black text-[#1A2340] dark:text-white tracking-tight">{project.progress || 0}%</span>
+                  </div>
+                </div>
+                <p className="hero-meta uppercase mt-1">전체 진척도</p>
+              </div>
             </div>
           </div>
 
-          {/* Quick Chat Entry */}
-          <div className="card !bg-gradient-to-br !from-[#7C6CFF]/40 !to-[#7C6CFF]/40 p-8 text-[#1A2340] dark:text-white shadow-[0_15px_40px_rgba(124,108,255,0.3)] relative overflow-hidden group transition-all hover:scale-[1.02] cursor-pointer border-none" onClick={() => navigate("/chat")}>
-            <div className="absolute top-0 right-0 w-48 h-48 bg-white/20 rounded-full -mr-20 -mt-20 blur-2xl"></div>
-            <MessageSquare className="absolute -right-4 -bottom-4 w-32 h-32 text-gray-300 dark:text-white/20 group-hover:scale-110 transition-transform duration-700" />
-            <div className="relative z-10">
-              <h3 className="text-[20px] font-black mb-3 tracking-tight">팀 채팅방 참여</h3>
-              <p className="text-[13px] text-[#7D879C] dark:text-white/80 font-bold mb-6 max-w-[220px] leading-relaxed">이 프로젝트의 팀원들과<br/>실시간으로 소통하세요.</p>
-              <button 
-                className="px-6 py-2.5 bg-white text-[#7C6CFF] text-[13px] font-black uppercase rounded-[12px] shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] transition-all"
-              >
-                입장하기
-              </button>
-            </div>
-          </div>
+          {/* MemberTasks embedded in overview */}
+          <MemberTasks projectId={numProjectId} />
+        </>
+      )}
 
-        </div>
-      </div>
+      {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
+      {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
+      {activeTab === 'chat' && <Chat projectId={numProjectId} />}
+      {activeTab === 'drive' && <Drive projectId={numProjectId} />}
+
+      </section>
 
       {/* Settings Modal */}
       {isSettingModalOpen && (

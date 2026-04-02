@@ -1,4 +1,4 @@
-import { useOutlet, Link, useLocation, useNavigate } from "react-router";
+import { useOutlet, Link, useLocation, useNavigate, useParams } from "react-router";
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -25,7 +25,7 @@ export default function Layout() {
   const [kickedAlerts, setKickedAlerts] = useState<{projectId: number, projectName: string, kickReason: string}[]>([]);
 
   useEffect(() => {
-    if (!user || user.email === "test@naver.com") return;
+    if (!user) return;
 
     const fetchAlerts = async () => {
       try {
@@ -51,12 +51,9 @@ export default function Layout() {
   };
 
   const navItems = [
-    { path: "/", icon: LayoutDashboard, label: "홈" },
-    { path: "/projects", icon: FolderKanban, label: "프로젝트" },
-    { path: "/tasks", icon: CheckSquare, label: "할 일" },
-    { path: "/chat", icon: MessageSquare, label: "채팅" },
-    { path: "/calendar", icon: CalendarIcon, label: "일정" },
-    { path: "/mypage", icon: UserIcon, label: "내 정보" },
+    { key: "home", path: "/", icon: LayoutDashboard, label: "홈" },
+    { key: "projects", path: "/projects", icon: FolderKanban, label: "프로젝트" },
+    { key: "mypage", path: "/mypage", icon: UserIcon, label: "내 정보" },
   ];
 
   const handleLogout = () => {
@@ -64,11 +61,12 @@ export default function Layout() {
     navigate("/login");
   };
 
-  const isActive = (path: string) => {
-    if (path === "/") {
-      return location.pathname === path;
-    }
-    return location.pathname.startsWith(path);
+  const isActive = (item: typeof navItems[0]) => {
+    const p = location.pathname;
+    if (item.key === "home") return p === "/";
+    if (item.key === "projects") return p.startsWith("/projects");
+    if (item.key === "mypage") return p.startsWith("/mypage");
+    return false;
   };
 
   return (
@@ -119,10 +117,10 @@ export default function Layout() {
         <div className="flex items-center justify-around max-w-lg mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
+            const active = isActive(item);
             return (
               <Link
-                key={item.path}
+                key={item.key}
                 to={item.path}
                 className={`flex flex-col items-center gap-1.5 px-2.5 py-2 rounded-2xl transition-all duration-300 active:scale-90 ${
                   active

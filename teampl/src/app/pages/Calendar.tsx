@@ -1,11 +1,18 @@
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useParams } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
 import { scheduleApi } from "../api/scheduleApi";
 
-export default function Calendar() {
+interface CalendarProps {
+  projectId?: number;
+}
+
+export default function Calendar({ projectId: propProjectId }: CalendarProps = {}) {
   const { user } = useAuth();
+  const params = useParams<{ projectId: string }>();
+  const numProjectId = propProjectId || Number(params.projectId);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
@@ -22,7 +29,8 @@ export default function Calendar() {
   const [formData, setFormData] = useState({ title: '', project: '', date: '', endDate: '', type: 'other' });
 
   useEffect(() => {
-    scheduleApi.getSchedules()
+    if (!numProjectId) return;
+    scheduleApi.getSchedules(numProjectId)
       .then(data => setEvents(data))
       .catch(console.error);
 
@@ -45,10 +53,10 @@ export default function Calendar() {
     e.preventDefault();
     try {
       if (editingEventId) {
-        const updatedEvent = await scheduleApi.updateSchedule(editingEventId, formData);
+        const updatedEvent = await scheduleApi.updateSchedule(numProjectId, editingEventId, formData);
         setEvents(events.map(ev => ev.id === editingEventId ? updatedEvent : ev));
       } else {
-        const newEvent = await scheduleApi.createSchedule(formData);
+        const newEvent = await scheduleApi.createSchedule(numProjectId, formData);
         setEvents([...events, newEvent]);
       }
       closeModal();
@@ -60,7 +68,7 @@ export default function Calendar() {
   const handleDeleteEvent = async () => {
     if (!editingEventId) return;
     try {
-      await scheduleApi.deleteSchedule(editingEventId);
+      await scheduleApi.deleteSchedule(numProjectId, editingEventId);
       setEvents(events.filter(ev => ev.id !== editingEventId));
       closeModal();
     } catch (err) {

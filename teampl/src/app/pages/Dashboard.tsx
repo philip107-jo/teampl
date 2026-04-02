@@ -10,7 +10,6 @@ import { useAuth } from "../context/AuthContext";
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isMockUser = user?.email === "test@naver.com";
   
   // -- Local State --
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -23,11 +22,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = () => {
       Promise.all([
-        taskApi.getTasks().catch(() => []), 
         projectApi.getProjects().catch(() => [])
       ])
-        .then(([fetchedTasks, fetchedProjects]) => {
-          setTasks(fetchedTasks);
+        .then(([fetchedProjects]) => {
           if (fetchedProjects && fetchedProjects.length > 0) {
             setProjects(fetchedProjects);
             // 선택된 프로젝트 정보도 최신 데이터로 갱신 (팀장 위임 등 반영)
@@ -45,9 +42,17 @@ export default function Dashboard() {
     };
 
     fetchData();
-    const intervalId = setInterval(fetchData, 5000);
+    const intervalId = setInterval(fetchData, 10000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // 선택된 프로젝트의 Task를 가져오기
+  useEffect(() => {
+    if (!selectedProject) { setTasks([]); return; }
+    taskApi.getTasks(selectedProject.id)
+      .then(data => setTasks(data))
+      .catch(() => setTasks([]));
+  }, [selectedProject]);
 
   // Dynamic calculations based on real mock data
   const totalTasks = tasks.length;
@@ -89,14 +94,12 @@ export default function Dashboard() {
 
   const rawMembers = selectedProject?.membersList 
     ? selectedProject.membersList 
-    : (isMockUser 
-        ? initialMembers 
-        : [{ 
-            id: user?.id || 1, 
-            name: user?.name || "나 (팀장)", 
-            email: user?.email, 
-            department: user?.department 
-          }]);
+    : [{ 
+        id: user?.id || 1, 
+        name: user?.name || "나 (팀장)", 
+        email: user?.email, 
+        department: user?.department 
+      }];
 
   const displayMembers = [...rawMembers].sort((a: any, b: any) => {
     if (a.role === 'LEADER') return -1;

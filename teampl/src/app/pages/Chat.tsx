@@ -195,13 +195,25 @@ function ProfileModal({ selectedMember, onClose, onMessage }: { selectedMember: 
   );
 }
 
-export default function Chat() {
+interface ChatProps {
+  projectId?: number;
+}
+
+export default function Chat({ projectId: propProjectId }: ChatProps = {}) {
   const { user } = useAuth();
   const isMockUser = user?.email === "test@naver.com";
   
   const [realProjects, setRealProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(!isMockUser);
-  
+  const [navStep, setNavStep] = useState<NavStep>(propProjectId ? "CHAT" : "LIST");
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(propProjectId || null);
+  const [chatMode, setChatMode] = useState<ChatMode>("TEAM");
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [inputText, setInputText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!isMockUser) {
       projectApi.getProjects()
@@ -214,14 +226,13 @@ export default function Chat() {
   const projects = isMockUser ? mockProjects : realProjects;
   const members = isMockUser ? mockMembers : [];
 
-  const [navStep, setNavStep] = useState<NavStep>("LIST");
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [chatMode, setChatMode] = useState<ChatMode>("TEAM");
-  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [inputText, setInputText] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (propProjectId) {
+      setNavStep("CHAT");
+      setSelectedProjectId(propProjectId);
+      setChatMode("TEAM");
+    }
+  }, [propProjectId]);
 
   // Mock messages
   const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({
@@ -392,40 +403,42 @@ export default function Chat() {
 
   // 3단계: 채팅창
   return (
-    <div className="flex flex-col h-screen bg-[#f8faff] dark:bg-[#0B1020] overflow-hidden relative transition-all duration-300">
-      <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#12182B]/90 backdrop-blur-md sticky top-0 z-10 transition-all">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setNavStep("LIST")} className="p-2.5 -ml-2 text-[#7D879C]/80 dark:text-white/40 hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"><ChevronLeft className="w-7 h-7" /></button>
+    <div className={`flex flex-col ${propProjectId ? 'h-[75vh] rounded-3xl overflow-hidden mb-8' : 'h-screen'} bg-[#f8faff] dark:bg-[#0B1020] overflow-hidden relative transition-all duration-300`}>
+      {!propProjectId && (
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#12182B]/90 backdrop-blur-md sticky top-0 z-10 transition-all">
           <div className="flex items-center gap-4">
-            {chatMode === "TEAM" ? (
-              <div className={`schedule-item ${selectedProject?.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
-                <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 14 }}>
-                  {selectedProject && <selectedProject.icon className="w-6 h-6 text-[#1A2340] dark:text-white" />}
+            <button onClick={() => setNavStep("LIST")} className="p-2.5 -ml-2 text-[#7D879C]/80 dark:text-white/40 hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"><ChevronLeft className="w-7 h-7" /></button>
+            <div className="flex items-center gap-4">
+              {chatMode === "TEAM" ? (
+                <div className={`schedule-item ${selectedProject?.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
+                  <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 14 }}>
+                    {selectedProject && <selectedProject.icon className="w-6 h-6 text-[#1A2340] dark:text-white" />}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className={`w-12 h-12 rounded-[14px] ${selectedMember?.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white font-black text-[16px] shadow-[0_0_15px_rgba(0,0,0,0.2)]`}>
-                {selectedMember?.name[0]}
-              </div>
-            )}
-            <div>
-              <h1 className="text-[17px] font-black text-[#1A2340] dark:text-white tracking-tight leading-none mb-1.5 truncate max-w-[180px]">
-                {chatMode === "TEAM" ? selectedProject?.name : `${selectedMember?.name}님`}
-              </h1>
-              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#23D7A1] drop-shadow-[0_0_8px_rgba(35,215,161,0.5)]">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#23D7A1] animate-pulse"></div>
-                {chatMode === "TEAM" ? "실시간 팀 소통 중" : "1:1 프라이빗 대화"}
+              ) : (
+                <div className={`w-12 h-12 rounded-[14px] ${selectedMember?.avatarColor} flex items-center justify-center text-[#1A2340] dark:text-white font-black text-[16px] shadow-[0_0_15px_rgba(0,0,0,0.2)]`}>
+                  {selectedMember?.name[0]}
+                </div>
+              )}
+              <div>
+                <h1 className="text-[17px] font-black text-[#1A2340] dark:text-white tracking-tight leading-none mb-1.5 truncate max-w-[180px]">
+                  {chatMode === "TEAM" ? selectedProject?.name : `${selectedMember?.name}님`}
+                </h1>
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#23D7A1] drop-shadow-[0_0_8px_rgba(35,215,161,0.5)]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#23D7A1] animate-pulse"></div>
+                  {chatMode === "TEAM" ? "실시간 팀 소통 중" : "1:1 프라이빗 대화"}
+                </div>
               </div>
             </div>
           </div>
+          <button 
+            onClick={() => chatMode === "TEAM" ? setIsDrawerOpen(true) : null} 
+            className="p-3 text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"
+          >
+            {chatMode === "TEAM" ? <Menu className="w-7 h-7" /> : <MoreVertical className="w-6 h-6" />}
+          </button>
         </div>
-        <button 
-          onClick={() => chatMode === "TEAM" ? setIsDrawerOpen(true) : null} 
-          className="p-3 text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white hover:bg-white/50 dark:bg-white/5 rounded-2xl transition-all"
-        >
-          {chatMode === "TEAM" ? <Menu className="w-7 h-7" /> : <MoreVertical className="w-6 h-6" />}
-        </button>
-      </div>
+      )}
 
       {/* TEAM MEMBERS DRAWER (OVERLAY) */}
       {isDrawerOpen && chatMode === "TEAM" && (

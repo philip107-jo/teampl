@@ -1,5 +1,6 @@
 import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useParams } from "react-router";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { initialMembers, currentUser } from "../mockData";
@@ -7,14 +8,21 @@ import { Task, TaskStatus } from "../types";
 import KanbanBoard from "../components/KanbanBoard";
 import { taskApi } from "../api/taskApi";
 
-export default function Tasks() {
+interface TasksProps {
+  projectId?: number;
+}
+
+export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
+  const params = useParams<{ projectId: string }>();
+  const numProjectId = propProjectId || Number(params.projectId);
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    taskApi.getTasks()
+    if (!numProjectId) return;
+    taskApi.getTasks(numProjectId)
       .then(data => setTasks(data))
       .catch(err => console.error("태스크 로드 에러:", err));
-  }, []);
+  }, [numProjectId]);
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [viewMode, setViewMode] = useState<"list" | "board">("list");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,14 +36,12 @@ export default function Tasks() {
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
     try {
-      const newTask = await taskApi.createTask({
-        workspaceId: 'workspace-1',
+      const newTask = await taskApi.createTask(numProjectId, {
         title: newTaskTitle,
         status: 'TODO',
         priority: 'medium',
         deadline: new Date().toISOString().split('T')[0],
-        createdById: currentUser.id,
-        assignees: [currentUser.id]
+        assignees: []
       });
       setTasks([newTask, ...tasks]);
       setNewTaskTitle("");
@@ -51,7 +57,7 @@ export default function Tasks() {
     if (!task) return;
     const target = task.status === 'DONE' ? 'TODO' : 'DONE';
     try {
-      await taskApi.updateTaskStatus(id, target);
+      await taskApi.updateTaskStatus(numProjectId, id, target);
       setTasks(tasks.map(t => t.id === id ? { ...t, status: target } : t));
     } catch (err) {
       console.error(err);
@@ -63,7 +69,7 @@ export default function Tasks() {
     e.stopPropagation();
     if (!window.confirm("정말 이 태스크를 삭제하시겠습니까?")) return;
     try {
-      await taskApi.deleteTask(taskId);
+      await taskApi.deleteTask(numProjectId, taskId);
       setTasks(tasks.filter(t => t.id !== taskId));
     } catch (err) {
       console.error(err);
@@ -73,7 +79,7 @@ export default function Tasks() {
 
   const moveTask = async (taskId: string, targetStatus: TaskStatus) => {
     try {
-      await taskApi.updateTaskStatus(taskId, targetStatus);
+      await taskApi.updateTaskStatus(numProjectId, taskId, targetStatus);
       setTasks(tasks.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
     } catch (e) {
       console.error(e);

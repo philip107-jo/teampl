@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { ProjectsService } from './projects.service';
-import { TasksService } from '../tasks/tasks.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router();
@@ -49,9 +48,7 @@ router.delete('/:id', async (req, res) => {
     const success = await ProjectsService.delete(email, id, deleteReason);
     if (!success) return res.status(404).json({ message: 'Project not found' });
 
-    // CASCADE delete tasks associated with this project
-    await TasksService.deleteByWorkspaceId(email, id.toString());
-
+    // Task, Schedule은 Prisma의 onDelete: Cascade로 자동 삭제됨
     res.status(204).send();
 });
 
