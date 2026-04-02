@@ -2,10 +2,10 @@ import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, Alert
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
+import { scheduleApi } from "../api/scheduleApi";
 
 export default function Calendar() {
   const { user } = useAuth();
-  const isMockUser = user?.email === "test@naver.com";
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
@@ -22,16 +22,9 @@ export default function Calendar() {
   const [formData, setFormData] = useState({ title: '', project: '', date: '', endDate: '', type: 'other' });
 
   useEffect(() => {
-    if (isMockUser) {
-      fetch('http://localhost:8080/api/schedules', {
-        headers: { 'X-User-Email': 'test@naver.com' }
-      })
-        .then(res => res.json())
-        .then(data => setEvents(data))
-        .catch(console.error);
-    } else {
-      setEvents([]); // 일반 유저는 임시 일정 데이터 비우기
-    }
+    scheduleApi.getSchedules()
+      .then(data => setEvents(data))
+      .catch(console.error);
 
     projectApi.getProjects()
       .then(data => setProjects(data))
@@ -52,20 +45,10 @@ export default function Calendar() {
     e.preventDefault();
     try {
       if (editingEventId) {
-        const res = await fetch(`http://localhost:8080/api/schedules/${editingEventId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-User-Email': 'test@naver.com' },
-          body: JSON.stringify(formData)
-        });
-        const updatedEvent = await res.json();
+        const updatedEvent = await scheduleApi.updateSchedule(editingEventId, formData);
         setEvents(events.map(ev => ev.id === editingEventId ? updatedEvent : ev));
       } else {
-        const res = await fetch('http://localhost:8080/api/schedules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-User-Email': 'test@naver.com' },
-          body: JSON.stringify(formData)
-        });
-        const newEvent = await res.json();
+        const newEvent = await scheduleApi.createSchedule(formData);
         setEvents([...events, newEvent]);
       }
       closeModal();
@@ -77,10 +60,7 @@ export default function Calendar() {
   const handleDeleteEvent = async () => {
     if (!editingEventId) return;
     try {
-      await fetch(`http://localhost:8080/api/schedules/${editingEventId}`, {
-        method: 'DELETE',
-        headers: { 'X-User-Email': 'test@naver.com' }
-      });
+      await scheduleApi.deleteSchedule(editingEventId);
       setEvents(events.filter(ev => ev.id !== editingEventId));
       closeModal();
     } catch (err) {

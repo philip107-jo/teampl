@@ -6,9 +6,10 @@ interface KanbanBoardProps {
   tasks: Task[];
   onMoveTask: (taskId: string, targetStatus: TaskStatus) => void;
   onToggleTask: (taskId: string) => void;
+  onDeleteTask: (e: React.MouseEvent, taskId: string) => void;
 }
 
-export default function KanbanBoard({ tasks, onMoveTask, onToggleTask }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks, onMoveTask, onToggleTask, onDeleteTask }: KanbanBoardProps) {
   const columns: { status: TaskStatus; title: string }[] = [
     { status: 'TODO', title: '대기 중' },
     { status: 'IN_PROGRESS', title: '진행 중' },
@@ -25,6 +26,7 @@ export default function KanbanBoard({ tasks, onMoveTask, onToggleTask }: KanbanB
           tasks={tasks.filter((t) => t.status === col.status)}
           onMoveTask={onMoveTask}
           onToggleTask={onToggleTask}
+          onDeleteTask={onDeleteTask}
         />
       ))}
     </div>

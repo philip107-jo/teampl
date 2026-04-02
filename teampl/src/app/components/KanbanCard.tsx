@@ -1,15 +1,16 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
-import { Clock, MoreHorizontal } from 'lucide-react';
+import { Clock, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Task } from '../types';
 import { initialMembers } from '../mockData';
 
 interface KanbanCardProps {
   task: Task;
   onToggle: (id: string) => void;
+  onDelete: (e: React.MouseEvent, id: string) => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle, onDelete }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'TASK',
     item: { id: task.id },
@@ -38,8 +39,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle }) => {
         <span className={`text-[9px] font-black px-2.5 py-1 rounded-[10px] uppercase tracking-widest border ${getPriorityColor(task.priority)}`}>
           {task.priority}
         </span>
-        <button className="p-1 hover:bg-white/60 dark:bg-white/10 rounded-lg text-gray-300 dark:text-white/20 hover:text-[#1A2340] dark:text-white transition-colors">
-          <MoreHorizontal className="w-4 h-4" />
+        <button onClick={(e) => onDelete(e, task.id)} className="p-1 hover:bg-[#FF6B7A]/10 rounded-lg text-[#7D879C]/50 hover:text-[#FF6B7A] transition-colors" title="태스크 삭제">
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
       

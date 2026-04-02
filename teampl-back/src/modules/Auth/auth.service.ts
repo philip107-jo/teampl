@@ -39,7 +39,7 @@ export const AuthService = {
         const token = jwt.sign(
             { id: user.id, email: user.email }, 
             JWT_SECRET, 
-            { expiresIn: '1d' }
+            { expiresIn: '30d' }
         );
         
         const { password: _, ...userWithoutPassword } = user;

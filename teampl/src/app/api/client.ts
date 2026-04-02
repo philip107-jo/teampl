@@ -23,15 +23,8 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    const userStr = localStorage.getItem('user');
-    if (userStr && config.headers) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user && user.email) {
-          config.headers['X-User-Email'] = user.email;
-        }
-      } catch (e) { }
-    }
+    // [이메일 수동 주입 로직 제거 완료] 
+    // 서버는 이제 토큰(Bearer)만을 신뢰하여 유저 정보를 추출합니다.
     return config;
   },
   (error) => {

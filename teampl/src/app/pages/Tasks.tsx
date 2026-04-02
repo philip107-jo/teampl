@@ -1,4 +1,4 @@
-import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Plus, Filter, CheckCircle2, Circle, Clock, AlertCircle, X, LayoutGrid, List as ListIcon, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -56,6 +56,18 @@ export default function Tasks() {
     } catch (err) {
       console.error(err);
       alert("상태 수정 실패!");
+    }
+  };
+
+  const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("정말 이 태스크를 삭제하시겠습니까?")) return;
+    try {
+      await taskApi.deleteTask(taskId);
+      setTasks(tasks.filter(t => t.id !== taskId));
+    } catch (err) {
+      console.error(err);
+      alert("태스크 삭제에 실패했습니다.");
     }
   };
 
@@ -182,12 +194,21 @@ export default function Tasks() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex -space-x-2 hover:space-x-1 transition-all pr-2">
-                        {task.assignees.map((uid) => (
-                          <div key={uid} className="w-8 h-8 rounded-full bg-white/40 dark:bg-[#1A2340] border-2 border-[#12182B] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black uppercase shadow-sm">
-                            {initialMembers.find(m => m.id === uid)?.name[0]}
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-4 border-l border-gray-200 dark:border-white/10 pl-4 ml-2">
+                        <div className="flex -space-x-2 hover:space-x-1 transition-all pr-2">
+                          {task.assignees.map((uid) => (
+                            <div key={uid} className="w-8 h-8 rounded-full bg-white/40 dark:bg-[#1A2340] border-2 border-[#12182B] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black uppercase shadow-sm">
+                              {initialMembers.find(m => m.id === uid)?.name[0]}
+                            </div>
+                          ))}
+                        </div>
+                        <button 
+                          onClick={(e) => handleDeleteTask(e, task.id)}
+                          className="p-2 text-[#7D879C]/50 hover:text-[#FF6B7A] hover:bg-[#FF6B7A]/10 rounded-xl transition-all"
+                          title="태스크 삭제"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -197,7 +218,7 @@ export default function Tasks() {
           </div>
         ) : (
           <div className="flex-1 overflow-hidden min-h-0 bg-[#f8faff] dark:bg-[#0B1020]/30 rounded-[40px] p-6 border border-gray-200 dark:border-white/5">
-            <KanbanBoard tasks={tasks} onMoveTask={moveTask} onToggleTask={toggleTaskStatus} />
+            <KanbanBoard tasks={tasks} onMoveTask={moveTask} onToggleTask={toggleTaskStatus} onDeleteTask={handleDeleteTask} />
           </div>
         )}
 

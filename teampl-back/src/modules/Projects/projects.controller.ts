@@ -1,26 +1,28 @@
 import { Router } from 'express';
 import { ProjectsService } from './projects.service';
 import { TasksService } from '../tasks/tasks.service';
+import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router();
+router.use(authMiddleware);
 
 // GET /api/projects
 router.get('/', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const projects = await ProjectsService.getAll(email);
     res.json(projects);
 });
 
 // POST /api/projects
 router.post('/', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const newProject = await ProjectsService.create(email, req.body);
     res.status(201).json(newProject);
 });
 
 // POST /api/projects/join
 router.post('/join', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const { inviteCode, userName } = req.body;
     if (!inviteCode) return res.status(400).json({ message: 'Invite code is required' });
     
@@ -32,7 +34,7 @@ router.post('/join', async (req, res) => {
 
 // PATCH /api/projects/:id
 router.patch('/:id', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     const updated = await ProjectsService.update(email, id, req.body);
     if (!updated) return res.status(404).json({ message: 'Project not found' });
@@ -41,7 +43,7 @@ router.patch('/:id', async (req, res) => {
 
 // DELETE /api/projects/:id
 router.delete('/:id', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     const { deleteReason } = req.body;
     const success = await ProjectsService.delete(email, id, deleteReason);
@@ -55,7 +57,7 @@ router.delete('/:id', async (req, res) => {
 
 // PATCH /api/projects/:id/invite-code
 router.patch('/:id/invite-code', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     try {
         const updatedProject = await ProjectsService.regenerateInviteCode(email, id);
@@ -67,7 +69,7 @@ router.patch('/:id/invite-code', async (req, res) => {
 
 // PATCH /api/projects/:id/transfer-leadership
 router.patch('/:id/transfer-leadership', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     const { targetUserId } = req.body;
     try {
@@ -80,7 +82,7 @@ router.patch('/:id/transfer-leadership', async (req, res) => {
 
 // PATCH /api/projects/:id/kick-member
 router.patch('/:id/kick-member', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     const { targetUserId, kickReason } = req.body;
     try {
@@ -93,7 +95,7 @@ router.patch('/:id/kick-member', async (req, res) => {
 
 // GET /api/projects/kicked-alerts
 router.get('/kicked-alerts', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     try {
         const alerts = await ProjectsService.getKickedAlerts(email);
         res.json(alerts);
@@ -104,7 +106,7 @@ router.get('/kicked-alerts', async (req, res) => {
 
 // DELETE /api/projects/:id/kicked-alert
 router.delete('/:id/kicked-alert', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const id = parseInt(req.params.id, 10);
     try {
         await ProjectsService.ackKickedAlert(email, id);
@@ -116,7 +118,7 @@ router.delete('/:id/kicked-alert', async (req, res) => {
 
 // GET /api/projects/delete-alerts
 router.get('/delete-alerts', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     try {
         const alerts = await ProjectsService.getDeleteAlerts(email);
         res.json(alerts);
@@ -127,7 +129,7 @@ router.get('/delete-alerts', async (req, res) => {
 
 // DELETE /api/projects/:id/delete-alert
 router.delete('/:id/delete-alert', async (req, res) => {
-    const email = req.header('X-User-Email') || '';
+    const email = req.user!.email;
     const alertId = parseInt(req.params.id, 10);
     try {
         await ProjectsService.ackDeleteAlert(email, alertId);

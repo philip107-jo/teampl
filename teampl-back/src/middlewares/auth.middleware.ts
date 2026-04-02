@@ -1,0 +1,36 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { UnauthorizedError } from '../common/errors';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new UnauthorizedError('인증 토큰이 제공되지 않았습니다.');
+        }
+
+        const token = authHeader.split(' ')[1];
+        
+        if (!token) {
+            throw new UnauthorizedError('유효하지 않은 토큰 형식입니다.');
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET) as { id: string, email: string };
+        
+        // TypeScript Type이 src/types/express.d.ts 에 의해 확장되었으므로 할당 가능
+        req.user = decoded;
+        
+        next();
+    } catch (e: any) {
+        if (e.name === 'TokenExpiredError') {
+            next(new UnauthorizedError('인증 토큰이 만료되었습니다. 다시 로그인해주세요.'));
+        } else if (e.name === 'JsonWebTokenError') {
+            next(new UnauthorizedError('유효하지 않은 인증 토큰입니다.'));
+        } else {
+            next(e);
+        }
+    }
+};
