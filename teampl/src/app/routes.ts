@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Notifications from "./pages/Notifications";
 import EditProfile from "./pages/EditProfile";
+import Calendar from "./pages/Calendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
           { index: true, Component: Dashboard },
           { path: "projects", Component: Projects },
           { path: "projects/:projectId", Component: ProjectDetails },
+          { path: "calendar", Component: Calendar },
           { path: "mypage", Component: MyPage },
           { path: "mypage/edit", Component: EditProfile },
           { path: "notifications", Component: Notifications },

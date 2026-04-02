@@ -2,15 +2,16 @@ import { useOutlet, Link, useLocation, useNavigate, useParams } from "react-rout
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  LayoutDashboard,
-  FolderKanban,
-  CheckSquare,
-  Calendar as CalendarIcon,
-  MessageSquare,
-  LogOut,
   User as UserIcon,
   AlertOctagon,
-  X
+  X,
+  CheckSquare,
+  MessageSquare,
+  FolderOpen,
+  Calendar as CalendarIcon,
+  LayoutDashboard,
+  FolderKanban,
+  LogOut
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
@@ -19,6 +20,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { projectId } = useParams();
   const element = useOutlet();
 
   // Kicked Alerts State
@@ -50,21 +52,39 @@ export default function Layout() {
     }
   };
 
-  const navItems = [
-    { key: "home", path: "/", icon: LayoutDashboard, label: "홈" },
-    { key: "projects", path: "/projects", icon: FolderKanban, label: "프로젝트" },
-    { key: "mypage", path: "/mypage", icon: UserIcon, label: "내 정보" },
-  ];
+  const navItems = projectId
+    ? [
+        { key: "overview", path: `/projects/${projectId}?tab=overview`, icon: LayoutDashboard, label: "개요" },
+        { key: "tasks", path: `/projects/${projectId}?tab=tasks`, icon: CheckSquare, label: "할 일" },
+        { key: "chat", path: `/projects/${projectId}?tab=chat`, icon: MessageSquare, label: "채팅" },
+        { key: "drive", path: `/projects/${projectId}?tab=drive`, icon: FolderOpen, label: "파일" },
+      ]
+    : [
+        { key: 'home', label: '홈', icon: LayoutDashboard, path: '/', active: location.pathname === '/' },
+        { key: 'projects', label: '프로젝트', icon: FolderKanban, path: '/projects', active: location.pathname.startsWith('/projects') && !projectId },
+        { key: 'calendar', label: '일정', icon: CalendarIcon, path: '/calendar', active: location.pathname === '/calendar' },
+        { key: 'mypage', label: '내 정보', icon: UserIcon, path: '/mypage', active: location.pathname.startsWith('/mypage') },
+      ];
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const isActive = (item: typeof navItems[0]) => {
+  const isActive = (item: any) => {
     const p = location.pathname;
+    const search = location.search;
+
+    // Project tabs
+    if (projectId) {
+      const tab = new URLSearchParams(search).get("tab") || "overview";
+      return item.key === tab;
+    }
+
+    // Global tabs
     if (item.key === "home") return p === "/";
-    if (item.key === "projects") return p.startsWith("/projects");
+    if (item.key === "projects") return p.startsWith("/projects") && !projectId;
+    if (item.key === "calendar") return p.startsWith("/calendar");
     if (item.key === "mypage") return p.startsWith("/mypage");
     return false;
   };

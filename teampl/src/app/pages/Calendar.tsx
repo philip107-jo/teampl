@@ -29,14 +29,15 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
   const [formData, setFormData] = useState({ title: '', project: '', date: '', endDate: '', type: 'other' });
 
   useEffect(() => {
-    if (!numProjectId) return;
-    scheduleApi.getSchedules(numProjectId)
-      .then(data => setEvents(data))
-      .catch(console.error);
-
     projectApi.getProjects()
       .then(data => setProjects(data))
       .catch(console.error);
+
+    if (numProjectId) {
+      scheduleApi.getSchedules(numProjectId)
+        .then(data => setEvents(data))
+        .catch(console.error);
+    }
 
     const handleGlobalMouseUp = () => {
       if (isDragging) {
@@ -47,7 +48,7 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
     };
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, [isDragging]);
+  }, [numProjectId, isDragging]);
 
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();

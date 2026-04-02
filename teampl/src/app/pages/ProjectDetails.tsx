@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { 
   ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
@@ -22,7 +22,8 @@ export default function ProjectDetails() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'calendar' | 'chat' | 'drive'>('overview');
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
 
   const [realProject, setRealProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -244,42 +245,12 @@ export default function ProjectDetails() {
         </div>
       </div>
 
-      {/* Project Overview Card */}
-      <section className="card hero-card mb-8">
-
-      {/* ===== Workspace Tab Bar ===== */}
-      <div className="flex gap-1 mb-6 bg-white/60 dark:bg-[#151C31]/60 backdrop-blur-xl rounded-2xl p-1.5 border border-gray-200 dark:border-white/10 shadow-lg overflow-x-auto">
-        {[
-          { key: 'overview' as const, label: '개요', icon: LayoutDashboard },
-          { key: 'tasks' as const, label: '할 일', icon: CheckSquare },
-          { key: 'calendar' as const, label: '일정', icon: CalendarIcon },
-          { key: 'chat' as const, label: '채팅', icon: MessageSquare },
-          { key: 'drive' as const, label: '파일', icon: FolderOpen },
-        ].map(tab => {
-          const TabIcon = tab.icon;
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-black transition-all whitespace-nowrap ${
-                active
-                  ? 'bg-[#7C6CFF] text-white shadow-lg shadow-[#7C6CFF]/30'
-                  : 'text-[#7D879C] dark:text-white/50 hover:bg-white/80 dark:hover:bg-white/10 hover:text-[#1A2340] dark:hover:text-white'
-              }`}
-            >
-              <TabIcon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* ===== Tab Content ===== */}
-      {activeTab === 'overview' && (
-        <>
-          {/* Overview Info Card */}
-          <div className="card hero-card mb-8">
+      <section className="card hero-card mb-8">
+        {activeTab === 'overview' && (
+          <>
+            {/* Overview Info Card */}
+            <div className="card hero-card mb-8">
             <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
               <div className="space-y-8 flex-1">
                 <div>
