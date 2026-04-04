@@ -8,6 +8,7 @@ interface KanbanColumnProps {
   status: TaskStatus;
   title: string;
   tasks: Task[];
+  projectMembers: any[];
   onMoveTask: (taskId: string, targetStatus: TaskStatus) => void;
   onToggleTask: (taskId: string) => void;
   onDeleteTask: (e: React.MouseEvent, taskId: string) => void;
@@ -17,6 +18,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   status,
   title,
   tasks,
+  projectMembers,
   onMoveTask,
   onToggleTask,
   onDeleteTask,
@@ -61,7 +63,13 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
       <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide pb-4">
         {tasks.map((task) => (
-          <KanbanCard key={task.id} task={task} onToggle={onToggleTask} onDelete={onDeleteTask} />
+          <KanbanCard 
+            key={task.id} 
+            task={task} 
+            projectMembers={projectMembers}
+            onToggle={onToggleTask} 
+            onDelete={onDeleteTask} 
+          />
         ))}
         {tasks.length === 0 && (
           <div className="h-24 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-[24px] flex items-center justify-center text-gray-300 dark:text-white/20 text-xs font-black uppercase tracking-widest">

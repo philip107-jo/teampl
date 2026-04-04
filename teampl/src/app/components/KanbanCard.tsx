@@ -1,16 +1,16 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
-import { Clock, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Clock, Trash2 } from 'lucide-react';
 import { Task } from '../types';
-import { initialMembers } from '../mockData';
 
 interface KanbanCardProps {
   task: Task;
+  projectMembers: any[];
   onToggle: (id: string) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle, onDelete }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({ task, projectMembers = [], onToggle, onDelete }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'TASK',
     item: { id: task.id },
@@ -21,10 +21,19 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle, onDelete
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "text-[#FF6B7A] bg-[#FF6B7A]/10 border-[#FF6B7A]/20";
-      case "medium": return "text-[#FFB547] bg-[#FFB547]/10 border-[#FFB547]/20";
-      case "low": return "text-[#7C6CFF] bg-[#7C6CFF]/10 border-[#7C6CFF]/20";
+      case "high": return "text-[#FF4D4D] bg-[#FF4D4D]/10 border-[#FF4D4D]/20 shadow-[0_0_15px_rgba(255,77,77,0.1)]";
+      case "medium": return "text-[#FFA500] bg-[#FFA500]/10 border-[#FFA500]/20 shadow-[0_0_15px_rgba(255,165,0,0.1)]";
+      case "low": return "text-[#4D94FF] bg-[#4D94FF]/10 border-[#4D94FF]/20 shadow-[0_0_15px_rgba(77,148,255,0.1)]";
       default: return "text-[#7D879C]/80 dark:text-white/40 bg-white/50 dark:bg-white/5 border-gray-300 dark:border-white/10";
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high": return "긴급";
+      case "medium": return "보통";
+      case "low": return "여유";
+      default: return priority.toUpperCase();
     }
   };
 
@@ -36,8 +45,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle, onDelete
       }`}
     >
       <div className="flex items-start justify-between mb-4">
-        <span className={`text-[9px] font-black px-2.5 py-1 rounded-[10px] uppercase tracking-widest border ${getPriorityColor(task.priority)}`}>
-          {task.priority}
+        <span className={`text-[10px] font-black px-2.5 py-1 rounded-[10px] uppercase tracking-widest border transition-all ${getPriorityColor(task.priority)}`}>
+          {getPriorityLabel(task.priority)}
         </span>
         <button onClick={(e) => onDelete(e, task.id)} className="p-1 hover:bg-[#FF6B7A]/10 rounded-lg text-[#7D879C]/50 hover:text-[#FF6B7A] transition-colors" title="태스크 삭제">
           <Trash2 className="w-4 h-4" />
@@ -54,11 +63,18 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onToggle, onDelete
           {task.deadline ? task.deadline.split('-').slice(1).join('/') : '기한 없음'}
         </div>
         <div className="flex -space-x-2">
-          {task.assignees.map((uid) => (
-            <div key={uid} className="w-7 h-7 rounded-full bg-white dark:bg-[#12182B] border-2 border-[#1A2340] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black group relative uppercase shadow-sm">
-              {initialMembers.find(m => m.id === uid)?.name[0]}
-            </div>
-          ))}
+          {task.assignees?.map((email: string) => {
+            const m = projectMembers.find(mem => mem.email === email);
+            return (
+              <div 
+                key={email} 
+                title={m?.name || "담당자"}
+                className="w-7 h-7 rounded-full bg-white dark:bg-[#12182B] border-2 border-[#1A2340] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black group relative uppercase shadow-sm"
+              >
+                {m?.name?.[0] || 'U'}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

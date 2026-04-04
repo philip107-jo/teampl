@@ -5,7 +5,7 @@ import {
   Plus, Calendar as CalendarIcon, ArrowRight
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { initialMembers, initialMessages } from "../mockData";
+import { initialMessages } from "../mockData";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
@@ -50,8 +50,8 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
     return () => clearInterval(intervalId);
   }, [numProjectId, user]);
 
-  const calculateStats = (memberId: string) => {
-    const memberTasks = tasks.filter(t => t.assignees.includes(memberId));
+  const calculateStats = (memberEmail: string) => {
+    const memberTasks = tasks.filter(t => t.assignees.includes(memberEmail));
     if (memberTasks.length === 0) return { score: 0, completed: 0, total: 0, chatCount: 0 };
 
     let totalPotential = 0;
@@ -60,14 +60,14 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
 
     memberTasks.forEach(task => {
       const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
-      const basePoints = task.difficulty * priorityWeight;
+      const basePoints = (task as any).difficulty * priorityWeight;
       totalPotential += basePoints * 1.2;
 
       if (task.status === 'DONE') {
         completedCount++;
         let timeFactor = 1.0;
-        if (task.completedAt && task.deadline) {
-          const completed = new Date(task.completedAt);
+        if ((task as any).completedAt && task.deadline) {
+          const completed = new Date((task as any).completedAt);
           const deadline = new Date(task.deadline);
           if (completed <= deadline) timeFactor = 1.2;
           else timeFactor = 0.7;
@@ -76,12 +76,31 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
       }
     });
 
-    const userMessages = initialMessages.filter(m => m.userId === memberId);
+    // 채팅 점수는 임시로 유지하거나 추후 이메일 기반으로 수정 가능
+    const userMessages = initialMessages.filter(m => m.userId === memberEmail);
     totalEarned += userMessages.length * 2;
     totalPotential += 10; 
 
     const score = totalPotential > 0 ? Math.min(100, Math.round((totalEarned / totalPotential) * 100)) : 0;
     return { score, completed: completedCount, total: memberTasks.length, chatCount: userMessages.length };
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "text-[#FF4D4D] bg-[#FF4D4D]/10 border-[#FF4D4D]/20 shadow-[0_0_15px_rgba(255,77,77,0.1)]";
+      case "medium": return "text-[#FFA500] bg-[#FFA500]/10 border-[#FFA500]/20 shadow-[0_0_15px_rgba(255,165,0,0.1)]";
+      case "low": return "text-[#4D94FF] bg-[#4D94FF]/10 border-[#4D94FF]/20 shadow-[0_0_15px_rgba(77,148,255,0.1)]";
+      default: return "text-[#7D879C]/80 dark:text-white/40 bg-white/50 dark:bg-white/5 border-gray-300 dark:border-white/10";
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high": return "긴급";
+      case "medium": return "보통";
+      case "low": return "여유";
+      default: return priority.toUpperCase();
+    }
   };
 
   return (
@@ -126,8 +145,8 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
       ) : (
         <div className="grid grid-cols-1 gap-12">
           {members.map((member, index) => {
-            const stats = calculateStats(String(member.id));
-            const memberTasks = tasks.filter(t => t.assignees.includes(String(member.id)));
+            const stats = calculateStats(member.email);
+            const memberTasks = tasks.filter(t => t.assignees.includes(member.email));
             const inProgressTasks = memberTasks.filter(t => t.status !== 'DONE');
             const completedTasks = memberTasks.filter(t => t.status === 'DONE');
 
@@ -199,18 +218,21 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                           <div className="space-y-4">
                             {inProgressTasks.length > 0 ? (
                               inProgressTasks.map(task => (
-                                <div key={task.id} className="group/task p-6 rounded-[24px] bg-white dark:bg-[#1A2340] border border-gray-100 dark:border-white/5 hover:border-[#7C6CFF]/30 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.02)] translate-y-0 hover:-translate-y-1">
+                                <div key={task.id} className="group/task p-6 rounded-[28px] bg-white dark:bg-[#1A2340] border border-gray-100 dark:border-white/5 hover:border-[#7C6CFF]/30 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.02)] translate-y-0 hover:-translate-y-1">
                                   <div className="flex items-start justify-between mb-4">
-                                     <h5 className="text-[16px] font-black text-[#1A2340] dark:text-white group-hover/task:text-[#7C6CFF] transition-colors">{task.title}</h5>
-                                     <div className={`w-2 h-2 rounded-full ${task.status === 'IN_PROGRESS' ? 'bg-[#7C6CFF] animate-pulse shadow-[0_0_10px_#7C6CFF]' : 'bg-gray-200'}`}></div>
+                                     <h5 className="text-[17px] font-black text-[#1A2340] dark:text-white group-hover/task:text-[#7C6CFF] transition-colors line-clamp-2 leading-tight">{task.title}</h5>
+                                     <div className={`flex-shrink-0 w-3 h-3 rounded-full ${task.status === 'IN_PROGRESS' ? 'bg-[#7C6CFF] animate-pulse shadow-[0_0_15px_#7C6CFF]' : 'bg-gray-200'}`}></div>
                                   </div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#7D879C]">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-[10px] uppercase tracking-widest border transition-all ${getPriorityColor(task.priority)}`}>
+                                      {getPriorityLabel(task.priority)}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-[#7D879C] uppercase tracking-widest bg-gray-50 dark:bg-white/5 px-2.5 py-1 rounded-[10px]">
                                       <CalendarIcon className="w-3.5 h-3.5" />
                                       {task.deadline}
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#7C6CFF] bg-[#7C6CFF]/5 px-2 py-0.5 rounded-lg">
-                                      Lvl.{task.difficulty}
+                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-[#7C6CFF] bg-[#7C6CFF]/10 px-2.5 py-1 rounded-[10px] uppercase tracking-widest">
+                                      LVL.{task.difficulty}
                                     </div>
                                   </div>
                                 </div>
@@ -239,11 +261,16 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                           <div className="space-y-4">
                             {completedTasks.length > 0 ? (
                               completedTasks.map(task => (
-                                <div key={task.id} className="p-6 rounded-[24px] bg-gray-50/50 dark:bg-white/5 border border-transparent grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:bg-white dark:hover:bg-[#1A2340] hover:border-[#23D7A1]/20 transition-all duration-500">
-                                  <h5 className="text-[15px] font-bold text-[#1A2340] dark:text-white line-through decoration-2 decoration-[#23D7A1]/40 mb-3">{task.title}</h5>
-                                  <div className="flex items-center gap-3 text-[10px] font-black text-[#23D7A1] uppercase tracking-widest">
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    Successfully Completed
+                                <div key={task.id} className="p-6 rounded-[28px] bg-gray-50/50 dark:bg-white/5 border border-transparent grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:bg-white dark:hover:bg-[#1A2340] hover:border-[#23D7A1]/20 transition-all duration-500">
+                                  <h5 className="text-[16px] font-bold text-[#1A2340] dark:text-white line-through decoration-2 decoration-[#23D7A1]/40 mb-4">{task.title}</h5>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-[8px] uppercase tracking-widest border opacity-50 ${getPriorityColor(task.priority)}`}>
+                                      {getPriorityLabel(task.priority)}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-[#23D7A1] uppercase tracking-widest">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      완료됨
+                                    </div>
                                   </div>
                                 </div>
                               ))

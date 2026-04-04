@@ -4,12 +4,13 @@ import { Task, TaskStatus } from '../types';
 
 interface KanbanBoardProps {
   tasks: Task[];
+  projectMembers: any[];
   onMoveTask: (taskId: string, targetStatus: TaskStatus) => void;
   onToggleTask: (taskId: string) => void;
   onDeleteTask: (e: React.MouseEvent, taskId: string) => void;
 }
 
-export default function KanbanBoard({ tasks, onMoveTask, onToggleTask, onDeleteTask }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks, projectMembers, onMoveTask, onToggleTask, onDeleteTask }: KanbanBoardProps) {
   const columns: { status: TaskStatus; title: string }[] = [
     { status: 'TODO', title: '대기 중' },
     { status: 'IN_PROGRESS', title: '진행 중' },
@@ -24,6 +25,7 @@ export default function KanbanBoard({ tasks, onMoveTask, onToggleTask, onDeleteT
           status={col.status}
           title={col.title}
           tasks={tasks.filter((t) => t.status === col.status)}
+          projectMembers={projectMembers}
           onMoveTask={onMoveTask}
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
