@@ -2,7 +2,15 @@ FROM node:20
 
 WORKDIR /app
 
+# Add node_modules bin to PATH
+ENV PATH /app/node_modules/.bin:$PATH
+
+# Bypass SSL verify for npm
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+
 COPY package*.json ./
+# Disable strict-ssl for npm registry
+RUN npm config set strict-ssl false
 RUN npm install
 
 COPY . .

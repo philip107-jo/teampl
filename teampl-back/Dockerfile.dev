@@ -2,10 +2,18 @@ FROM node:20
 
 WORKDIR /app
 
+# Bypass SSL verify for Prisma and npm
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+
 COPY package*.json ./
 COPY prisma ./prisma/
+
+# Disable strict-ssl for npm registry
+RUN npm config set strict-ssl false
 RUN npm install
 
 COPY . .
+
+RUN npx prisma generate
 
 EXPOSE 8080

@@ -18,12 +18,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 로컬 스토리지에서 세션 확인 (모의 구현)
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    const initAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        setUser(JSON.parse(storedUser));
+        
+        // Always try to fetch freshest profile if token exists
+        try {
+          const freshUser = await authApi.getProfile();
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        } catch (e) {
+          console.error("Token invalid or server error", e);
+          // logout(); // Optional: clear session if token invalid
+        }
+      }
+      
+      // If returning from MS success, force a refresh
+      if (window.location.search.includes('ms_success=true')) {
+        try {
+          const freshUser = await authApi.getProfile();
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        } catch (e) {
+          console.error("MS Refresh failed", e);
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password?: string) => {
