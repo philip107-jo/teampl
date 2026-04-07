@@ -60,11 +60,9 @@ export default function Projects() {
       }).catch(() => {});
     };
 
-    if (user?.email !== 'test@naver.com') {
-      checkDeleteAlerts();
-      const alertInterval = setInterval(checkDeleteAlerts, 5000);
-      return () => clearInterval(alertInterval);
-    }
+    checkDeleteAlerts();
+    const alertInterval = setInterval(checkDeleteAlerts, 5000);
+    return () => clearInterval(alertInterval);
   }, [user]);
 
 

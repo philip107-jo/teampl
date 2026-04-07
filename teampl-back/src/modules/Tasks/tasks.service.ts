@@ -39,11 +39,39 @@ export const TasksService = {
         });
     },
 
+    batchCreate: async (email: string, projectId: number, tasks: any[]) => {
+        await verifyMembership(email, projectId);
+        const createdTasks = [];
+        for (const taskData of tasks) {
+            const t = await prisma.task.create({
+                data: {
+                    projectId,
+                    title: taskData.title || '새 태스크',
+                    status: 'TODO',
+                    priority: taskData.priority || 'medium',
+                    deadline: taskData.deadline || new Date().toISOString().split('T')[0],
+                    ownerEmail: email,
+                    assignees: [], // AI 생성은 일단 미배정
+                }
+            });
+            createdTasks.push(t);
+        }
+        return createdTasks;
+    },
+
     updateStatus: async (email: string, projectId: number, taskId: string, status: string) => {
         await verifyMembership(email, projectId);
         return await prisma.task.update({
             where: { id: taskId },
             data: { status: status as any }
+        });
+    },
+
+    updateAssignees: async (email: string, projectId: number, taskId: string, assignees: string[]) => {
+        await verifyMembership(email, projectId);
+        return await prisma.task.update({
+            where: { id: taskId },
+            data: { assignees }
         });
     },
 

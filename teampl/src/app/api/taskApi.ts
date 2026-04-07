@@ -16,7 +16,16 @@ export const taskApi = {
     await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { status });
   },
 
+  updateTaskAssignees: async (projectId: number, taskId: string, assignees: string[]): Promise<void> => {
+    await apiClient.patch(`/projects/${projectId}/tasks/${taskId}/assignees`, { assignees });
+  },
+
   deleteTask: async (projectId: number, taskId: string): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/tasks/${taskId}`);
+  },
+
+  batchCreateTasks: async (projectId: number, tasks: Partial<Task>[]): Promise<Task[]> => {
+    const response = await apiClient.post(`/projects/${projectId}/tasks/batch`, { tasks });
+    return response.data;
   }
 };

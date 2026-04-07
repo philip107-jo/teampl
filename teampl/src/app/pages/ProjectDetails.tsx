@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { 
   ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
   CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard,
@@ -327,13 +328,13 @@ export default function ProjectDetails() {
 
       {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
       {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
-      {activeTab === 'chat' && <Chat projectId={numProjectId} />}
+      {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
       {activeTab === 'drive' && <Drive projectId={numProjectId} />}
 
       </section>
 
       {/* Settings Modal */}
-      {isSettingModalOpen && (
+      {isSettingModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="card w-full max-w-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-0 border border-gray-300 dark:border-white/10 dark:bg-[#132038] overflow-hidden">
             {/* Modal Header */}
@@ -518,12 +519,13 @@ export default function ProjectDetails() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm Kick Custom Modal */}
-      {confirmKickOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      {confirmKickOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmKickOpen(false)} />
           <div className="relative bg-white dark:bg-[#151C31] w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-red-500/10 p-6 flex flex-col items-center text-center">
@@ -550,11 +552,12 @@ export default function ProjectDetails() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Confirm Transfer Leadership Custom Modal */}
-      {confirmTransferOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      {confirmTransferOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmTransferOpen(false)} />
           <div className="relative bg-white dark:bg-[#151C31] w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-[#FFB547]/10 p-6 flex flex-col items-center text-center">
@@ -582,7 +585,8 @@ export default function ProjectDetails() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

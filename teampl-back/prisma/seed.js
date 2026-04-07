@@ -17,19 +17,7 @@ async function main() {
     },
   });
 
-  const testPassword = await bcrypt.hash('1234', 10);
-  await prisma.user.upsert({
-    where: { email: 'test@naver.com' },
-    update: {},
-    create: {
-      email: 'test@naver.com',
-      password: testPassword,
-      name: '나 (테스트 팀장)',
-      department: '개발본부',
-    },
-  });
-
-  console.log('✅ Auto-Seeding: Admin & Test users seeded successfully!');
+  console.log('✅ Auto-Seeding: Admin users seeded successfully!');
 }
 
 main()

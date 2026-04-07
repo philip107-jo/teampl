@@ -39,6 +39,8 @@ export const ProjectsService = {
                     id: pm.user.id,
                     email: pm.user.email,
                     name: pm.user.name,
+                    department: pm.user.department,
+                    studentId: pm.user.studentId,
                     role: pm.role,
                     avatarColor: pm.role === 'LEADER' ? 'bg-[#7C6CFF]' : 'bg-[#27D7A1]'
                 }));

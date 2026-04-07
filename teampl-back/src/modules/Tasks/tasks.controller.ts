@@ -29,6 +29,19 @@ router.post('/', async (req, res) => {
     }
 });
 
+// POST /api/projects/:projectId/tasks/batch
+router.post('/batch', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { tasks } = req.body;
+    try {
+        const newTasks = await TasksService.batchCreate(email, projectId, tasks);
+        res.status(201).json(newTasks);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 // PATCH /api/projects/:projectId/tasks/:id
 router.patch('/:id', async (req, res) => {
     const email = req.user!.email;
@@ -37,6 +50,21 @@ router.patch('/:id', async (req, res) => {
     const { status } = req.body;
     try {
         const updatedTask = await TasksService.updateStatus(email, projectId, id, status);
+        if (!updatedTask) return res.status(404).json({ message: 'Task not found' });
+        res.json(updatedTask);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// PATCH /api/projects/:projectId/tasks/:id/assignees
+router.patch('/:id/assignees', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const { assignees } = req.body;
+    try {
+        const updatedTask = await TasksService.updateAssignees(email, projectId, id, assignees);
         if (!updatedTask) return res.status(404).json({ message: 'Task not found' });
         res.json(updatedTask);
     } catch (e: any) {

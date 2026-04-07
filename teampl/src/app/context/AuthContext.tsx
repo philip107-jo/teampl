@@ -28,22 +28,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password?: string) => {
     try {
-      // 테스트/시연용 목업 계정 로그인 처리 (백엔드 우회)
-      if (email === "test@naver.com" && password === "1234") {
-        const mockUser = {
-          id: "user-1",
-          email: "test@naver.com",
-          name: "나 (테스트 팀장)",
-          department: "개발본부"
-        };
-        const mockToken = "demo-token";
-        
-        localStorage.setItem('access_token', mockToken);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        setUser(mockUser);
-        return;
-      }
-
       const { user: userData, token } = await authApi.login(email, password);
       localStorage.setItem('access_token', token);
       localStorage.setItem('user', JSON.stringify(userData));
