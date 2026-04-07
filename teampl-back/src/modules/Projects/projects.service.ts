@@ -134,7 +134,7 @@ export const ProjectsService = {
             // 각 팀원에게 삭제 알림 생성
             if (allMembers.length > 0) {
                 await prisma.projectDeleteAlert.createMany({
-                    data: allMembers.map(m => ({
+                    data: allMembers.map((m: any) => ({
                         userEmail: m.userEmail,
                         projectName,
                         deleteReason: reason,

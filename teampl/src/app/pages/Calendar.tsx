@@ -166,22 +166,25 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
   const getEventsForDate = (dateStr: string) => {
     const targetDate = new Date(dateStr).getTime();
     const daySchedules = events.filter((event) => {
-      const start = new Date(event.date).getTime();
-      const end = new Date(event.endDate || event.date).getTime();
+      const startStr = event.date.split('T')[0].replace(/\./g, '-');
+      const endStr = (event.endDate || event.date).split('T')[0].replace(/\./g, '-');
+      const start = new Date(startStr).getTime();
+      const end = new Date(endStr).getTime();
       return targetDate >= start && targetDate <= end;
     });
 
     const dayProjects = projects.filter((project) => {
       if (!project.deadline) return false;
-      const startStr = project.createdAt || new Date().toISOString().split('T')[0];
+      const startStr = project.createdAt ? project.createdAt.split('T')[0].replace(/\./g, '-') : new Date().toISOString().split('T')[0];
       const start = new Date(startStr).getTime();
-      const end = new Date(project.deadline).getTime();
+      const endStr = project.deadline.split('T')[0].replace(/\./g, '-');
+      const end = new Date(endStr).getTime();
       return targetDate >= start && targetDate <= end;
     }).map(project => ({
        id: `proj-${project.id}`,
        title: `[프로젝트] ${project.name}`,
        project: project.name,
-       date: project.createdAt || new Date().toISOString().split('T')[0],
+       date: project.createdAt ? project.createdAt.split('T')[0].replace(/\./g, '-') : new Date().toISOString().split('T')[0],
        endDate: project.deadline,
        type: 'project',
        color: project.color?.startsWith('#') ? project.color : '#7C6CFF'
