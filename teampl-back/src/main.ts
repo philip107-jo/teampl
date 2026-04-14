@@ -2,14 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import path from 'path';
 
-import projectsRouter from './modules/Projects/projects.controller';
-import authRouter from './modules/Auth/auth.controller';
+import projectsRouter from './modules/projects/projects.controller';
+import authRouter from './modules/auth/auth.controller';
 import usersRouter from './modules/users/users.controller';
-import tasksRouter from './modules/Tasks/tasks.controller';
-import schedulesRouter from './modules/Schedules/schedules.controller';
+import tasksRouter from './modules/tasks/tasks.controller';
+import schedulesRouter from './modules/schedules/schedules.controller';
 import aiRouter from './modules/Ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
@@ -59,7 +59,7 @@ app.use('/api/projects/:projectId/ai', aiRouter);
 app.use('/api/projects/:projectId/drive', driveRouter);
 
 // Socket.io 통신 처리
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   console.log('🟢 Client connected directly:', socket.id);
 
   // 방 입장 (프로젝트방 또는 1:1방)

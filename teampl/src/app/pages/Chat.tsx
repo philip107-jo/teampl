@@ -6,7 +6,7 @@ import { useChat } from "../context/ChatContext";
 
 import { taskApi } from "../api/taskApi";
 import { aiApi, AiTaskSuggestion } from "../api/aiApi";
-import { chatApi } from "../api/chatApi";
+import { chatApi, ChatMessage } from "../api/chatApi";
 import { io, Socket } from "socket.io-client";
 import { Task } from "../types";
 
@@ -218,7 +218,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
     const loadMsgs = async () => {
       try {
-        let msgs: any[] = [];
+        let msgs: ChatMessage[] = [];
         if (chatMode === "TEAM") {
           msgs = await chatApi.getProjectMessages(projectId);
         } else if (selectedMember?.email) {
