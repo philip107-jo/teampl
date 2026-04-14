@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { 
   Folder, FileText, FileImage, FileBarChart, FileCode2,
   Search, Filter, MoreVertical, Plus, Upload, Download,
-  ChevronRight, HardDrive, ExternalLink, ChevronLeft
+  ChevronRight, HardDrive, ExternalLink, ChevronLeft,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { officeApi, SharedDocument } from "../api/officeApi";
 
 interface DriveProps {
   projectId?: number;
@@ -18,6 +20,27 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
 
   const [currentPath, setCurrentPath] = useState([{ name: propProjectId ? "프로젝트 파일" : "전체 스페이스", id: "root" }]);
   const [activeTab, setActiveTab] = useState("전체");
+  const [officeDocs, setOfficeDocs] = useState<SharedDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (propProjectId) {
+      loadDocuments();
+    }
+  }, [propProjectId]);
+
+  const loadDocuments = async () => {
+    if (!propProjectId) return;
+    setIsLoading(true);
+    try {
+      const docs = await officeApi.getSharedDocuments(propProjectId);
+      setOfficeDocs(docs);
+    } catch (err) {
+      console.error("Failed to load documents", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const mockFolders = [
     { id: "f1", name: "데이터베이스 설계", items: 5, theme: "blue" },
@@ -26,16 +49,34 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     { id: "f4", name: "프론트엔드 에셋", items: 3, theme: "green" },
   ];
 
-  const mockFiles = [
-    { id: "1", name: "요구사항_명세서_최종 (공동문서).docx", type: "word", creator: "나 (팀장)", date: "방금 전", size: "-", isWeb: true, icon: FileText, theme: "blue" },
+  // 실제 DB 데이터와 목업 데이터를 조합
+  const displayDocs = officeDocs.map(doc => ({
+    id: `ms-${doc.id}`,
+    name: doc.fileName,
+    type: doc.fileType,
+    creator: doc.creatorEmail === user?.email ? "나" : doc.creatorEmail.split('@')[0],
+    date: new Date(doc.createdAt).toLocaleDateString(),
+    size: "-",
+    isWeb: true,
+    webUrl: doc.webUrl,
+    icon: doc.fileType === 'excel' ? "https://upload.wikimedia.org/wikipedia/commons/3/34/Microsoft_Office_Excel_%282019%E2%80%93present%29.svg" : doc.fileType === 'ppt' ? "https://upload.wikimedia.org/wikipedia/commons/0/0d/Microsoft_Office_PowerPoint_%282019%E2%80%93present%29.svg" : "https://upload.wikimedia.org/wikipedia/commons/f/fd/Microsoft_Office_Word_%282019%E2%80%93present%29.svg",
+    theme: doc.fileType === 'excel' ? "green" : doc.fileType === 'ppt' ? "orange" : "blue"
+  }));
+
+  const mockStaticFiles = isMockUser ? [
     { id: "6", name: "발표용_배경에셋.zip", type: "zip", creator: "김철수", date: "1시간 전", size: "14.5MB", isWeb: false, icon: FileCode2, theme: "purple" },
-    { id: "4", name: "주간회의록_0310 (공동문서).docx", type: "word", creator: "이영희", date: "1일 전", size: "-", isWeb: true, icon: FileText, theme: "blue" },
     { id: "7", name: "로고_최종본_수정본.png", type: "image", creator: "이영희", date: "2일 전", size: "1.2MB", isWeb: false, icon: FileImage, theme: "green" },
-    { id: "5", name: "기획발표_PPT 초안 (공동문서).pptx", type: "ppt", creator: "박민수", date: "3일 전", size: "-", isWeb: true, icon: FileBarChart, theme: "orange" },
-  ];
+  ] : [];
+
+  const allFiles = [...displayDocs, ...mockStaticFiles];
+  
+  const filteredFiles = allFiles.filter(file => {
+    if (activeTab === "MS오피스") return file.isWeb;
+    if (activeTab === "일반파일") return !file.isWeb;
+    return true;
+  });
 
   const displayFolders = isMockUser ? mockFolders : [];
-  const displayFiles = isMockUser ? mockFiles : [];
 
   return (
     <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto">
@@ -104,6 +145,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
+              {isLoading && <Loader2 className="w-5 h-5 animate-spin text-[#7C6CFF]" />}
               <div className="relative flex-1 sm:w-72 group">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7D879C]/80 dark:text-white/40 group-focus-within:text-[#7C6CFF] transition-colors" />
                 <input
@@ -174,12 +216,16 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                 <div className="col-span-3 text-right">상태 업데이트 / Action</div>
               </div>
               <div className="space-y-3">
-                {displayFiles.length > 0 ? displayFiles.map((file) => (
+                {filteredFiles.length > 0 ? filteredFiles.map((file) => (
                   <div key={file.id} className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 card !bg-white dark:!bg-[#12182B] hover:!bg-white/40 dark:!bg-[#1A2340] cursor-pointer group !rounded-[24px]">
                     <div className="col-span-12 sm:col-span-5 flex items-center gap-5 pl-2">
                       <div className={`schedule-item ${file.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
                         <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 12 }}>
-                          <file.icon className="w-6 h-6" />
+                          {typeof file.icon === 'string' ? (
+                            <img src={file.icon} alt={file.type} className="w-7 h-7 object-contain drop-shadow-sm" />
+                          ) : (
+                            <file.icon className="w-6 h-6" />
+                          )}
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -200,10 +246,34 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                       <span className="text-[12px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest pr-2">{file.date}</span>
                       <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0 translate-x-2">
                         {file.isWeb ? (
-                          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-[#7C6CFF]/20 text-[#7C6CFF] border border-[#7C6CFF]/30 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_10px_rgba(124,108,255,0.2)] hover:bg-[#7C6CFF]/30" title="웹에서 열기">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Open Web
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if ((file as any).webUrl) window.open((file as any).webUrl, '_blank');
+                              }}
+                              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#7C6CFF]/20 text-[#7C6CFF] border border-[#7C6CFF]/30 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_10px_rgba(124,108,255,0.2)] hover:bg-[#7C6CFF]/30" 
+                              title="웹에서 열기"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Edit
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if ((file as any).webUrl) {
+                                  const url = (file as any).webUrl;
+                                  const dlUrl = url.includes('?') ? `${url}&download=1` : `${url}?download=1`;
+                                  window.open(dlUrl, '_blank');
+                                }
+                              }}
+                              className="flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/80 border border-gray-300 dark:border-white/10 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/60 dark:bg-white/10" 
+                              title="사본 다운로드"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Download
+                            </button>
+                          </div>
                         ) : (
                           <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/80 border border-gray-300 dark:border-white/10 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/60 dark:bg-white/10" title="파일 다운로드">
                              <Download className="w-3.5 h-3.5" />
@@ -240,9 +310,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <h3 className="hero-meta mb-6">INTEGRATIONS</h3>
             <div className="space-y-3">
               {[
-                { label: "Word 문서", icon: FileText, theme: "blue", type: "word" },
-                { label: "Excel 시트", icon: FileBarChart, theme: "green", type: "excel" },
-                { label: "PPT 발표", icon: FileImage, theme: "orange", type: "ppt" },
+                { label: "Word 문서", icon: "https://upload.wikimedia.org/wikipedia/commons/f/fd/Microsoft_Office_Word_%282019%E2%80%93present%29.svg", theme: "blue", type: "word" },
+                { label: "Excel 시트", icon: "https://upload.wikimedia.org/wikipedia/commons/3/34/Microsoft_Office_Excel_%282019%E2%80%93present%29.svg", theme: "green", type: "excel" },
+                { label: "PPT 발표", icon: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Microsoft_Office_PowerPoint_%282019%E2%80%93present%29.svg", theme: "orange", type: "ppt" },
               ].map((app, i) => {
                 const isLocked = !user?.isUnivVerified;
                 
@@ -257,29 +327,14 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                   }
                   
                   try {
-                    const token = localStorage.getItem('access_token');
-                    // backend call to create
-                    const res = await fetch(`http://localhost:8080/api/projects/${propProjectId}/ms-docs`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ type: app.type })
-                    });
-                    
-                    if (!res.ok) {
-                       const errorData = await res.json();
-                       alert(errorData.message || '문서 생성 중 오류가 발생했습니다.');
-                       return;
-                    }
-                    
-                    const data = await res.json();
+                    const data = await officeApi.createSharedDocument(propProjectId, app.type);
                     if (data.webUrl) {
                        window.open(data.webUrl, '_blank');
+                       // 생성 후 목록 갱신
+                       loadDocuments();
                     }
-                  } catch (e) {
-                    alert('문서 시스템과 통신 실패');
+                  } catch (e: any) {
+                    alert(e.response?.data?.message || '문서 시스템과 통신 실패');
                   }
                 };
 
@@ -292,7 +347,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     <div className="flex items-center gap-4">
                       <div className={`schedule-item ${app.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
                         <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                          <app.icon className="w-5 h-5" />
+                           <img src={app.icon} alt={app.type} className="w-6 h-6 object-contain drop-shadow-sm" />
                         </div>
                       </div>
                       <span className="text-[13px] font-black text-[#7D879C] dark:text-white/80 group-hover:text-[#1A2340] dark:text-white uppercase tracking-widest">{app.label}</span>

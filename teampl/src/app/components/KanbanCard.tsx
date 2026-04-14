@@ -8,9 +8,10 @@ interface KanbanCardProps {
   projectMembers: any[];
   onToggle: (id: string) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onClaim?: (id: string) => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, projectMembers = [], onToggle, onDelete }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({ task, projectMembers = [], onToggle, onDelete, onClaim }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'TASK',
     item: { id: task.id },
@@ -62,19 +63,30 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, projectMembers = [
           <Clock className="w-3.5 h-3.5" />
           {task.deadline ? task.deadline.split('-').slice(1).join('/') : '기한 없음'}
         </div>
-        <div className="flex -space-x-2">
-          {task.assignees?.map((email: string) => {
-            const m = projectMembers.find(mem => mem.email === email);
-            return (
-              <div 
-                key={email} 
-                title={m?.name || "담당자"}
-                className="w-7 h-7 rounded-full bg-white dark:bg-[#12182B] border-2 border-[#1A2340] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black group relative uppercase shadow-sm"
-              >
-                {m?.name?.[0] || 'U'}
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          {(!task.assignees || task.assignees.length === 0) ? (
+            <button 
+              onClick={() => onClaim?.(task.id)}
+              className="px-3 py-1.5 bg-[#7C6CFF]/10 hover:bg-[#7C6CFF] text-[#7C6CFF] hover:text-white text-[10px] font-black rounded-lg transition-all border border-[#7C6CFF]/20"
+            >
+              나에게 배정
+            </button>
+          ) : (
+            <div className="flex -space-x-2">
+              {task.assignees.map((email: string) => {
+                const m = projectMembers.find(mem => mem.email === email);
+                return (
+                  <div 
+                    key={email} 
+                    title={m?.name || "담당자"}
+                    className="w-7 h-7 rounded-full bg-white dark:bg-[#12182B] border-2 border-[#1A2340] flex items-center justify-center text-[#7D879C] dark:text-white/80 text-[10px] font-black group relative uppercase shadow-sm"
+                  >
+                    {m?.name?.[0] || 'U'}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

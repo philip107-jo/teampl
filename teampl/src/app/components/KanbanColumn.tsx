@@ -12,6 +12,7 @@ interface KanbanColumnProps {
   onMoveTask: (taskId: string, targetStatus: TaskStatus) => void;
   onToggleTask: (taskId: string) => void;
   onDeleteTask: (e: React.MouseEvent, taskId: string) => void;
+  onClaimTask?: (taskId: string) => void;
 }
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -22,6 +23,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onMoveTask,
   onToggleTask,
   onDeleteTask,
+  onClaimTask,
 }) => {
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'TASK',
@@ -69,6 +71,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             projectMembers={projectMembers}
             onToggle={onToggleTask} 
             onDelete={onDeleteTask} 
+            onClaim={onClaimTask}
           />
         ))}
         {tasks.length === 0 && (

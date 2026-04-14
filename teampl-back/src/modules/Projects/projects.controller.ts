@@ -1,6 +1,31 @@
 import { Router } from 'express';
 import { ProjectsService } from './projects.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
+import axios from 'axios';
+import crypto from 'crypto';
+import { prisma } from '../../prisma';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        name: string;
+        isUnivVerified?: boolean;
+        msRefreshToken?: string | null;
+      };
+    }
+  }
+}
+
+interface UserWithMS {
+    id: string;
+    email: string;
+    name: string;
+    isUnivVerified: boolean;
+    msRefreshToken: string | null;
+}
 
 const router = Router();
 router.use(authMiddleware);
@@ -137,14 +162,13 @@ router.delete('/:id/delete-alert', async (req, res) => {
 });
 
 // POST /api/projects/:id/ms-docs
-import axios from 'axios';
 router.post('/:id/ms-docs', async (req, res) => {
     const email = req.user!.email;
     const { type } = req.body; // 'word', 'excel', 'ppt'
 
     try {
         // 1. Get user from DB
-        const user = await import('../../prisma').then(m => m.prisma.user.findUnique({ where: { email } }));
+        const user = (await prisma.user.findUnique({ where: { email } })) as UserWithMS | null;
         if (!user || !user.isUnivVerified || !user.msRefreshToken) {
             return res.status(403).json({ message: "Microsoft 계정 연동이 필요합니다." });
         }
@@ -166,10 +190,10 @@ router.post('/:id/ms-docs', async (req, res) => {
         
         // 3. Update refresh token if MS returned a new one
         if (tokenResponse.data.refresh_token) {
-            await import('../../prisma').then(m => m.prisma.user.update({
+            await (prisma.user as any).update({
                 where: { email },
                 data: { msRefreshToken: tokenResponse.data.refresh_token }
-            }));
+            });
         }
 
         // 3. Create document via Graph API
@@ -178,7 +202,6 @@ router.post('/:id/ms-docs', async (req, res) => {
         if (type === 'ppt') { extension = 'pptx'; }
 
         // [추가 보안] 파일명을 매우 길고 복잡한 무작위 문자열로 생성하여 주소 추측을 불가능하게 함
-        const crypto = require('crypto');
         const randomSalt = crypto.randomBytes(32).toString('hex'); // 64자 무작위 문자열
         const fileName = `TP_${type.toUpperCase()}_v${Date.now()}_SECURE_X_${randomSalt}.${extension}`;
         
@@ -203,11 +226,36 @@ router.post('/:id/ms-docs', async (req, res) => {
 
         const webUrl = linkResponse.data.link.webUrl;
         
+        // 6. DB에 문서 정보 저장
+        const sharedDoc = await (prisma as any).sharedDocument.create({
+            data: {
+                projectId: parseInt(req.params.id, 10),
+                fileName: fileName,
+                fileType: type,
+                webUrl: webUrl,
+                creatorEmail: email
+            }
+        });
+
         // Return JSON to frontend
-        res.json({ success: true, webUrl });
+        res.json({ success: true, webUrl, document: sharedDoc });
     } catch (e: any) {
         console.error("Graph API Error:", e.response?.data || e.message);
         res.status(500).json({ message: "문서 생성에 실패했습니다." });
+    }
+});
+
+// GET /api/projects/:id/ms-docs
+router.get('/:id/ms-docs', async (req, res) => {
+    const projectId = parseInt(req.params.id, 10);
+    try {
+        const docs = await (prisma as any).sharedDocument.findMany({
+            where: { projectId },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(docs);
+    } catch (e: any) {
+        res.status(500).json({ message: "문서 목록을 가져오는 데 실패했습니다." });
     }
 });
 
