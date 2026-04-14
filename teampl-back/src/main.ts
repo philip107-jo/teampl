@@ -14,6 +14,7 @@ import aiRouter from './modules/Ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
 import { ChatService } from './modules/chat/chat.service';
+import { setIo } from './socket';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   }
 });
+setIo(io);
 
 // Middleware
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
@@ -78,9 +80,26 @@ io.on('connection', (socket) => {
       });
       // 방 전체(보낸 사람 포함)에 발송
       io.to(data.room).emit('newMessage', savedMsg);
+      
+      // 만약 프로젝트 관련 메시지라면 장기적으로 프로젝트 방에도 입수되도록 알림
+      if (data.projectId) {
+        io.to(`project-${data.projectId}`).emit('roomActivity', { room: data.room });
+      }
     } catch (e) {
       console.error('Failed to save message:', e);
     }
+  });
+
+  // 태스크 업데이트 등을 위한 프로젝트 전용 소켓 룸 입장
+  socket.on('joinProject', (projectId: number) => {
+    socket.join(`project-${projectId}`);
+    console.log(`Socket ${socket.id} subscribed to project updates: ${projectId}`);
+  });
+
+  // AI 카드 내 개별 태스크 선점 처리
+  socket.on('claimAiTask', (data: { room: string, messageId: string, taskId: string, userEmail: string, userName: string }) => {
+    // 룸 내 모든 이에게 누가 무엇을 가져갔는지 방송 (보낸 사람 포함)
+    io.to(data.room).emit('aiTaskClaimed', data);
   });
 
   socket.on('disconnect', () => {

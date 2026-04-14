@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { 
-  ChevronLeft, Users, Trophy, Target, 
-  CheckCircle2, Clock, PlayCircle, TrendingUp,
-  Plus, Calendar as CalendarIcon, ArrowRight
+  ChevronLeft, Trophy, Calendar as CalendarIcon, 
+  PlayCircle, CheckCircle2, ArrowRight, Plus, 
+  TrendingUp 
 } from "lucide-react";
+import { socket, joinProjectChannel } from "../socket";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
@@ -49,8 +50,18 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
       }
     };
     fetchData();
-    const intervalId = setInterval(fetchData, 5000);
-    return () => clearInterval(intervalId);
+    
+    // 실시간 업데이트 구독
+    joinProjectChannel(numProjectId);
+    const onTaskUpdated = () => {
+      console.log("실시간 태스크 업데이트! 보드 리로드...");
+      fetchData();
+    };
+    socket.on('taskUpdated', onTaskUpdated);
+
+    return () => {
+      socket.off('taskUpdated', onTaskUpdated);
+    };
   }, [numProjectId, user]);
 
 

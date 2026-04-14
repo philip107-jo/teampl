@@ -283,22 +283,21 @@ export const ProjectsService = {
         
         const tasks = await (prisma as any).task.findMany({ where: { projectId } });
         const docs = await (prisma as any).sharedDocument.findMany({ where: { projectId } });
+        const messages = await (prisma as any).message.findMany({ where: { projectId } });
 
-        const stats = members.map(m => {
+        const rawStats = members.map(m => {
             const memberEmail = m.userEmail;
             const memberTasks = tasks.filter((t: any) => t.assignees.includes(memberEmail));
             
-            let totalPotential = 0;
-            let totalEarned = 0;
+            let earnedPoints = 0;
             let completedCount = 0;
 
             memberTasks.forEach((task: any) => {
-                const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
-                const basePoints = (task.difficulty || 3) * priorityWeight;
-                totalPotential += basePoints * 1.2;
-
                 if (task.status === 'DONE') {
                     completedCount++;
+                    const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
+                    const basePoints = (task.difficulty || 3) * priorityWeight;
+                    
                     let timeFactor = 1.0;
                     if (task.completedAt && task.deadline) {
                         const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
@@ -306,28 +305,40 @@ export const ProjectsService = {
                         if (completedDate <= deadlineDate) timeFactor = 1.2;
                         else timeFactor = 0.7;
                     }
-                    totalEarned += basePoints * timeFactor;
+                    // 성공한 태스크에 대해 가중치 점수 부여 (기본 10배수 스케일링)
+                    earnedPoints += (basePoints * timeFactor) * 10;
                 }
             });
 
-            // 문서 작성 가산점 (작성한 문서당 5점)
+            // 문서 작성 가산점 (문서당 15점)
             const createdDocs = docs.filter((d: any) => d.creatorEmail === memberEmail);
-            totalPotential += createdDocs.length * 5;
-            totalEarned += createdDocs.length * 5;
+            earnedPoints += createdDocs.length * 15;
 
-            // 임시 소통 점수
-            const chatCount = 5; // 나중에 실제 채팅 모델 연결시 연동
-            totalEarned += chatCount * 2;
-            totalPotential += 10;
+            // 실제 소통(채팅) 가산점 (메시지당 2점)
+            const memberMessages = messages.filter((msg: any) => msg.senderEmail === memberEmail);
+            earnedPoints += memberMessages.length * 2;
 
-            const score = totalPotential > 0 ? Math.min(100, Math.round((totalEarned / totalPotential) * 100)) : 0;
-            
             return {
                 email: memberEmail,
-                score,
+                earnedPoints,
                 completed: completedCount,
                 total: memberTasks.length,
-                chatCount
+                chatCount: memberMessages.length
+            };
+        });
+
+        // 2단계: 전체 팀의 종합 점수를 기준으로 상대적 기여도(%) 계산
+        const teamTotalPoints = rawStats.reduce((sum, s) => sum + s.earnedPoints, 0);
+
+        const stats = rawStats.map(s => {
+            // 아무도 활동이 없으면 모두 0%
+            const score = teamTotalPoints > 0 ? Math.round((s.earnedPoints / teamTotalPoints) * 100) : 0;
+            return {
+                email: s.email,
+                score,
+                completed: s.completed,
+                total: s.total,
+                chatCount: s.chatCount
             };
         });
 
@@ -340,6 +351,7 @@ export const ProjectsService = {
         const systemPrompt = `
 You are a technical project manager assistant. Your job is to break down the user's project description into small, actionable tasks.
 For each task, assign:
+- "id": a unique short random string (e.g., "sk-123").
 - "title": a clear, concise task name IN KOREAN (한국어).
 - "priority": one of "low", "medium", "high".
 - "deadline": an empty string "".
@@ -347,8 +359,8 @@ For each task, assign:
 
 You must respond ONLY with a valid JSON array of objects. Never include markdown formatting like \`\`\`json. Example:
 [
-  { "title": "깃허브 레포지토리 환경 세팅", "priority": "high", "deadline": "", "difficulty": 2 },
-  { "title": "데이터베이스 스키마 설계 및 구축", "priority": "high", "deadline": "", "difficulty": 4 }
+  { "id": "t-1", "title": "깃허브 레포지토리 환경 세팅", "priority": "high", "deadline": "", "difficulty": 2 },
+  { "id": "t-2", "title": "데이터베이스 스키마 설계 및 구축", "priority": "high", "deadline": "", "difficulty": 4 }
 ]
 `;
 

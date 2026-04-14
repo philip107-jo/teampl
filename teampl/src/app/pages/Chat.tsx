@@ -1,13 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Send, Plus, User as UserIcon, MessageSquare, ChevronLeft, ChevronRight, Users, Mail, Phone, GraduationCap, Calendar, X, Sparkles, Brain, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { 
+  Send, Plus, User as UserIcon, MessageSquare, 
+  ChevronLeft, ChevronRight, Users, Mail, Phone, 
+  GraduationCap, Calendar, X, Sparkles, Brain, 
+  CheckCircle2, AlertCircle, Loader2 
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 import { taskApi } from "../api/taskApi";
 import { aiApi, AiTaskSuggestion } from "../api/aiApi";
 import { chatApi } from "../api/chatApi";
-import { io, Socket } from "socket.io-client";
 import { Task } from "../types";
+import { socket, joinChatRoom } from "../socket";
+
+interface AiClaim {
+  messageId: string;
+  taskId: string;
+  userEmail: string;
+  userName: string;
+}
+
+interface Message {
+  id: string;
+  sender: string;
+  content: string;
+  time: string;
+  isMe: boolean;
+}
 
 // ProfileModal
 function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { projectId?: number, selectedMember: any, onClose: () => void, onMessage: () => void }) {
@@ -157,14 +177,6 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
   );
 }
 
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  time: string;
-  isMe: boolean;
-}
-
 interface ChatProps {
   projectId?: number;
   projectMembers?: any[];
@@ -189,27 +201,21 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiTaskSuggestion[]>([]);
+  const [selectedAiIndices, setSelectedAiIndices] = useState<Set<number>>(new Set());
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({});
-  const [socket, setSocket] = useState<Socket | null>(null);
-
-  useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080';
-    const newSocket = io(socketUrl);
-    setSocket(newSocket);
-    return () => { newSocket.disconnect(); };
-  }, []);
+  const [aiClaims, setAiClaims] = useState<AiClaim[]>([]);
 
   const chatKey = chatMode === "TEAM" ? `team-${projectId}` : (selectedMember ? `${[user?.email, selectedMember.email].sort().join('-')}` : '');
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
 
   useEffect(() => {
-    if (!socket || !projectId || !chatKey) return;
+    if (!projectId || !chatKey) return;
 
     const loadMsgs = async () => {
       try {
-        let msgs = [];
+        let msgs: any[] = [];
         if (chatMode === "TEAM") {
           msgs = await chatApi.getProjectMessages(projectId);
         } else if (selectedMember?.email) {
@@ -229,7 +235,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     }
     loadMsgs();
 
-    socket.emit('joinRoom', chatKey);
+    joinChatRoom(chatKey);
 
     const onNewMsg = (m: any) => {
       const isMe = m.senderEmail === user?.email;
@@ -247,8 +253,17 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     };
     
     socket.on('newMessage', onNewMsg);
-    return () => { socket.off('newMessage', onNewMsg); };
-  }, [socket, chatKey, projectId, chatMode, selectedMember, user?.email]);
+
+    const onAiTaskClaimed = (claim: AiClaim) => {
+      setAiClaims(prev => [...prev, claim]);
+    };
+    socket.on('aiTaskClaimed', onAiTaskClaimed);
+
+    return () => { 
+      socket.off('newMessage', onNewMsg); 
+      socket.off('aiTaskClaimed', onAiTaskClaimed);
+    };
+  }, [chatKey, projectId, chatMode, selectedMember, user?.email]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -260,14 +275,28 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     scrollToBottom();
   }, [messagesStore, navStep, chatKey]);
 
-  const handleSend = () => {
-    if (!inputText.trim() || !projectId || !socket || !user) return;
+  const handleSend = async () => {
+    if (!inputText.trim() || !projectId || !user) return;
 
     if (inputText.startsWith("/ai ")) {
       const desc = inputText.replace("/ai ", "");
-      setAiInput(desc);
-      setIsAiModalOpen(true);
       setInputText("");
+      setAiLoading(true);
+      try {
+        const suggestions = await aiApi.splitTasks(projectId, desc);
+        socket.emit('sendMessage', {
+          room: chatKey,
+          senderEmail: user.email,
+          content: `___AI___${JSON.stringify(suggestions)}`,
+          projectId: chatMode === "TEAM" ? projectId : undefined,
+          receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
+        });
+      } catch (err) {
+        console.error(err);
+        alert("AI 분석 중 오류가 발생했습니다.");
+      } finally {
+        setAiLoading(false);
+      }
       return;
     }
 
@@ -282,10 +311,43 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     setInputText("");
   };
 
+  const handleClaimIndividualAiTask = async (msgId: string, task: any) => {
+    if (!projectId || !user) return;
+    
+    // 이미 누군가 가져갔는지 확인 (클라이언트 사이드 1차 방어)
+    if (aiClaims.some(c => c.messageId === msgId && c.taskId === task.id)) {
+      alert("이미 다른 팀원이 가져간 업무입니다.");
+      return;
+    }
+
+    try {
+      // 1. 태스크 생성 및 나에게 배정
+      await taskApi.createTask(projectId, {
+        title: task.title,
+        priority: task.priority,
+        deadline: task.deadline || "",
+        difficulty: task.difficulty,
+        assignees: [user.email]
+      });
+
+      // 2. 소켓으로 알림 (누가 가져갔는지)
+      socket.emit('claimAiTask', {
+        room: chatKey,
+        messageId: msgId,
+        taskId: task.id,
+        userEmail: user.email,
+        userName: user.name
+      });
+
+      alert(`'${task.title}' 업무를 가져왔습니다!`);
+    } catch (e: any) {
+      alert(e.message || "업무 가져오기에 실패했습니다.");
+    }
+  };
+
   const handleAiMessageSplit = (content: string) => {
     setAiInput(content);
     setIsAiModalOpen(true);
-    // 즉시 분석 시작
     if (content.trim()) {
       handleAiAnalysisOfContent(content);
     }
@@ -298,6 +360,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     try {
       const suggestions = await aiApi.splitTasks(projectId, content);
       setAiSuggestions(suggestions);
+      setSelectedAiIndices(new Set(suggestions.map((_, i) => i)));
     } catch (err) {
       console.error(err);
       alert("AI 분석 중 오류가 발생했습니다.");
@@ -314,6 +377,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     try {
       const suggestions = await aiApi.splitTasks(projectId, aiInput);
       setAiSuggestions(suggestions);
+      setSelectedAiIndices(new Set(suggestions.map((_, i) => i)));
     } catch (err) {
       console.error(err);
       alert("AI 분석 중 오류가 발생했습니다.");
@@ -325,11 +389,18 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
   const handleBatchCreate = async () => {
     if (!projectId || aiSuggestions.length === 0) return;
+    const selectedTasks = aiSuggestions.filter((_, idx) => selectedAiIndices.has(idx));
+    if (selectedTasks.length === 0) {
+      alert("등록할 태스크를 하나 이상 선택해 주세요.");
+      return;
+    }
+
     try {
-      await taskApi.batchCreateTasks(projectId, aiSuggestions as any);
-      alert("AI가 추천한 모든 업무가 '대기 중' 항목으로 등록되었습니다!");
+      await taskApi.batchCreateTasks(projectId, selectedTasks as any);
+      alert(`${selectedTasks.length}개의 업무가 '대기 중' 항목으로 등록되었습니다!`);
       setIsAiModalOpen(false);
       setAiSuggestions([]);
+      setSelectedAiIndices(new Set());
       setAiInput("");
     } catch (err) {
       console.error(err);
@@ -421,7 +492,6 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     );
   }
 
-  // navStep === "CHAT"
   return (
     <div className="flex flex-col h-[75vh] rounded-3xl overflow-hidden mb-8 bg-[#f8faff] dark:bg-[#0B1020] border border-gray-200 dark:border-white/5 relative transition-all duration-300">
       <div className="p-4 border-b border-gray-200 dark:border-white/5 bg-white dark:bg-[#12182B]/90 backdrop-blur-md flex items-center gap-3">
@@ -450,33 +520,110 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
             </div>
           </div>
         ) : (
-          currentMessages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-end gap-3 animate-in slide-in-from-bottom-2 fade-in duration-300`}>
-              {!msg.isMe && (
-                <div className="w-10 h-10 rounded-[14px] bg-[#23D7A1] text-white flex items-center justify-center text-[15px] font-black shadow-sm flex-shrink-0 uppercase mb-5">
-                  {msg.sender[0]}
-                </div>
-              )}
-              <div className={`max-w-[75%] space-y-1.5 ${msg.isMe ? "flex flex-col items-end" : ""}`}>
-                {!msg.isMe && <p className="text-[12px] font-black text-[#7D879C]/80 ml-1 tracking-tight">{msg.sender}</p>}
-                <div className={`flex items-end gap-2 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
-                  <div className={`px-5 py-3.5 rounded-3xl text-[14.5px] font-medium leading-relaxed break-words shadow-sm border group/msg flex items-center gap-3 ${msg.isMe ? "bg-[#7C6CFF] text-white rounded-br-md shadow-[#7C6CFF]/20 border-[#7C6CFF]" : "bg-white dark:bg-[#1A2340] text-[#1A2340] dark:text-white rounded-bl-md border-gray-200 dark:border-white/5"}`}>
-                    <span>{msg.content}</span>
-                    {chatMode === "TEAM" && (
-                      <button 
-                        onClick={() => handleAiMessageSplit(msg.content)}
-                        className={`p-1.5 rounded-lg transition-all flex-shrink-0 ${msg.isMe ? "hover:bg-white/10 text-white/40 hover:text-white" : "hover:bg-[#7C6CFF]/10 text-[#7C6CFF]/40 hover:text-[#7C6CFF]"}`}
-                        title="AI 업무 분할"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </button>
+          currentMessages.map((msg, i) => {
+            const isAiCard = msg.content.startsWith("___AI___");
+            let aiData: any[] = [];
+            if (isAiCard) {
+              try {
+                aiData = JSON.parse(msg.content.replace("___AI___", ""));
+              } catch (e) {}
+            }
+
+            return (
+              <div key={msg.id || i} className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                <div className={`flex items-end gap-2 max-w-[85%] ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {!msg.isMe && !isAiCard && (
+                    <div className="w-10 h-10 rounded-[14px] bg-[#23D7A1] text-white flex items-center justify-center text-[15px] font-black shadow-sm flex-shrink-0 uppercase mb-5">
+                      {msg.sender[0]}
+                    </div>
+                  )}
+                  <div className={`p-4 rounded-2xl text-[14px] leading-relaxed shadow-sm ${
+                    isAiCard 
+                      ? 'bg-white dark:bg-[#1A2340] border-2 border-[#7C6CFF] min-w-[300px]' 
+                      : msg.isMe 
+                        ? 'bg-[#7C6CFF] text-white rounded-br-none font-medium' 
+                        : 'bg-white dark:bg-white/5 text-[#1A2340] dark:text-white rounded-bl-none border border-gray-100 dark:border-white/5 font-medium'
+                  }`}>
+                    {isAiCard ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-[#7C6CFF]" />
+                          <span className="text-[12px] font-black text-[#7C6CFF] uppercase tracking-widest">AI 추천 업무 분할</span>
+                        </div>
+                        <div className="space-y-2">
+                          {aiData.map((task, idx) => {
+                            const claimer = aiClaims.find(c => c.messageId === msg.id && c.taskId === task.id);
+                            const isClaimed = !!claimer;
+
+                            return (
+                              <div key={task.id || idx} className={`p-3 rounded-xl border transition-all ${isClaimed ? 'bg-gray-100 dark:bg-white/5 border-transparent opacity-60' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5 hover:border-[#7C6CFF]/30'}`}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="text-[13px] font-black text-[#1A2340] dark:text-white truncate pr-2">{task.title}</p>
+                                  {isClaimed ? (
+                                    <span className="text-[10px] font-black text-[#7C6CFF] bg-[#7C6CFF]/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                      {claimer.userName}님이 찜!
+                                    </span>
+                                  ) : (
+                                    <button 
+                                      onClick={() => handleClaimIndividualAiTask(msg.id, task)}
+                                      className="text-[10px] font-black text-white bg-[#7C6CFF] px-2 py-0.5 rounded-md hover:bg-[#6b5cd8] active:scale-95 transition-all"
+                                    >
+                                      가져오기
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-[#7D879C]">
+                                  <span className={task.priority === 'high' ? 'text-red-500' : 'text-blue-500'}>{task.priority}</span>
+                                  <span>•</span>
+                                  <span>난이도 {task.difficulty}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button 
+                          onClick={async () => {
+                            if (!window.confirm("남아있는 모든 업무를 프로젝트에 등록할까요? (담당자 미지정)")) return;
+                            try {
+                              const unclaimed = aiData.filter(t => !aiClaims.some(c => c.messageId === msg.id && c.taskId === t.id));
+                              if (unclaimed.length === 0) {
+                                alert("가져갈 업무가 더 이상 없습니다.");
+                                return;
+                              }
+                              await taskApi.batchCreateTasks(projectId, unclaimed as any);
+                              alert(`${unclaimed.length}개의 업무가 등록되었습니다!`);
+                            } catch (e) {
+                              alert("등록에 실패했습니다.");
+                            }
+                          }}
+                          className="w-full py-3 bg-[#7C6CFF] text-white rounded-xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                        >
+                          일괄 등록하기
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span>{msg.content}</span>
+                        {chatMode === "TEAM" && !isAiCard && (
+                          <button 
+                            onClick={() => handleAiMessageSplit(msg.content)}
+                            className={`p-1.5 rounded-lg transition-all flex-shrink-0 ${msg.isMe ? "hover:bg-white/10 text-white/40 hover:text-white" : "hover:bg-[#7C6CFF]/10 text-[#7C6CFF]/40 hover:text-[#7C6CFF]"}`}
+                            title="AI 업무 분할"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="text-[10px] font-bold text-[#7D879C]/80 mb-1.5 whitespace-nowrap">{msg.time}</span>
                 </div>
+                {!msg.isMe && !isAiCard && (
+                  <span className="text-[11px] font-black text-[#7D879C] mt-1 ml-12 opacity-50">{msg.sender}</span>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -498,20 +645,16 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
-          <button onClick={handleSend} disabled={!inputText.trim()} className={`w-11 h-11 flex items-center justify-center rounded-[14px] transition-all ${inputText.trim() ? "bg-[#7C6CFF] hover:bg-[#6b5cd8] text-white shadow-lg active:scale-95 shadow-[#7C6CFF]/30" : "bg-gray-100 dark:bg-white/5 text-gray-400"}`}>
-            <Send className="w-5 h-5 ml-1" />
+          <button onClick={handleSend} disabled={!inputText.trim() || aiLoading} className={`w-11 h-11 flex items-center justify-center rounded-[14px] transition-all ${inputText.trim() && !aiLoading ? "bg-[#7C6CFF] hover:bg-[#6b5cd8] text-white shadow-lg active:scale-95 shadow-[#7C6CFF]/30" : "bg-gray-100 dark:bg-white/5 text-gray-400"}`}>
+            {aiLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
           </button>
         </div>
       </div>
 
-
-      {isModalOpen && <ProfileModal projectId={projectId} selectedMember={selectedMember} onClose={() => setIsModalOpen(false)} onMessage={() => { setChatMode("INDIVIDUAL"); setNavStep("CHAT"); setIsModalOpen(false); }} />}
-
-      {/* AI Analysis Modal */}
+      {/* AI Analysis Modal (For back-compat or detailed input) */}
       {isAiModalOpen && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-white dark:bg-[#132038] w-full max-w-2xl rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
             <div className="p-8 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-white/5">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-[#7C6CFF] flex items-center justify-center text-white shadow-lg shadow-[#7C6CFF]/30">
@@ -530,48 +673,34 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {aiSuggestions.length === 0 ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black tracking-widest text-[#7D879C] uppercase ml-1">과제 설명 또는 프로젝트 목표 입력</label>
-                    <span className="text-[10px] font-black px-2 py-0.5 bg-[#7C6CFF]/10 text-[#7C6CFF] rounded-lg">AI가 팀의 초기 세팅을 도와줍니다</span>
-                  </div>
                   <textarea 
-                    className="w-full h-48 p-6 bg-white dark:bg-[#0d1526] border border-gray-200 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_20px_rgba(124,108,255,0.15)] outline-none transition-all dark:text-white font-medium resize-none placeholder:text-[#7D879C]/40"
-                    placeholder="예: React와 NestJS를 사용한 웹 애플리케이션 개발 과제입니다. 주요 기능은 사용자 인증, 칸반 보드, AI 채팅 기능이며 마감기한은 2주입니다..."
+                    className="w-full h-48 p-6 bg-white dark:bg-[#0d1526] border border-gray-200 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] outline-none transition-all dark:text-white font-medium resize-none placeholder:text-[#7D879C]/40"
+                    placeholder="예: 프로젝트 목표나 과제 내용을 상세히 입력해주세요..."
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
                   />
-                  <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-200 dark:border-blue-500/20">
-                    <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                    <p className="text-xs font-bold text-blue-800 dark:text-blue-200/70 leading-relaxed">
-                      AI가 분석한 태스크는 '대기 중' 항목으로 등록되며, 팀원들이 직접 드래그하여 본인의 업무로 배정할 수 있습니다.
-                    </p>
-                  </div>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-black text-[#1A2340] dark:text-white">AI 추천 태스크 ({aiSuggestions.length})</h3>
-                    <button onClick={() => setAiSuggestions([])} className="text-xs font-black text-[#7D879C] hover:text-[#7C6CFF] transition-all underline underline-offset-4">다시 입력하기</button>
-                  </div>
                   <div className="grid gap-3">
                     {aiSuggestions.map((task, idx) => (
-                      <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#12182B] flex items-center justify-center text-[#7C6CFF] border border-gray-200 dark:border-white/10 shrink-0 font-black">
+                      <div 
+                        key={idx} 
+                        onClick={() => {
+                          const newSet = new Set(selectedAiIndices);
+                          if (newSet.has(idx)) newSet.delete(idx);
+                          else newSet.add(idx);
+                          setSelectedAiIndices(newSet);
+                        }}
+                        className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${selectedAiIndices.has(idx) ? 'bg-white dark:bg-white/10 border-[#7C6CFF] shadow-sm' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5 opacity-60'}`}
+                      >
+                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center border font-black shrink-0 transition-colors ${selectedAiIndices.has(idx) ? 'bg-[#7C6CFF]/10 text-[#7C6CFF] border-[#7C6CFF]/30' : 'bg-white dark:bg-[#12182B] text-gray-400 border-gray-200 dark:border-white/10'}`}>
                           {idx + 1}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-[#1A2340] dark:text-white truncate">{task.title}</p>
-                          <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-[#7D879C] uppercase tracking-wider">
-                            <span className={task.priority === 'high' ? 'text-red-500' : task.priority === 'medium' ? 'text-orange-500' : 'text-blue-500'}>
-                              {task.priority === 'high' ? '긴급' : task.priority === 'medium' ? '보통' : '여유'}
-                            </span>
-                            <span className="w-1 h-1 bg-gray-300 dark:bg-white/10 rounded-full" />
-                            <span>난이도: {task.difficulty}/5</span>
-                            <span className="w-1 h-1 bg-gray-300 dark:bg-white/10 rounded-full" />
-                            <span>제안 마감일: {task.deadline.split('-').slice(1).join('/') || '미지정'}</span>
-                          </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-black">{task.title}</p>
                         </div>
-                        <CheckCircle2 className="w-5 h-5 text-[#23D7A1] opacity-50" />
+                        <CheckCircle2 className={`w-6 h-6 ${selectedAiIndices.has(idx) ? 'text-[#7C6CFF]' : 'text-gray-300'}`} />
                       </div>
                     ))}
                   </div>
@@ -581,37 +710,16 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
             <div className="p-8 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5">
               {aiSuggestions.length === 0 ? (
-                <button 
-                  onClick={handleAiAnalysis}
-                  disabled={aiLoading || !aiInput.trim()}
-                  className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-[#7C6CFF]/30 disabled:opacity-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      과제 분석 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-6 h-6" />
-                      AI 업무 분할 시작하기
-                    </>
-                  )}
+                <button onClick={handleAiAnalysis} disabled={aiLoading || !aiInput.trim()} className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 active:scale-[0.98]">
+                  {aiLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+                  AI 분석 시작하기
                 </button>
               ) : (
                 <div className="flex gap-4">
-                  <button 
-                    onClick={() => setIsAiModalOpen(false)}
-                    className="flex-1 py-5 bg-white dark:bg-white/5 text-[#7D879C] rounded-2xl font-black border border-gray-300 dark:border-white/10 uppercase tracking-widest transition-all"
-                  >
-                    나중에 하기
-                  </button>
-                  <button 
-                    onClick={handleBatchCreate}
-                    className="flex-[2] py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-[#7C6CFF]/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                  >
+                  <button onClick={() => setAiSuggestions([])} className="flex-1 py-5 bg-white dark:bg-white/5 text-[#7D879C] rounded-2xl font-black border border-gray-200 dark:border-white/10">다시 하기</button>
+                  <button onClick={handleBatchCreate} className="flex-[2] py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3">
                     <CheckCircle2 className="w-6 h-6" />
-                    프로젝트에 일괄 등록
+                    일괄 등록
                   </button>
                 </div>
               )}
