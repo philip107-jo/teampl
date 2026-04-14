@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 
 import { taskApi } from "../api/taskApi";
 import { aiApi, AiTaskSuggestion } from "../api/aiApi";
+import { chatApi } from "../api/chatApi";
+import { io, Socket } from "socket.io-client";
 import { Task } from "../types";
 
 // ProfileModal
@@ -189,14 +191,64 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [aiSuggestions, setAiSuggestions] = useState<AiTaskSuggestion[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({
-    "team-1": [
-      { id: "1", sender: "시스템 관리자", content: "프로젝트 채팅방이 생성되었습니다.", time: "오전 09:00", isMe: false },
-    ],
-  });
+  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({});
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  const chatKey = chatMode === "TEAM" ? `team-${projectId}` : `user-${projectId}-${selectedMember?.id}`;
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080';
+    const newSocket = io(socketUrl);
+    setSocket(newSocket);
+    return () => { newSocket.disconnect(); };
+  }, []);
+
+  const chatKey = chatMode === "TEAM" ? `team-${projectId}` : (selectedMember ? `${[user?.email, selectedMember.email].sort().join('-')}` : '');
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
+
+  useEffect(() => {
+    if (!socket || !projectId || !chatKey) return;
+
+    const loadMsgs = async () => {
+      try {
+        let msgs = [];
+        if (chatMode === "TEAM") {
+          msgs = await chatApi.getProjectMessages(projectId);
+        } else if (selectedMember?.email) {
+          msgs = await chatApi.getDirectMessages(selectedMember.email);
+        }
+        
+        const formatted = msgs.map((m: any) => ({
+          id: String(m.id),
+          sender: m.sender?.name || m.senderEmail.split('@')[0],
+          content: m.content,
+          time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          isMe: m.senderEmail === user?.email
+        }));
+        
+        setMessagesStore(prev => ({ ...prev, [chatKey]: formatted }));
+      } catch (err) {}
+    }
+    loadMsgs();
+
+    socket.emit('joinRoom', chatKey);
+
+    const onNewMsg = (m: any) => {
+      const isMe = m.senderEmail === user?.email;
+      const formatted = {
+        id: String(m.id),
+        sender: m.sender?.name || m.senderEmail.split('@')[0],
+        content: m.content,
+        time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        isMe
+      };
+      setMessagesStore(prev => ({
+        ...prev,
+        [chatKey]: [...(prev[chatKey] || []), formatted]
+      }));
+    };
+    
+    socket.on('newMessage', onNewMsg);
+    return () => { socket.off('newMessage', onNewMsg); };
+  }, [socket, chatKey, projectId, chatMode, selectedMember, user?.email]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -209,7 +261,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   }, [messagesStore, navStep, chatKey]);
 
   const handleSend = () => {
-    if (!inputText.trim() || !projectId) return;
+    if (!inputText.trim() || !projectId || !socket || !user) return;
 
     if (inputText.startsWith("/ai ")) {
       const desc = inputText.replace("/ai ", "");
@@ -219,18 +271,14 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       return;
     }
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      sender: user?.name || "나",
-      content: inputText,
-      time: new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      isMe: true
-    };
-
-    setMessagesStore({
-      ...messagesStore,
-      [chatKey]: [...currentMessages, newMessage]
+    socket.emit('sendMessage', {
+       room: chatKey,
+       senderEmail: user.email,
+       content: inputText,
+       projectId: chatMode === "TEAM" ? projectId : undefined,
+       receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
     });
+    
     setInputText("");
   };
 
