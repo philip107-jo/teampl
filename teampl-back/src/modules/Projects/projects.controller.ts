@@ -273,4 +273,16 @@ router.get('/:id/stats', async (req, res) => {
     }
 });
 
+// POST /api/projects/:id/ai/split-tasks
+router.post('/:id/ai/split-tasks', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        if (!prompt) return res.status(400).json({ message: "No prompt provided" });
+        const suggestions = await ProjectsService.generateTasksWithAi(prompt);
+        res.json(suggestions);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 export default router;
