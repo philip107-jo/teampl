@@ -4,9 +4,11 @@ import {
   Folder, FileText, FileImage, FileBarChart, FileCode2,
   Search, Filter, MoreVertical, Plus, Upload, Download,
   ChevronRight, HardDrive, ExternalLink, ChevronLeft,
-  Loader2
+  Loader2, CheckCircle2, X
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { useDarkMode } from "../context/DarkModeContext";
 import { officeApi, SharedDocument } from "../api/officeApi";
 
 interface DriveProps {
@@ -22,6 +24,13 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [activeTab, setActiveTab] = useState("전체");
   const [officeDocs, setOfficeDocs] = useState<SharedDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { isDark } = useDarkMode();
+
+  // Custom Create Modal States
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState("");
+  const [targetDocApp, setTargetDocApp] = useState<{label: string, type: string, theme: string} | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (propProjectId) {
@@ -312,7 +321,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               ].map((app, i) => {
                 const isLocked = !user?.isUnivVerified;
                 
-                const handleMsDocClick = async () => {
+                const handleMsDocClick = () => {
                   if (isLocked) {
                     alert('대학생 인증이 필요한 기능입니다. 마이페이지에서 Microsoft 계정 연동을 진행해주세요.');
                     return;
@@ -322,16 +331,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                      return;
                   }
                   
-                  try {
-                    const data = await officeApi.createSharedDocument(propProjectId, app.type);
-                    if (data.webUrl) {
-                       window.open(data.webUrl, '_blank');
-                       // 생성 후 목록 갱신
-                       loadDocuments();
-                    }
-                  } catch (e: any) {
-                    alert(e.response?.data?.message || '문서 시스템과 통신 실패');
-                  }
+                  setTargetDocApp(app);
+                  setNewDocTitle(`새 ${app.label}`);
+                  setIsCreateModalOpen(true);
                 };
 
                 return (
@@ -356,6 +358,120 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
           </div>
         </div>
       </div>
+      {/* -- Custom MS Create Modal -- */}
+      <AnimatePresence>
+        {isCreateModalOpen && targetDocApp && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-2xl"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 40, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 40, opacity: 0 }}
+              className="card w-full max-w-[440px] !p-8 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(124,108,255,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
+              style={isDark ? { background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' } : {}}
+            >
+              {/* Decoration Glow */}
+              <div className={`absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/15 blur-[60px] rounded-full`} />
+              
+              <div className="relative z-10 space-y-8">
+                <div className="flex justify-between items-center mb-2">
+                   <div className={`px-4 py-1.5 rounded-xl bg-[#7C6CFF]/10 text-[#7C6CFF] text-[11px] font-black uppercase tracking-widest`}>
+                      Create Microsoft Asset
+                   </div>
+                   <button 
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                   >
+                     <X className="w-5 h-5" />
+                   </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="text-left">
+                    <h2 className="text-[24px] font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                      제목을 설정하세요
+                    </h2>
+                    <p className="text-[13px] font-bold text-slate-500 dark:text-white/40 mt-1">
+                      {targetDocApp.label}를 생성합니다. (나중에 변경 가능)
+                    </p>
+                  </div>
+
+                  <div className="relative group/input">
+                     <input 
+                       autoFocus
+                       type="text"
+                       value={newDocTitle}
+                       onChange={(e) => setNewDocTitle(e.target.value)}
+                       onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !isCreating) {
+                            (async () => {
+                              if (!propProjectId) return;
+                              setIsCreating(true);
+                              try {
+                                const data = await officeApi.createSharedDocument(propProjectId, targetDocApp.type, newDocTitle);
+                                if (data.webUrl) {
+                                  window.open(data.webUrl, '_blank');
+                                  loadDocuments();
+                                  setIsCreateModalOpen(false);
+                                }
+                              } catch (e: any) {
+                                alert(e.response?.data?.message || '실패!');
+                              } finally {
+                                setIsCreating(false);
+                              }
+                            })();
+                          }
+                       }}
+                       placeholder="파일 제목 입력"
+                       className="w-full px-6 py-4 bg-white dark:bg-[#12182B]/60 border border-gray-200 dark:border-white/10 rounded-2xl text-[16px] font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7C6CFF]/50 transition-all shadow-inner"
+                     />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    disabled={isCreating}
+                    onClick={async () => {
+                      if (!propProjectId) return;
+                      setIsCreating(true);
+                      try {
+                        const data = await officeApi.createSharedDocument(propProjectId, targetDocApp.type, newDocTitle);
+                        if (data.webUrl) {
+                          window.open(data.webUrl, '_blank');
+                          loadDocuments();
+                          setIsCreateModalOpen(false);
+                        }
+                      } catch (e: any) {
+                        alert(e.response?.data?.message || '생성 실패');
+                      } finally {
+                        setIsCreating(false);
+                      }
+                    }}
+                    className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(124,108,255,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isCreating ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                    )}
+                    {isCreating ? 'CREATING...' : '문서 생성하기'}
+                  </button>
+                  <button
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="w-full py-4 text-slate-400 dark:text-white/30 text-[12px] font-black uppercase tracking-widest hover:text-slate-600 dark:hover:text-white transition-all underline underline-offset-4"
+                  >
+                    나중에 할게요
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

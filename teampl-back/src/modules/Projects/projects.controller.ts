@@ -164,7 +164,7 @@ router.delete('/:id/delete-alert', async (req, res) => {
 // POST /api/projects/:id/ms-docs
 router.post('/:id/ms-docs', async (req, res) => {
     const email = req.user!.email;
-    const { type } = req.body; // 'word', 'excel', 'ppt'
+    const { type, title } = req.body; // 'word', 'excel', 'ppt', 'title' (optional)
 
     try {
         // 1. Get user from DB
@@ -201,9 +201,12 @@ router.post('/:id/ms-docs', async (req, res) => {
         if (type === 'excel') { extension = 'xlsx'; }
         if (type === 'ppt') { extension = 'pptx'; }
 
-        // [추가 보안] 파일명을 매우 길고 복잡한 무작위 문자열로 생성하여 주소 추측을 불가능하게 함
-        const randomSalt = crypto.randomBytes(32).toString('hex'); // 64자 무작위 문자열
-        const fileName = `TP_${type.toUpperCase()}_v${Date.now()}_SECURE_X_${randomSalt}.${extension}`;
+        // 파일명 생성: 사용자 제목 + 무작위 소금 (중복 방지)
+        const randomSalt = crypto.randomBytes(4).toString('hex'); 
+        const baseTitle = title ? title.trim() : `TP_${type.toUpperCase()}_v${Date.now()}`;
+        // 파일명에 부적합한 문자 제거
+        const safeTitle = baseTitle.replace(/[\\/:*?"<>|]/g, '_');
+        const fileName = `${safeTitle}_${randomSalt}.${extension}`;
         
         // Create an empty file first
         const folderUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${fileName}:/content`;

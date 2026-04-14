@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useDarkMode } from "../context/DarkModeContext";
 
 export default function Projects() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { isDark } = useDarkMode();
   const [activeTab, setActiveTab] = useState("전체");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -521,26 +523,26 @@ export default function Projects() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-3xl"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-2xl dark:backdrop-blur-3xl"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 40, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 40, opacity: 0 }}
-              className="card w-full max-w-[440px] !p-10 text-center border-none shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible"
-              style={{ background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' }}
+              className="card w-full max-w-[440px] !p-10 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(124,108,255,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
+              style={isDark ? { background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' } : {}}
             >
               {/* Glow Decoration */}
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/20 blur-[60px] rounded-full" />
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/15 dark:bg-[#7C6CFF]/20 blur-[60px] rounded-full" />
               
               <div className="relative z-10">
-                <div className="w-24 h-24 bg-[#7C6CFF]/10 rounded-[32px] flex items-center justify-center text-[#7C6CFF] mb-8 mx-auto shadow-[inset_0_0_20px_rgba(124,108,255,0.2),0_0_30px_rgba(124,108,255,0.2)]">
+                <div className="w-24 h-24 bg-[#7C6CFF]/10 rounded-[32px] flex items-center justify-center text-[#7C6CFF] mb-8 mx-auto shadow-[inset_0_0_20px_rgba(124,108,255,0.1),0_0_30px_rgba(124,108,255,0.1)] dark:shadow-[inset_0_0_20px_rgba(124,108,255,0.2),0_0_30px_rgba(124,108,255,0.2)]">
                   <CheckCircle2 className="w-12 h-12" />
                 </div>
                 
                 <div className="space-y-4 mb-10">
-                  <h2 className="text-[28px] font-black text-white tracking-tight leading-tight">Microsoft 365<br/>연동 성공!</h2>
-                  <p className="text-[15px] font-bold text-white/50 leading-relaxed break-keep">
+                  <h2 className="text-[28px] font-black text-slate-900 dark:text-white tracking-tight leading-tight">Microsoft 365<br/>연동 성공!</h2>
+                  <p className="text-[15px] font-bold text-slate-500 dark:text-white/50 leading-relaxed break-keep">
                     축하합니다! 대학생 학생 계정 인증이 완료되었습니다. 이제 드라이브에서 고퀄리티 Word, Excel 문서를 자유롭게 생성하고 실시간으로 공동 편집할 수 있습니다.
                   </p>
                 </div>
@@ -552,7 +554,7 @@ export default function Projects() {
                   >
                     지금 바로 시작하기
                   </button>
-                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] pt-2">Teampl × Microsoft Cloud Integration</p>
+                  <p className="text-[11px] font-black text-slate-400 dark:text-white/20 uppercase tracking-[0.2em] pt-2">Teampl × Microsoft Cloud Integration</p>
                 </div>
               </div>
             </motion.div>
