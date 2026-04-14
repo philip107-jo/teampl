@@ -62,6 +62,7 @@ model Project {
   projectMembers ProjectMember[]
   tasks           Task[]
   schedules       Schedule[]
+  sharedDocuments SharedDocument[]
 }
 
 model ProjectMember {
@@ -113,4 +114,16 @@ model ProjectDeleteAlert {
   projectName   String
   deleteReason  String
   createdAt     DateTime @default(now())
+}
+
+model SharedDocument {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  fileName    String
+  fileType    String   // 'word', 'excel', 'ppt'
+  webUrl      String   // MS Graph webUrl
+  creatorEmail String
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
