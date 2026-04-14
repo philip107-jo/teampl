@@ -16,8 +16,8 @@ export const officeApi = {
         return response.data;
     },
     
-    createSharedDocument: async (projectId: number, type: string): Promise<{ success: boolean; webUrl: string; document: SharedDocument }> => {
-        const response = await client.post(`/projects/${projectId}/ms-docs`, { type });
+    createSharedDocument: async (projectId: number, type: string, title?: string): Promise<{ success: boolean; webUrl: string; document: SharedDocument }> => {
+        const response = await client.post(`/projects/${projectId}/ms-docs`, { type, title });
         return response.data;
     }
 };
