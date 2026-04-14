@@ -34,4 +34,4 @@
            projectApi.ts, Projects.tsx
 
 
-docker-compose up-d --build 한번 하셈
+ddddd
