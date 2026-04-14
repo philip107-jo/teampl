@@ -18,9 +18,8 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
             throw new UnauthorizedError('유효하지 않은 토큰 형식입니다.');
         }
 
-        const decoded = jwt.verify(token, JWT_SECRET) as { id: string, email: string };
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         
-        // TypeScript Type이 src/types/express.d.ts 에 의해 확장되었으므로 할당 가능
         req.user = decoded;
         
         next();
