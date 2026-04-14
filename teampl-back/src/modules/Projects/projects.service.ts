@@ -1,4 +1,7 @@
 import { prisma } from '../../prisma';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface Project {
     id: number;
@@ -329,5 +332,44 @@ export const ProjectsService = {
         });
 
         return stats;
+    },
+
+    generateTasksWithAi: async (prompt: string) => {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        
+        const systemPrompt = `
+You are a technical project manager assistant. Your job is to break down the user's project description into small, actionable tasks.
+For each task, assign:
+- "title": a clear, concise task name IN KOREAN (한국어).
+- "priority": one of "low", "medium", "high".
+- "deadline": an empty string "".
+- "difficulty": an integer between 1 and 5, representing complexity (1=easy, 5=hard).
+
+You must respond ONLY with a valid JSON array of objects. Never include markdown formatting like \`\`\`json. Example:
+[
+  { "title": "깃허브 레포지토리 환경 세팅", "priority": "high", "deadline": "", "difficulty": 2 },
+  { "title": "데이터베이스 스키마 설계 및 구축", "priority": "high", "deadline": "", "difficulty": 4 }
+]
+`;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+        });
+
+        const content = response.choices[0]?.message?.content || "[]";
+        try {
+            // Some robust parsing in case GPT returns markdown blocks
+            const jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
+            const tasks = JSON.parse(jsonStr);
+            return tasks;
+        } catch (e) {
+            console.error("Failed to parse AI output:", content);
+            throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
+        }
     }
 };
