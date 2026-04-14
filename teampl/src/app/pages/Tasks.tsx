@@ -5,7 +5,6 @@ import {
   CheckCircle2, Clock, PlayCircle, TrendingUp,
   Plus, Calendar as CalendarIcon, ArrowRight
 } from "lucide-react";
-import { initialMessages } from "../mockData";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
@@ -24,6 +23,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
+  const [projectStats, setProjectStats] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,8 +37,11 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
         if (p && p.membersList && p.membersList.length > 0) {
           setMembers(p.membersList);
         } else {
-          setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }]);
+          setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]", email: user?.email }]);
         }
+
+        const statsData = await projectApi.getProjectStats(numProjectId);
+        setProjectStats(statsData);
       } catch(err) {
         console.error(err);
       } finally {
@@ -50,40 +53,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
     return () => clearInterval(intervalId);
   }, [numProjectId, user]);
 
-  const calculateStats = (memberEmail: string) => {
-    const memberTasks = tasks.filter(t => t.assignees.includes(memberEmail));
-    if (memberTasks.length === 0) return { score: 0, completed: 0, total: 0, chatCount: 0 };
-
-    let totalPotential = 0;
-    let totalEarned = 0;
-    let completedCount = 0;
-
-    memberTasks.forEach(task => {
-      const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
-      const basePoints = (task as any).difficulty * priorityWeight;
-      totalPotential += basePoints * 1.2;
-
-      if (task.status === 'DONE') {
-        completedCount++;
-        let timeFactor = 1.0;
-        if ((task as any).completedAt && task.deadline) {
-          const completed = new Date((task as any).completedAt);
-          const deadline = new Date(task.deadline);
-          if (completed <= deadline) timeFactor = 1.2;
-          else timeFactor = 0.7;
-        }
-        totalEarned += basePoints * timeFactor;
-      }
-    });
-
-    // 채팅 점수는 임시로 유지하거나 추후 이메일 기반으로 수정 가능
-    const userMessages = initialMessages.filter(m => m.userId === memberEmail);
-    totalEarned += userMessages.length * 2;
-    totalPotential += 10; 
-
-    const score = totalPotential > 0 ? Math.min(100, Math.round((totalEarned / totalPotential) * 100)) : 0;
-    return { score, completed: completedCount, total: memberTasks.length, chatCount: userMessages.length };
-  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -145,7 +114,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
       ) : (
         <div className="grid grid-cols-1 gap-12">
           {members.map((member, index) => {
-            const stats = calculateStats(member.email);
+            const stats = projectStats.find(s => s.email === member.email) || { score: 0, completed: 0, total: 0, chatCount: 0 };
             const memberTasks = tasks.filter(t => t.assignees.includes(member.email));
             const inProgressTasks = memberTasks.filter(t => t.status !== 'DONE');
             const completedTasks = memberTasks.filter(t => t.status === 'DONE');

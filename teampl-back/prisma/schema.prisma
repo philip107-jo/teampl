@@ -86,9 +86,11 @@ model Task {
   title       String
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(medium)
+  difficulty  Int          @default(3)
   deadline    String
   ownerEmail  String?
   assignees   String[]
+  completedAt DateTime?
   createdAt   DateTime @default(now())
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)

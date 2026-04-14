@@ -61,9 +61,12 @@ export const TasksService = {
 
     updateStatus: async (email: string, projectId: number, taskId: string, status: string) => {
         await verifyMembership(email, projectId);
-        return await prisma.task.update({
+        return await (prisma as any).task.update({
             where: { id: taskId },
-            data: { status: status as any }
+            data: { 
+                status: status as any,
+                completedAt: status === 'DONE' ? new Date() : null
+            }
         });
     },
 

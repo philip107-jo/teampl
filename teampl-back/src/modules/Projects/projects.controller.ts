@@ -259,4 +259,15 @@ router.get('/:id/ms-docs', async (req, res) => {
     }
 });
 
+// GET /api/projects/:id/stats
+router.get('/:id/stats', async (req, res) => {
+    const projectId = parseInt(req.params.id, 10);
+    try {
+        const stats = await ProjectsService.getStats(projectId);
+        res.json(stats);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 export default router;

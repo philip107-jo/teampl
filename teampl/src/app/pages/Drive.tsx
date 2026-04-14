@@ -59,7 +59,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     size: "-",
     isWeb: true,
     webUrl: doc.webUrl,
-    icon: doc.fileType === 'excel' ? "https://upload.wikimedia.org/wikipedia/commons/3/34/Microsoft_Office_Excel_%282019%E2%80%93present%29.svg" : doc.fileType === 'ppt' ? "https://upload.wikimedia.org/wikipedia/commons/0/0d/Microsoft_Office_PowerPoint_%282019%E2%80%93present%29.svg" : "https://upload.wikimedia.org/wikipedia/commons/f/fd/Microsoft_Office_Word_%282019%E2%80%93present%29.svg",
+    icon: doc.fileType === 'excel' ? FileBarChart : doc.fileType === 'ppt' ? FileImage : FileText,
     theme: doc.fileType === 'excel' ? "green" : doc.fileType === 'ppt' ? "orange" : "blue"
   }));
 
@@ -221,11 +221,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     <div className="col-span-12 sm:col-span-5 flex items-center gap-5 pl-2">
                       <div className={`schedule-item ${file.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
                         <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 12 }}>
-                          {typeof file.icon === 'string' ? (
-                            <img src={file.icon} alt={file.type} className="w-7 h-7 object-contain drop-shadow-sm" />
-                          ) : (
-                            <file.icon className="w-6 h-6" />
-                          )}
+                          <file.icon className="w-6 h-6" />
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -310,9 +306,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <h3 className="hero-meta mb-6">INTEGRATIONS</h3>
             <div className="space-y-3">
               {[
-                { label: "Word 문서", icon: "https://upload.wikimedia.org/wikipedia/commons/f/fd/Microsoft_Office_Word_%282019%E2%80%93present%29.svg", theme: "blue", type: "word" },
-                { label: "Excel 시트", icon: "https://upload.wikimedia.org/wikipedia/commons/3/34/Microsoft_Office_Excel_%282019%E2%80%93present%29.svg", theme: "green", type: "excel" },
-                { label: "PPT 발표", icon: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Microsoft_Office_PowerPoint_%282019%E2%80%93present%29.svg", theme: "orange", type: "ppt" },
+                { label: "Word 문서", icon: FileText, theme: "blue", type: "word" },
+                { label: "Excel 시트", icon: FileBarChart, theme: "green", type: "excel" },
+                { label: "PPT 발표", icon: FileImage, theme: "orange", type: "ppt" },
               ].map((app, i) => {
                 const isLocked = !user?.isUnivVerified;
                 
@@ -347,7 +343,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     <div className="flex items-center gap-4">
                       <div className={`schedule-item ${app.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
                         <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                           <img src={app.icon} alt={app.type} className="w-6 h-6 object-contain drop-shadow-sm" />
+                          <app.icon className="w-5 h-5" />
                         </div>
                       </div>
                       <span className="text-[13px] font-black text-[#7D879C] dark:text-white/80 group-hover:text-[#1A2340] dark:text-white uppercase tracking-widest">{app.label}</span>

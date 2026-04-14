@@ -270,5 +270,64 @@ export const ProjectsService = {
         return await prisma.projectDeleteAlert.deleteMany({
             where: { id: alertId, userEmail: email }
         });
+    },
+
+    getStats: async (projectId: number) => {
+        const members = await prisma.projectMember.findMany({
+            where: { projectId, status: 'ACTIVE' },
+            include: { user: true }
+        });
+        
+        const tasks = await (prisma as any).task.findMany({ where: { projectId } });
+        const docs = await (prisma as any).sharedDocument.findMany({ where: { projectId } });
+
+        const stats = members.map(m => {
+            const memberEmail = m.userEmail;
+            const memberTasks = tasks.filter((t: any) => t.assignees.includes(memberEmail));
+            
+            let totalPotential = 0;
+            let totalEarned = 0;
+            let completedCount = 0;
+
+            memberTasks.forEach((task: any) => {
+                const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
+                const basePoints = (task.difficulty || 3) * priorityWeight;
+                totalPotential += basePoints * 1.2;
+
+                if (task.status === 'DONE') {
+                    completedCount++;
+                    let timeFactor = 1.0;
+                    if (task.completedAt && task.deadline) {
+                        const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+                        const deadlineDate = task.deadline.replace(/\./g, '-');
+                        if (completedDate <= deadlineDate) timeFactor = 1.2;
+                        else timeFactor = 0.7;
+                    }
+                    totalEarned += basePoints * timeFactor;
+                }
+            });
+
+            // 문서 작성 가산점 (작성한 문서당 5점)
+            const createdDocs = docs.filter((d: any) => d.creatorEmail === memberEmail);
+            totalPotential += createdDocs.length * 5;
+            totalEarned += createdDocs.length * 5;
+
+            // 임시 소통 점수
+            const chatCount = 5; // 나중에 실제 채팅 모델 연결시 연동
+            totalEarned += chatCount * 2;
+            totalPotential += 10;
+
+            const score = totalPotential > 0 ? Math.min(100, Math.round((totalEarned / totalPotential) * 100)) : 0;
+            
+            return {
+                email: memberEmail,
+                score,
+                completed: completedCount,
+                total: memberTasks.length,
+                chatCount
+            };
+        });
+
+        return stats;
     }
 };

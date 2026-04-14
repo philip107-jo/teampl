@@ -18,6 +18,7 @@ export default function Dashboard() {
   
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [projectStats, setProjectStats] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = () => {
@@ -46,12 +47,20 @@ export default function Dashboard() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // 선택된 프로젝트의 Task를 가져오기
+  // 선택된 프로젝트의 Task 및 Stats를 가져오기
   useEffect(() => {
-    if (!selectedProject) { setTasks([]); return; }
-    taskApi.getTasks(selectedProject.id)
-      .then(data => setTasks(data))
-      .catch(() => setTasks([]));
+    if (!selectedProject) { 
+      setTasks([]); 
+      setProjectStats([]);
+      return; 
+    }
+    Promise.all([
+      taskApi.getTasks(selectedProject.id).catch(() => []),
+      projectApi.getProjectStats(selectedProject.id).catch(() => [])
+    ]).then(([fetchedTasks, fetchedStats]) => {
+      setTasks(fetchedTasks);
+      setProjectStats(fetchedStats);
+    });
   }, [selectedProject]);
 
   // Dynamic calculations based on real mock data
@@ -225,14 +234,15 @@ export default function Dashboard() {
 
           <div className="contribution-list">
             {displayMembers.map((member: any, idx: number) => {
-              const memberTasks = tasks.filter(t => t.assignees.includes(String(member.id))).length;
-              const percent = totalTasks > 0 ? Math.round((memberTasks / totalTasks) * 100) : 0;
+              const stats = projectStats.find(s => s.email === member.email) || { score: 0, completed: 0, total: 0 };
+              const memberTasks = stats.total || 0;
+              const percent = stats.score || 0;
               const colors = ['purple', 'green', 'orange', 'red'];
               return (
                 <div key={member.id} className="member-row">
                   <div className="member-meta">
                     <span className="member-name truncate max-w-[80px]">{member.name}</span>
-                    <span className="member-count">{memberTasks}건</span>
+                    <span className="member-count">{memberTasks}건 / {percent}점</span>
                     {member.role === 'LEADER' && (
                       <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)] flex-shrink-0" />
                     )}

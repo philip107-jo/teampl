@@ -78,5 +78,10 @@ export const projectApi = {
 
     ackDeleteAlert: async (alertId: number): Promise<void> => {
         await apiClient.delete(`/projects/${alertId}/delete-alert`);
+    },
+
+    getProjectStats: async (projectId: number): Promise<any[]> => {
+        const response = await apiClient.get(`/projects/${projectId}/stats`);
+        return response.data;
     }
 };
