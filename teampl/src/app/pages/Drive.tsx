@@ -6,7 +6,7 @@ import {
   ChevronRight, HardDrive, ExternalLink, ChevronLeft,
   Loader2, CheckCircle2, X
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { useDarkMode } from "../context/DarkModeContext";
 import { officeApi, SharedDocument } from "../api/officeApi";

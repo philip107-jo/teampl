@@ -16,11 +16,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
+import { useChat } from "../context/ChatContext";
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { totalUnreadCount } = useChat();
   const { projectId } = useParams();
   const element = useOutlet();
 
@@ -149,8 +151,11 @@ export default function Layout() {
                     : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:hover:text-white"
                 }`}
               >
-                <div className={`p-1.5 rounded-xl transition-all ${active ? "bg-[#7C6CFF]/10" : "bg-transparent"}`}>
+                <div className={`p-1.5 rounded-xl transition-all relative ${active ? "bg-[#7C6CFF]/10" : "bg-transparent"}`}>
                   <Icon className={`w-[22px] h-[22px] md:w-6 md:h-6 transition-transform ${active ? "scale-110" : ""}`} />
+                  {item.key === 'chat' && totalUnreadCount > 0 && (
+                    <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#FF6B7A] rounded-full border-2 border-white dark:border-[#12182B] shadow-[0_0_8px_rgba(255,107,122,0.6)]"></div>
+                  )}
                 </div>
                 <span className={`text-[10px] md:text-xs font-black uppercase tracking-tighter ${active ? "opacity-100" : "opacity-60"}`}>
                   {item.label}

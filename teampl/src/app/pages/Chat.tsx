@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Send, Plus, User as UserIcon, MessageSquare, ChevronLeft, ChevronRight, Users, Mail, Phone, GraduationCap, Calendar, X, Sparkles, Brain, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useChat } from "../context/ChatContext";
 
 import { taskApi } from "../api/taskApi";
 import { aiApi, AiTaskSuggestion } from "../api/aiApi";
@@ -190,6 +191,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiTaskSuggestion[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { unreadCounts, clearUnread, simulateNoti, incrementUnread } = useChat();
 
   const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({});
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -209,7 +211,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
     const loadMsgs = async () => {
       try {
-        let msgs = [];
+        let msgs: any[] = [];
         if (chatMode === "TEAM") {
           msgs = await chatApi.getProjectMessages(projectId);
         } else if (selectedMember?.email) {
@@ -229,26 +231,55 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     }
     loadMsgs();
 
-    socket.emit('joinRoom', chatKey);
+    // 모든 관련 방 자동 구독 (그룹 + 1:1)
+    if (socket && projectId && user?.email) {
+      socket.emit('joinRoom', `team-${projectId}`);
+      projectMembers.forEach(m => {
+        if (m.email !== user?.email) {
+          const dmRoom = [user.email, m.email].sort().join('-');
+          socket.emit('joinRoom', dmRoom);
+        }
+      });
+    }
 
     const onNewMsg = (m: any) => {
       const isMe = m.senderEmail === user?.email;
-      const formatted = {
-        id: String(m.id),
-        sender: m.sender?.name || m.senderEmail.split('@')[0],
-        content: m.content,
-        time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
-        isMe
-      };
-      setMessagesStore(prev => ({
-        ...prev,
-        [chatKey]: [...(prev[chatKey] || []), formatted]
-      }));
+      
+      // DM인 경우 알림용 키 생성 (user-projectId-memberId 규격)
+      let notificationKey = m.room || (m.projectId ? `team-${m.projectId}` : '');
+      if (!m.projectId && !m.room && m.senderEmail) {
+        const senderMember = projectMembers.find(pm => pm.email === m.senderEmail);
+        if (senderMember) {
+           notificationKey = `user-${projectId}-${senderMember.id}`;
+        }
+      }
+
+      const msgRoom = m.room || (m.projectId ? `team-${m.projectId}` : [m.senderEmail, m.receiverEmail].sort().join('-'));
+      
+      // 1. 현재 대화창에 있는 경우 메시지 추가
+      if (msgRoom === chatKey) {
+        const formatted = {
+          id: String(m.id),
+          sender: m.sender?.name || m.senderEmail.split('@')[0],
+          content: m.content,
+          time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          isMe
+        };
+        setMessagesStore(prev => ({
+          ...prev,
+          [chatKey]: [...(prev[chatKey] || []), formatted]
+        }));
+      }
+
+      // 2. 다른 방이거나 로비인 경우 알림 숫자 증가 (키 매핑 주의)
+      if (!isMe && (msgRoom !== chatKey || navStep === "LOBBY")) {
+        incrementUnread(notificationKey || msgRoom);
+      }
     };
     
     socket.on('newMessage', onNewMsg);
     return () => { socket.off('newMessage', onNewMsg); };
-  }, [socket, chatKey, projectId, chatMode, selectedMember, user?.email]);
+  }, [socket, chatKey, projectId, chatMode, selectedMember, user?.email, navStep, incrementUnread, projectMembers]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -259,6 +290,22 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   useEffect(() => {
     scrollToBottom();
   }, [messagesStore, navStep, chatKey]);
+
+  // 채팅방 입장 시 카운트 리셋
+  useEffect(() => {
+    if (navStep === "CHAT" && chatKey) {
+      clearUnread(chatKey);
+      // 1:1 채팅인 경우 로비용 ID 키도 함께 제거
+      if (chatMode === "INDIVIDUAL" && selectedMember) {
+        clearUnread(`user-${projectId}-${selectedMember.id}`);
+      }
+    }
+  }, [navStep, chatKey, clearUnread, chatMode, selectedMember, projectId]);
+
+  const formatUnread = (count: number | undefined) => {
+    if (!count || count <= 0) return null;
+    return count > 999 ? "999+" : count;
+  };
 
   const handleSend = () => {
     if (!inputText.trim() || !projectId || !socket || !user) return;
@@ -362,7 +409,17 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
         )}
         
         <div className="mb-6 space-y-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-[#7D879C] pl-1">소통 채널 접근</h3>
+            <div className="flex items-center justify-between pl-1 pr-2">
+              <h3 className="text-sm font-black uppercase tracking-widest text-[#7D879C]">소통 채널 접근</h3>
+              <button 
+                onClick={() => {
+                  simulateNoti(["team-1", ...projectMembers.map(m => `user-${projectId}-${m.id}`)]);
+                }}
+                className="text-[10px] font-black text-[#7C6CFF]/60 hover:text-[#7C6CFF] transition-colors flex items-center gap-1"
+              >
+                <Sparkles className="w-3 h-3"/> TEST NOTI
+              </button>
+            </div>
             <button
                 type="button"
                 onClick={(e) => {
@@ -379,8 +436,15 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                     <p className="text-[17px] font-black text-[#1A2340] dark:text-white truncate mb-1 group-hover:text-[#7C6CFF] transition-colors">{projectData?.name || "프로젝트"} 단체 채팅</p>
                     <p className="text-[12px] font-bold text-[#7D879C] uppercase tracking-widest">모든 팀원과 자유자재로 소통하세요</p>
                 </div>
-                <div className="p-3 rounded-2xl bg-white/50 dark:bg-white/5 group-hover:bg-[#7C6CFF]/10 transition-colors">
-                    <ChevronRight className="w-5 h-5 text-[#7D879C] group-hover:text-[#7C6CFF]" />
+                <div className="flex items-center gap-3">
+                  {formatUnread(unreadCounts[`team-${projectId}`]) && (
+                    <div className="px-2.5 py-1 bg-[#FF6B7A] text-white text-[11px] font-black rounded-lg shadow-[0_4px_12px_rgba(255,107,122,0.4)] animate-bounce">
+                      {formatUnread(unreadCounts[`team-${projectId}`])}
+                    </div>
+                  )}
+                  <div className="p-3 rounded-2xl bg-white/50 dark:bg-white/5 group-hover:bg-[#7C6CFF]/10 transition-colors">
+                      <ChevronRight className="w-5 h-5 text-[#7D879C] group-hover:text-[#7C6CFF]" />
+                  </div>
                 </div>
             </button>
         </div>
@@ -407,6 +471,16 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                        <div className="flex-1">
                            <p className="text-[15px] font-black text-[#1A2340] dark:text-white group-hover:text-[#7C6CFF] transition-colors">{member.name}</p>
                            <p className="text-[11px] font-bold text-[#7D879C] uppercase tracking-widest">{member.role || '팀원'}</p>
+                       </div>
+                       <div className="flex items-center gap-1.5 min-w-[30px] justify-end">
+                         {formatUnread(unreadCounts[`user-${projectId}-${member.id}`]) && (
+                           <div className="w-1.5 h-1.5 bg-[#FF6B7A] rounded-full shadow-[0_0_8px_rgba(255,107,122,0.8)]"></div>
+                         )}
+                         {formatUnread(unreadCounts[`user-${projectId}-${member.id}`]) && (
+                           <div className="text-[11px] font-black text-[#FF6B7A]">
+                             {formatUnread(unreadCounts[`user-${projectId}-${member.id}`])}
+                           </div>
+                         )}
                        </div>
                    </button>
                 ))}
