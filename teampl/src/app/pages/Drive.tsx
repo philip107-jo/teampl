@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useDarkMode } from "../context/DarkModeContext";
 import { officeApi, SharedDocument } from "../api/officeApi";
+import { driveApi, DriveFolder, DriveFile } from "../api/driveApi";
+import { useRef } from "react";
 
 interface DriveProps {
   projectId?: number;
@@ -23,6 +25,8 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [currentPath, setCurrentPath] = useState([{ name: propProjectId ? "프로젝트 파일" : "전체 스페이스", id: "root" }]);
   const [activeTab, setActiveTab] = useState("전체");
   const [officeDocs, setOfficeDocs] = useState<SharedDocument[]>([]);
+  const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { isDark } = useDarkMode();
 
@@ -31,6 +35,8 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [newDocTitle, setNewDocTitle] = useState("");
   const [targetDocApp, setTargetDocApp] = useState<{label: string, type: string, theme: string} | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (propProjectId) {
@@ -42,8 +48,13 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     if (!propProjectId) return;
     setIsLoading(true);
     try {
-      const docs = await officeApi.getSharedDocuments(propProjectId);
+      const [docs, driveContents] = await Promise.all([
+        officeApi.getSharedDocuments(propProjectId),
+        driveApi.getDriveContents(propProjectId)
+      ]);
       setOfficeDocs(docs);
+      setDriveFolders(driveContents.folders);
+      setDriveFiles(driveContents.files);
     } catch (err) {
       console.error("Failed to load documents", err);
     } finally {
@@ -51,12 +62,37 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     }
   };
 
-  const mockFolders = [
-    { id: "f1", name: "데이터베이스 설계", items: 5, theme: "blue" },
-    { id: "f2", name: "UI/UX 디자인 리소스", items: 8, theme: "purple" },
-    { id: "f3", name: "기획안 및 회의록", items: 12, theme: "orange" },
-    { id: "f4", name: "프론트엔드 에셋", items: 3, theme: "green" },
-  ];
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!propProjectId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      // folderId 매핑 로직 추가 가능 (우선 루트 폴더 저장)
+      await driveApi.uploadFile(propProjectId, file);
+      await loadDocuments(); // 새로고침
+    } catch (e) {
+      console.error("Upload failed", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!propProjectId) return;
+    const name = window.prompt("새 폴더 이름을 입력하세요:");
+    if (!name) return;
+    try {
+      setIsLoading(true);
+      await driveApi.createFolder(propProjectId, name);
+      await loadDocuments();
+    } catch (e) {
+      console.error("Fail to create folder", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 실제 DB 데이터와 목업 데이터를 조합
   const displayDocs = officeDocs.map(doc => ({
@@ -69,15 +105,28 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     isWeb: true,
     webUrl: doc.webUrl,
     icon: doc.fileType === 'excel' ? FileBarChart : doc.fileType === 'ppt' ? FileImage : FileText,
-    theme: doc.fileType === 'excel' ? "green" : doc.fileType === 'ppt' ? "orange" : "blue"
+    theme: doc.fileType === 'excel' ? "green" : doc.fileType === 'ppt' ? "orange" : "blue",
+    url: doc.webUrl
   }));
 
-  const mockStaticFiles = isMockUser ? [
-    { id: "6", name: "발표용_배경에셋.zip", type: "zip", creator: "김철수", date: "1시간 전", size: "14.5MB", isWeb: false, icon: FileCode2, theme: "purple" },
-    { id: "7", name: "로고_최종본_수정본.png", type: "image", creator: "이영희", date: "2일 전", size: "1.2MB", isWeb: false, icon: FileImage, theme: "green" },
-  ] : [];
+  const displayDbFiles = driveFiles.map(file => {
+    const isImage = file.type.startsWith('image/');
+    return {
+      id: `db-${file.id}`,
+      name: file.originalName,
+      type: file.type,
+      creator: file.uploader?.name || file.uploaderEmail.split('@')[0],
+      date: new Date(file.createdAt).toLocaleDateString(),
+      size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+      isWeb: false,
+      webUrl: null,
+      url: `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080'}${file.url}`,
+      icon: isImage ? FileImage : FileCode2,
+      theme: isImage ? "green" : "purple"
+    };
+  });
 
-  const allFiles = [...displayDocs, ...mockStaticFiles];
+  const allFiles = [...displayDocs, ...displayDbFiles];
   
   const filteredFiles = allFiles.filter(file => {
     if (activeTab === "MS오피스") return file.isWeb;
@@ -85,7 +134,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     return true;
   });
 
-  const displayFolders = isMockUser ? mockFolders : [];
+  const displayFolders = driveFolders.map(f => ({
+    ...f, items: driveFiles.filter(file => file.folderId === f.id).length
+  }));
 
   return (
     <div className="dashboard pt-4 lg:max-w-7xl lg:mx-auto">
@@ -120,11 +171,12 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/80 rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:bg-white/60 dark:bg-white/10 transition-all shadow-sm active:scale-95">
+            <button onClick={handleCreateFolder} className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/80 rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:bg-white/60 dark:bg-white/10 transition-all shadow-sm active:scale-95">
               <Plus className="w-5 h-5" />
               새 폴더
             </button>
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-[#7C6CFF] text-white rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_0_20px_rgba(124,108,255,0.4)]">
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+            <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-[#7C6CFF] text-white rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_0_20px_rgba(124,108,255,0.4)]">
               <Upload className="w-5 h-5" />
               파일 업로드
             </button>
@@ -280,7 +332,17 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                             </button>
                           </div>
                         ) : (
-                          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/80 border border-gray-300 dark:border-white/10 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/60 dark:bg-white/10" title="파일 다운로드">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if ((file as any).url) {
+                                const a = document.createElement('a');
+                                a.href = (file as any).url;
+                                a.download = file.name;
+                                a.click();
+                              }
+                            }}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/80 border border-gray-300 dark:border-white/10 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/60 dark:bg-white/10" title="파일 다운로드">
                              <Download className="w-3.5 h-3.5" />
                              Download
                           </button>

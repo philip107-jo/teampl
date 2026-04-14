@@ -43,7 +43,10 @@ model User {
   msRefreshToken   String?
   isUnivVerified   Boolean  @default(false)
   
-  projectMembers ProjectMember[]
+  projectMembers   ProjectMember[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  driveFiles       DriveFile[]    @relation("UserDriveFiles")
 }
 
 model Project {
@@ -63,6 +66,9 @@ model Project {
   tasks           Task[]
   schedules       Schedule[]
   sharedDocuments SharedDocument[]
+  messages        Message[]
+  driveFolders    DriveFolder[]
+  driveFiles      DriveFile[]
 }
 
 model ProjectMember {
@@ -128,4 +134,45 @@ model SharedDocument {
   createdAt   DateTime @default(now())
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id            Int      @id @default(autoincrement())
+  projectId     Int?     
+  senderEmail   String
+  receiverEmail String? 
+  content       String
+  createdAt     DateTime @default(now())
+  
+  sender        User     @relation("SentMessages", fields: [senderEmail], references: [email], onDelete: Cascade)
+  receiver      User?    @relation("ReceivedMessages", fields: [receiverEmail], references: [email], onDelete: Cascade)
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model DriveFolder {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  name        String
+  theme       String   @default("blue")
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files       DriveFile[]
+}
+
+model DriveFile {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  folderId       Int?
+  name           String
+  originalName   String
+  type           String
+  size           Int
+  url            String
+  uploaderEmail  String
+  createdAt      DateTime @default(now())
+
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder         DriveFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader       User     @relation("UserDriveFiles", fields: [uploaderEmail], references: [email], onDelete: Cascade)
 }
