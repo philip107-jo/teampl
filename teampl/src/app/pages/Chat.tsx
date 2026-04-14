@@ -191,20 +191,27 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiTaskSuggestion[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { unreadCounts, clearUnread, simulateNoti, incrementUnread } = useChat();
+  const { unreadCounts, clearUnread, simulateNoti, incrementUnread, 
+          socket, messagesStore, setMessages, addMessage, setActiveChatKey, initProjectChat } = useChat();
 
-  const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({});
-  const [socket, setSocket] = useState<Socket | null>(null);
-
+  // 소켓 초기화 (프로젝트 멤버 기반으로 방 조인)
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080';
-    const newSocket = io(socketUrl);
-    setSocket(newSocket);
-    return () => { newSocket.disconnect(); };
-  }, []);
+    if (projectId && user?.email && projectMembers.length > 0) {
+      initProjectChat(projectId, user.email, projectMembers);
+    }
+  }, [projectId, user, projectMembers, initProjectChat]);
 
   const chatKey = chatMode === "TEAM" ? `team-${projectId}` : (selectedMember ? `${[user?.email, selectedMember.email].sort().join('-')}` : '');
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
+
+  // 현재 활성 채팅방 정보 저장 (알림 제어용)
+  useEffect(() => {
+    if (navStep === "CHAT") {
+      setActiveChatKey(chatKey);
+    } else {
+      setActiveChatKey(null);
+    }
+  }, [navStep, chatKey, setActiveChatKey]);
 
   useEffect(() => {
     if (!socket || !projectId || !chatKey) return;
@@ -226,60 +233,15 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           isMe: m.senderEmail === user?.email
         }));
         
-        setMessagesStore(prev => ({ ...prev, [chatKey]: formatted }));
+        setMessages(chatKey, formatted);
       } catch (err) {}
     }
-    loadMsgs();
-
-    // 모든 관련 방 자동 구독 (그룹 + 1:1)
-    if (socket && projectId && user?.email) {
-      socket.emit('joinRoom', `team-${projectId}`);
-      projectMembers.forEach(m => {
-        if (m.email !== user?.email) {
-          const dmRoom = [user.email, m.email].sort().join('-');
-          socket.emit('joinRoom', dmRoom);
-        }
-      });
-    }
-
-    const onNewMsg = (m: any) => {
-      const isMe = m.senderEmail === user?.email;
-      
-      // DM인 경우 알림용 키 생성 (user-projectId-memberId 규격)
-      let notificationKey = m.room || (m.projectId ? `team-${m.projectId}` : '');
-      if (!m.projectId && !m.room && m.senderEmail) {
-        const senderMember = projectMembers.find(pm => pm.email === m.senderEmail);
-        if (senderMember) {
-           notificationKey = `user-${projectId}-${senderMember.id}`;
-        }
-      }
-
-      const msgRoom = m.room || (m.projectId ? `team-${m.projectId}` : [m.senderEmail, m.receiverEmail].sort().join('-'));
-      
-      // 1. 현재 대화창에 있는 경우 메시지 추가
-      if (msgRoom === chatKey) {
-        const formatted = {
-          id: String(m.id),
-          sender: m.sender?.name || m.senderEmail.split('@')[0],
-          content: m.content,
-          time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
-          isMe
-        };
-        setMessagesStore(prev => ({
-          ...prev,
-          [chatKey]: [...(prev[chatKey] || []), formatted]
-        }));
-      }
-
-      // 2. 다른 방이거나 로비인 경우 알림 숫자 증가 (키 매핑 주의)
-      if (!isMe && (msgRoom !== chatKey || navStep === "LOBBY")) {
-        incrementUnread(notificationKey || msgRoom);
-      }
-    };
     
-    socket.on('newMessage', onNewMsg);
-    return () => { socket.off('newMessage', onNewMsg); };
-  }, [socket, chatKey, projectId, chatMode, selectedMember, user?.email, navStep, incrementUnread, projectMembers]);
+    // 이미 메시지가 있는 경우(백그라운드 수신) 로드 건너뛰기 가능하지만 최신화 위해 1회 수행
+    if (currentMessages.length === 0) {
+      loadMsgs();
+    }
+  }, [projectId, chatMode, selectedMember, user?.email, chatKey, setMessages]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
