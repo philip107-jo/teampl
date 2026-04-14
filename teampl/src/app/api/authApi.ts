@@ -8,5 +8,9 @@ export const authApi = {
     register: async (data: {email: string, password: string, name: string}) => {
         const response = await apiClient.post('/auth/register', data);
         return response.data;
+    },
+    getProfile: async () => {
+        const response = await apiClient.get('/users/me');
+        return response.data;
     }
 }

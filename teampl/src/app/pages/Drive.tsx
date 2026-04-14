@@ -240,19 +240,67 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <h3 className="hero-meta mb-6">INTEGRATIONS</h3>
             <div className="space-y-3">
               {[
-                { label: "Word 문서", icon: FileText, theme: "blue" },
-                { label: "Excel 시트", icon: FileBarChart, theme: "green" },
-                { label: "PPT 발표", icon: FileImage, theme: "orange" },
-              ].map((app, i) => (
-                <button key={i} className="w-full flex items-center gap-4 p-4 bg-white dark:bg-[#12182B] rounded-2xl border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-white/5 transition-all group">
-                  <div className={`schedule-item ${app.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
-                    <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                      <app.icon className="w-5 h-5" />
+                { label: "Word 문서", icon: FileText, theme: "blue", type: "word" },
+                { label: "Excel 시트", icon: FileBarChart, theme: "green", type: "excel" },
+                { label: "PPT 발표", icon: FileImage, theme: "orange", type: "ppt" },
+              ].map((app, i) => {
+                const isLocked = !user?.isUnivVerified;
+                
+                const handleMsDocClick = async () => {
+                  if (isLocked) {
+                    alert('대학생 인증이 필요한 기능입니다. 마이페이지에서 Microsoft 계정 연동을 진행해주세요.');
+                    return;
+                  }
+                  if (!propProjectId) {
+                     alert('진행 중인 프로젝트 내에서만 생성할 수 있습니다.');
+                     return;
+                  }
+                  
+                  try {
+                    const token = localStorage.getItem('access_token');
+                    // backend call to create
+                    const res = await fetch(`http://localhost:8080/api/projects/${propProjectId}/ms-docs`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ type: app.type })
+                    });
+                    
+                    if (!res.ok) {
+                       const errorData = await res.json();
+                       alert(errorData.message || '문서 생성 중 오류가 발생했습니다.');
+                       return;
+                    }
+                    
+                    const data = await res.json();
+                    if (data.webUrl) {
+                       window.open(data.webUrl, '_blank');
+                    }
+                  } catch (e) {
+                    alert('문서 시스템과 통신 실패');
+                  }
+                };
+
+                return (
+                  <button 
+                    key={i} 
+                    onClick={handleMsDocClick}
+                    className={`w-full flex items-center justify-between p-4 bg-white dark:bg-[#12182B] rounded-2xl border border-gray-200 dark:border-white/5 transition-all group ${isLocked ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:bg-white/50 dark:hover:bg-white/5 cursor-pointer'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`schedule-item ${app.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
+                        <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
+                          <app.icon className="w-5 h-5" />
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-black text-[#7D879C] dark:text-white/80 group-hover:text-[#1A2340] dark:text-white uppercase tracking-widest">{app.label}</span>
                     </div>
-                  </div>
-                  <span className="text-[13px] font-black text-[#7D879C] dark:text-white/80 group-hover:text-[#1A2340] dark:text-white uppercase tracking-widest">{app.label}</span>
-                </button>
-              ))}
+                    {isLocked && <div className="text-gray-400 group-hover:text-red-400" title="잠김">🔒</div>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -33,7 +33,19 @@ export default function Projects() {
   const [deleteReason, setDeleteReason] = useState("");
   const processedDeleteAlertIdsRef = useRef<Set<number>>(new Set());
 
+  // Microsoft 연동 성공 모달 상태
+  const [isMsSuccessModalOpen, setIsMsSuccessModalOpen] = useState(false);
+
   useEffect(() => {
+    // Microsoft 연동 성공 확인
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ms_success') === 'true') {
+      setIsMsSuccessModalOpen(true);
+      // URL에서 성공 파라미터 제거 (사용자 경험 개선)
+      const newUrl = window.location.pathname + (window.location.hash || '');
+      window.history.replaceState({}, '', newUrl);
+    }
+
     const fetchProjects = () => {
       projectApi.getProjects()
         .then(data => setProjects(data))
@@ -501,6 +513,52 @@ export default function Projects() {
           </div>
         </div>
       )}
+
+      {/* -- Microsoft Success Modal -- */}
+      <AnimatePresence>
+        {isMsSuccessModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-3xl"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 40, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 40, opacity: 0 }}
+              className="card w-full max-w-[440px] !p-10 text-center border-none shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible"
+              style={{ background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' }}
+            >
+              {/* Glow Decoration */}
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/20 blur-[60px] rounded-full" />
+              
+              <div className="relative z-10">
+                <div className="w-24 h-24 bg-[#7C6CFF]/10 rounded-[32px] flex items-center justify-center text-[#7C6CFF] mb-8 mx-auto shadow-[inset_0_0_20px_rgba(124,108,255,0.2),0_0_30px_rgba(124,108,255,0.2)]">
+                  <CheckCircle2 className="w-12 h-12" />
+                </div>
+                
+                <div className="space-y-4 mb-10">
+                  <h2 className="text-[28px] font-black text-white tracking-tight leading-tight">Microsoft 365<br/>연동 성공!</h2>
+                  <p className="text-[15px] font-bold text-white/50 leading-relaxed break-keep">
+                    축하합니다! 대학생 학생 계정 인증이 완료되었습니다. 이제 드라이브에서 고퀄리티 Word, Excel 문서를 자유롭게 생성하고 실시간으로 공동 편집할 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  <button
+                    onClick={() => setIsMsSuccessModalOpen(false)}
+                    className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(124,108,255,0.3)] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    지금 바로 시작하기
+                  </button>
+                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] pt-2">Teampl × Microsoft Cloud Integration</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

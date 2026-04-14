@@ -31,13 +31,17 @@ enum TaskPriority {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  password   String
-  name       String
-  studentId  String?
-  department String?
-  createdAt  DateTime @default(now())
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  name             String
+  studentId        String?
+  department       String?
+  createdAt        DateTime @default(now())
+  
+  msAccountId      String?  @unique
+  msRefreshToken   String?
+  isUnivVerified   Boolean  @default(false)
   
   projectMembers ProjectMember[]
 }

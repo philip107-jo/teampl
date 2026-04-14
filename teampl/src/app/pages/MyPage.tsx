@@ -78,18 +78,25 @@ export default function MyPage() {
               <div className="space-y-4">
                 {[
                   { label: "사용자 이름", value: user?.name, icon: User },
-                  { label: "학부/전공", value: user?.department, icon: Building2 },
-                  { label: "학교 이메일", value: user?.email, icon: Mail },
-                  { label: "연락처", value: "010-1234-5678", icon: Phone },
+                  { label: "학부/전공", value: user?.department || "미입력", icon: Building2 },
+                  { label: "가입 이메일", value: user?.email, icon: Mail },
+                  { label: "Microsoft 365 연동", value: user?.isUnivVerified ? "✅ 연동 완료" : "⚠️ 미연동 (여기를 눌러 인증)", icon: Shield, isMsAuth: true },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] transition-all cursor-pointer group">
+                  <div key={idx} 
+                    onClick={() => {
+                        if (item.isMsAuth && !user?.isUnivVerified) {
+                           window.location.href = `http://localhost:8080/api/users/ms-login?token=${localStorage.getItem('access_token')}`;
+                        }
+                    }}
+                    className={`flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 transition-all group ${item.isMsAuth && !user?.isUnivVerified ? 'cursor-pointer hover:bg-[#7C6CFF]/10 hover:border-[#7C6CFF]/30 hover:shadow-[0_4px_20px_rgba(124,108,255,0.2)]' : 'cursor-default hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}
+                  >
                     <div className="flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-all`}>
+                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 transition-all ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547] group-hover:text-[#7C6CFF]' : 'text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF]'}`}>
                         <item.icon className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mb-1">{item.label}</p>
-                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white">{item.value}</p>
+                        <p className={`text-[15px] font-black ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547]' : 'text-[#1A2340] dark:text-white'}`}>{item.value}</p>
                       </div>
                     </div>
                   </div>

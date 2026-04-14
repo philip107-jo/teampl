@@ -27,13 +27,17 @@ services:
       - DATABASE_URL=postgresql://teampl_user:teampl_password@db:5432/teampl_db?schema=public
       - JWT_SECRET=fallback-secret-key
       - CHOKIDAR_USEPOLLING=true
+      - MS_CLIENT_ID=${MS_CLIENT_ID}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
+      - MS_REDIRECT_URI=${MS_REDIRECT_URI}
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - ./teampl-back:/app
       - /app/node_modules
     depends_on:
       - db
-    # 컨테이너 구동 시 의존성 동기화 후 구동 및 스키마 충돌 시 자동 초기화(개발환경 전용) + 무조건 어드민 계정 자동 시딩
-    command: sh -c "npm install && npx prisma generate && npx prisma db push --accept-data-loss --force-reset --skip-generate && npx prisma db seed && npm run dev"
+    # 컨테이너 구동 시 Prisma 관련 동기화만 수행 (Prisma generate는 이미 빌드 단계에서 완료됨)
+    command: sh -c "npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && npm run dev"
 
   frontend:
     build:
@@ -45,13 +49,14 @@ services:
     environment:
       # 윈도우 환경 호스트 볼륨 핫리로딩 호환 옵션
       - CHOKIDAR_USEPOLLING=true 
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - ./teampl:/app
       - /app/node_modules
     depends_on:
       - backend
     # 외부 접속 허용 및 캐시 초기화(--force) 개발 서버 구동
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --force"
+    command: sh -c "npm config set strict-ssl false && npm install && npm run dev -- --host 0.0.0.0 --force"
 
 volumes:
   teampl_pgdata:

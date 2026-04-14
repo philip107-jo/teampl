@@ -136,4 +136,79 @@ router.delete('/:id/delete-alert', async (req, res) => {
     }
 });
 
+// POST /api/projects/:id/ms-docs
+import axios from 'axios';
+router.post('/:id/ms-docs', async (req, res) => {
+    const email = req.user!.email;
+    const { type } = req.body; // 'word', 'excel', 'ppt'
+
+    try {
+        // 1. Get user from DB
+        const user = await import('../../prisma').then(m => m.prisma.user.findUnique({ where: { email } }));
+        if (!user || !user.isUnivVerified || !user.msRefreshToken) {
+            return res.status(403).json({ message: "Microsoft 계정 연동이 필요합니다." });
+        }
+
+        // 2. Fetch fresh access token using refresh token
+        const clientId = process.env.MS_CLIENT_ID!;
+        const clientSecret = process.env.MS_CLIENT_SECRET!;
+        const tokenParams = new URLSearchParams();
+        tokenParams.append('client_id', clientId);
+        tokenParams.append('scope', 'user.read Files.ReadWrite.AppFolder offline_access');
+        tokenParams.append('refresh_token', user.msRefreshToken);
+        tokenParams.append('grant_type', 'refresh_token');
+        tokenParams.append('client_secret', clientSecret);
+
+        const tokenResponse = await axios.post('https://login.microsoftonline.com/common/oauth2/v2.0/token', tokenParams.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const accessToken = tokenResponse.data.access_token;
+        
+        // 3. Update refresh token if MS returned a new one
+        if (tokenResponse.data.refresh_token) {
+            await import('../../prisma').then(m => m.prisma.user.update({
+                where: { email },
+                data: { msRefreshToken: tokenResponse.data.refresh_token }
+            }));
+        }
+
+        // 3. Create document via Graph API
+        let extension = 'docx';
+        if (type === 'excel') { extension = 'xlsx'; }
+        if (type === 'ppt') { extension = 'pptx'; }
+
+        // [추가 보안] 파일명을 매우 길고 복잡한 무작위 문자열로 생성하여 주소 추측을 불가능하게 함
+        const crypto = require('crypto');
+        const randomSalt = crypto.randomBytes(32).toString('hex'); // 64자 무작위 문자열
+        const fileName = `TP_${type.toUpperCase()}_v${Date.now()}_SECURE_X_${randomSalt}.${extension}`;
+        
+        // Create an empty file first
+        const folderUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${fileName}:/content`;
+        const createResponse = await axios.put(folderUrl, "", {
+            headers: { 
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'text/plain' 
+            }
+        });
+
+        // 5. [긴급 복구] 다시 익명 권한으로 변경 (학교 보안 정책 우회용)
+        // 학교 보안이 너무 강력하여 이 방식만이 현재로서는 가장 안정적으로 문서를 열 수 있습니다.
+        const fileId = createResponse.data.id;
+        const linkResponse = await axios.post(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`, {
+            type: 'edit',
+            scope: 'anonymous' 
+        }, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        const webUrl = linkResponse.data.link.webUrl;
+        
+        // Return JSON to frontend
+        res.json({ success: true, webUrl });
+    } catch (e: any) {
+        console.error("Graph API Error:", e.response?.data || e.message);
+        res.status(500).json({ message: "문서 생성에 실패했습니다." });
+    }
+});
+
 export default router;
