@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogIn, Mail, Lock, AlertCircle, Loader2, Compass } from "lucide-react";
+import { LogIn, Mail, Lock, AlertCircle, Loader2, Compass, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
@@ -40,8 +40,15 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-600 shadow-xl shadow-indigo-200 mb-6 rotate-3 hover:rotate-0 transition-transform duration-300">
             <Compass className="w-10 h-10 text-[#1A2340] dark:text-white" />
           </div>
-          <h1 className="text-4xl font-extrabold text-[#1A2340] tracking-tight">TeamSync</h1>
-          <p className="text-[#7D879C] mt-3 font-medium">더 밝고 스마트한 협업의 시작</p>
+          <h1 className="text-4xl font-extrabold text-[#1A2340] tracking-tight">로그인</h1>
+          <div className="flex items-center justify-center mt-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm shadow-sm">
+              <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+              <span className="text-[13px] font-bold text-[#7D879C]">
+                더 밝고 스마트한 협업의 시작, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-black tracking-tight">Teampl</span>
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white/70 backdrop-blur-xl rounded-[40px] p-10 border border-white shadow-2xl shadow-gray-200/50">
@@ -117,7 +124,7 @@ export default function Login() {
         </div>
 
         <p className="mt-8 text-center text-xs text-[#7D879C]/80 font-bold tracking-widest uppercase">
-          &copy; 2026 TeamSync. Built for Success.
+          &copy; 2026 Teampl. Built for Success.
         </p>
       </div>
     </div>

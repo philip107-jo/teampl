@@ -97,7 +97,7 @@ export default function Layout() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
             <div className="w-8 h-8 md:w-9 md:h-9 bg-indigo-600 rounded-[10px] flex items-center justify-center text-white font-black rotate-3 shadow-lg shadow-indigo-500/20">T</div>
-            <h1 className="text-[17px] md:text-lg font-black text-[#1A2340] dark:text-white tracking-tight">TeamSync</h1>
+            <h1 className="text-[17px] md:text-lg font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden xs:block mr-1">

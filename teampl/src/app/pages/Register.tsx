@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { authApi } from "../api/authApi";
 import { useToast } from "../context/ToastContext";
 
@@ -60,7 +60,14 @@ export default function Register() {
       <div className="w-full max-w-2xl relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-[#1A2340] tracking-tight">계정 생성</h1>
-          <p className="text-[#7D879C] mt-2 font-medium">더 나은 팀 협업 시스템, TeamSync</p>
+          <div className="flex items-center justify-center mt-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm shadow-sm">
+              <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+              <span className="text-[13px] font-bold text-[#7D879C]">
+                더 나은 팀 협업 시스템, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-black tracking-tight">Teampl</span>
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-2xl rounded-[48px] p-10 border border-white shadow-2xl shadow-gray-200/50">
