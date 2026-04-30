@@ -345,30 +345,44 @@ export const ProjectsService = {
         return stats;
     },
 
-    generateTasksWithAi: async (prompt: string) => {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    generateTasksWithAi: async (teamSize: number, topic: string, description: string) => {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key is not configured.");
+        }
         
         const systemPrompt = `
-You are a technical project manager assistant. Your job is to break down the user's project description into small, actionable tasks.
-For each task, assign:
+You are an expert project manager assistant. Your job is to break down the user's project into HIGH-LEVEL, essential milestones.
+DO NOT create overly detailed or numerous micro-tasks.
+
+Project Details:
+- Team Size: ${teamSize} members
+- Topic/Type: ${topic}
+
+Instructions:
+1. Create roughly 1 to 3 core tasks per team member. For a team of ${teamSize}, generate around ${Math.max(3, teamSize * 1)} to ${teamSize * 3} tasks in total.
+2. The tasks should be major milestones or roles (e.g., "자료조사 및 개요 작성", "메인 화면 UI 구현", "발표 스크립트 작성").
+3. For each task, assign:
 - "id": a unique short random string (e.g., "sk-123").
 - "title": a clear, concise task name IN KOREAN (한국어).
 - "priority": one of "low", "medium", "high".
 - "deadline": an empty string "".
-- "difficulty": an integer between 1 and 5, representing complexity (1=easy, 5=hard).
+- "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
 
 You must respond ONLY with a valid JSON array of objects. Never include markdown formatting like \`\`\`json. Example:
 [
-  { "id": "t-1", "title": "깃허브 레포지토리 환경 세팅", "priority": "high", "deadline": "", "difficulty": 2 },
-  { "id": "t-2", "title": "데이터베이스 스키마 설계 및 구축", "priority": "high", "deadline": "", "difficulty": 4 }
+  { "id": "t-1", "title": "주제 관련 문헌 자료 조사 및 요약", "priority": "high", "deadline": "", "difficulty": 3 },
+  { "id": "t-2", "title": "PPT 템플릿 디자인 및 레이아웃 초안 제작", "priority": "medium", "deadline": "", "difficulty": 2 }
 ]
 `;
 
+        const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: prompt }
+                { role: "user", content: userPrompt }
             ],
             temperature: 0.7,
         });

@@ -37,8 +37,8 @@ services:
       - /app/node_modules
     depends_on:
       - db
-    # 컨테이너 구동 시 Prisma 관련 동기화만 수행 (Prisma generate는 이미 빌드 단계에서 완료됨)
-    command: sh -c "npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && npm run dev"
+    # 컨테이너 구동 시 Prisma 스키마를 DB에 반영하고 최신 클라이언트를 생성합니다. (익명 볼륨 캐싱 문제 해결)
+    command: sh -c "npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"
 
   frontend:
     build:

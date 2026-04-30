@@ -46,14 +46,19 @@ export const TasksService = {
         await verifyMembership(email, projectId);
         const createdTasks = [];
         for (const taskData of tasks) {
+            let priority = 'medium';
+            if (taskData.priority && ['low', 'medium', 'high'].includes(taskData.priority.toLowerCase())) {
+                priority = taskData.priority.toLowerCase();
+            }
+            
             const t = await (prisma as any).task.create({
                 data: {
                     projectId,
                     title: taskData.title || '새 태스크',
                     status: 'TODO',
-                    priority: taskData.priority || 'medium',
+                    priority: priority,
                     deadline: taskData.deadline || '',
-                    difficulty: taskData.difficulty || 3,
+                    difficulty: parseInt(taskData.difficulty) || 3,
                     ownerEmail: email,
                     assignees: [], // AI 생성은 일단 미배정
                 }

@@ -35,9 +35,11 @@ router.post('/batch', async (req, res) => {
     const projectId = parseInt((req.params as any).projectId, 10);
     const { tasks } = req.body;
     try {
+        console.log("Batch create received:", { email, projectId, tasksCount: tasks?.length });
         const newTasks = await TasksService.batchCreate(email, projectId, tasks);
         res.status(201).json(newTasks);
     } catch (e: any) {
+        console.error("BatchCreate Error:", e);
         res.status(403).json({ message: e.message });
     }
 });

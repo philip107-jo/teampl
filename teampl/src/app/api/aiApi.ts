@@ -9,8 +9,8 @@ export interface AiTaskSuggestion {
 }
 
 export const aiApi = {
-  splitTasks: async (projectId: number, prompt: string): Promise<AiTaskSuggestion[]> => {
-    const response = await apiClient.post(`/projects/${projectId}/ai/split-tasks`, { prompt });
+  splitTasks: async (projectId: number, teamSize: number, topic: string, description: string): Promise<AiTaskSuggestion[]> => {
+    const response = await apiClient.post(`/projects/${projectId}/ai/split-tasks`, { teamSize, topic, description });
     return response.data;
   }
 };
