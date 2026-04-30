@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 
 export interface AiTaskSuggestion {
+  id: string;
   title: string;
   priority: 'low' | 'medium' | 'high';
   deadline: string;

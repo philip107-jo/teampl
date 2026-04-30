@@ -13,6 +13,7 @@ import KanbanBoard from "../components/KanbanBoard";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
+import { socket, joinProjectChannel } from "../socket";
 
 interface MemberTasksProps {
   projectId?: number;
@@ -41,6 +42,18 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
       const p = projects.find(proj => String(proj.id) === String(numProjectId));
       if (p && p.membersList) setProjectMembers(p.membersList);
     });
+
+    // 실시간 소켓 연결 및 리슨
+    joinProjectChannel(numProjectId);
+    const onTaskUpdated = () => {
+      console.log("실시간 태스크 업데이트 수신!");
+      taskApi.getTasks(numProjectId).then(data => setTasks(data));
+    };
+    socket.on('taskUpdated', onTaskUpdated);
+
+    return () => {
+      socket.off('taskUpdated', onTaskUpdated);
+    };
   }, [numProjectId, user]);
 
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
