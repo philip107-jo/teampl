@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { AuthService } from './auth.service';
+import { AuthService } from './Auth.service';
 import { validate } from '../../middlewares/validate.middleware';
 import { z } from 'zod';
 

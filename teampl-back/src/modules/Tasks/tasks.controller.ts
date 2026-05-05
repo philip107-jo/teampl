@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TasksService } from './tasks.service';
+import { TasksService } from './Tasks.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router({ mergeParams: true }); // mergeParams로 상위 :projectId 접근

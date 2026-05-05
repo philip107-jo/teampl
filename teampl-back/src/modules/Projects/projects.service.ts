@@ -1,7 +1,5 @@
 import { prisma } from '../../prisma';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import axios from 'axios';
 
 export interface Project {
     id: number;
@@ -15,6 +13,7 @@ export interface Project {
     iconColor?: string;
     progressColor?: string;
     icon?: string;
+    termType?: 'SHORT' | 'LONG';
 }
 
 export const ProjectsService = {
@@ -71,6 +70,7 @@ export const ProjectsService = {
                 members: typeof data.members === 'number' ? data.members : 1,
                 color: data.color || "bg-[#f1f5f9]",
                 icon: data.icon || "Target",
+                termType: data.termType || 'SHORT',
                 inviteCode: generatedInviteCode,
             }
         });
@@ -110,6 +110,7 @@ export const ProjectsService = {
         if (data.members !== undefined) updateData.members = data.members;
         if (data.color !== undefined) updateData.color = data.color;
         if (data.icon !== undefined) updateData.icon = data.icon;
+        if (data.termType !== undefined) updateData.termType = data.termType;
 
         return await prisma.project.update({
             where: { id: Number(id) },
@@ -277,96 +278,49 @@ export const ProjectsService = {
 
     getStats: async (projectId: number) => {
         const members = await prisma.projectMember.findMany({
-            where: { projectId, status: 'ACTIVE' },
-            include: { user: true }
+            where: { projectId: Number(projectId), status: 'ACTIVE' }
         });
         
-        const tasks = await (prisma as any).task.findMany({ where: { projectId } });
-        const docs = await (prisma as any).sharedDocument.findMany({ where: { projectId } });
-        const messages = await (prisma as any).message.findMany({ where: { projectId } });
+        const tasks = await prisma.task.findMany({ where: { projectId: Number(projectId) } });
 
-        const rawStats = members.map(m => {
+        const stats = members.map((m: any) => {
             const memberEmail = m.userEmail;
             const memberTasks = tasks.filter((t: any) => t.assignees.includes(memberEmail));
-            
-            let earnedPoints = 0;
-            let completedCount = 0;
-
-            memberTasks.forEach((task: any) => {
-                if (task.status === 'DONE') {
-                    completedCount++;
-                    const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
-                    const basePoints = (task.difficulty || 3) * priorityWeight;
-                    
-                    let timeFactor = 1.0;
-                    if (task.completedAt && task.deadline) {
-                        const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
-                        const deadlineDate = task.deadline.replace(/\./g, '-');
-                        if (completedDate <= deadlineDate) timeFactor = 1.2;
-                        else timeFactor = 0.7;
-                    }
-                    // 성공한 태스크에 대해 가중치 점수 부여 (기본 10배수 스케일링)
-                    earnedPoints += (basePoints * timeFactor) * 10;
-                }
-            });
-
-            // 문서 작성 가산점 (문서당 15점)
-            const createdDocs = docs.filter((d: any) => d.creatorEmail === memberEmail);
-            earnedPoints += createdDocs.length * 15;
-
-            // 실제 소통(채팅) 가산점 (메시지당 2점)
-            const memberMessages = messages.filter((msg: any) => msg.senderEmail === memberEmail);
-            earnedPoints += memberMessages.length * 2;
+            const completedCount = memberTasks.filter((t: any) => t.status === 'DONE').length;
 
             return {
                 email: memberEmail,
-                earnedPoints,
+                score: 0,
                 completed: completedCount,
                 total: memberTasks.length,
-                chatCount: memberMessages.length
-            };
-        });
-
-        // 2단계: 전체 팀의 종합 점수를 기준으로 상대적 기여도(%) 계산
-        const teamTotalPoints = rawStats.reduce((sum, s) => sum + s.earnedPoints, 0);
-
-        const stats = rawStats.map(s => {
-            // 아무도 활동이 없으면 모두 0%
-            const score = teamTotalPoints > 0 ? Math.round((s.earnedPoints / teamTotalPoints) * 100) : 0;
-            return {
-                email: s.email,
-                score,
-                completed: s.completed,
-                total: s.total,
-                chatCount: s.chatCount
+                chatCount: 0
             };
         });
 
         return stats;
     },
 
-    generateTasksWithAi: async (teamSize: number, topic: string, description: string) => {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error("OpenAI API key is not configured.");
-        }
-        
+    generateTasksWithAi: async (teamSize: number, topic: string, description: string, termType: 'SHORT' | 'LONG' = 'SHORT') => {
         const systemPrompt = `
-You are an expert project manager assistant. Your job is to break down the user's project into HIGH-LEVEL, essential milestones.
-DO NOT create overly detailed or numerous micro-tasks.
+You are an expert project manager assistant. Your job is to break down the user's project into essential milestones based on its duration.
 
 Project Details:
 - Team Size: ${teamSize} members
 - Topic/Type: ${topic}
+- Project Duration: ${termType === 'SHORT' ? 'Short-term (Intense, 1-3 weeks)' : 'Long-term (Milestones, 1-3 months)'}
 
 Instructions:
-1. Create roughly 1 to 3 core tasks per team member. For a team of ${teamSize}, generate around ${Math.max(3, teamSize * 1)} to ${teamSize * 3} tasks in total.
-2. The tasks should be major milestones or roles (e.g., "자료조사 및 개요 작성", "메인 화면 UI 구현", "발표 스크립트 작성").
-3. For each task, assign:
-- "id": a unique short random string (e.g., "sk-123").
-- "title": a clear, concise task name IN KOREAN (한국어).
+1. ${termType === 'SHORT' 
+    ? 'Focus on IMMEDIATE ACTION items. Break it down into concrete, executable tasks that can be done quickly.' 
+    : 'Focus on MAJOR PHASES and MILESTONES. Break it down into high-level stages that cover the entire project lifecycle.'}
+2. For a team of ${teamSize}, generate around ${termType === 'SHORT' ? teamSize * 2 : teamSize * 3} tasks in total.
+3. The tasks should be clear and concise IN KOREAN (한국어).
+4. For each task, assign:
+- "id": a unique short random string.
+- "title": task name in Korean.
 - "priority": one of "low", "medium", "high".
-- "deadline": an empty string "".
-- "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
+- "deadline": "".
+- "difficulty": integer 1-5.
 
 You must respond ONLY with a valid JSON array of objects. Never include markdown formatting like \`\`\`json. Example:
 [
@@ -377,20 +331,35 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
 
         const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+        const aiModel = process.env.LOCAL_AI_MODEL || "llama3:latest";
+        const baseUrl = (process.env.AI_BASE_URL || "http://host.docker.internal:11434").replace(/\/v1\/?$/, "");
+
+        const response = await axios.post(`${baseUrl}/api/chat`, {
+            model: aiModel,
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            temperature: 0.7,
+            stream: false
+        }, {
+            headers: { 'Content-Type': 'application/json' },
+            validateStatus: () => true, // Handle errors manually
+            timeout: 300000 // 5 minutes
         });
 
-        const content = response.choices[0]?.message?.content || "[]";
+        if (response.status !== 200) {
+            throw new Error(`AI 서버와 통신 중 오류가 발생했습니다: ${response.statusText}`);
+        }
+
+        const data = response.data;
+        const content = data.message?.content || "[]";
         try {
-            // Some robust parsing in case GPT returns markdown blocks
-            const jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
+            // Extract JSON array using regex to ignore conversational text
+            let jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
+            const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+                jsonStr = arrayMatch[0];
+            }
             const tasks = JSON.parse(jsonStr);
             return tasks;
         } catch (e) {

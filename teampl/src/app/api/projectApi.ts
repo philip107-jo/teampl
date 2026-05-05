@@ -13,6 +13,7 @@ export interface Project {
     iconColor: string;
     progressColor: string;
     icon: string;
+    termType?: 'SHORT' | 'LONG';
     inviteCode?: string;
     userName?: string;
     creatorEmail?: string;

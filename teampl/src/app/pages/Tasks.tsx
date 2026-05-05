@@ -145,39 +145,10 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                           <div className={`w-24 h-24 rounded-[32px] ${member.avatarColor || 'bg-[#7C6CFF]'} flex items-center justify-center text-[32px] font-black text-white shadow-2xl shadow-black/10 rotate-3`}>
                             {member.name[0]}
                           </div>
-                          <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-white dark:bg-[#1A2340] rounded-2xl flex items-center justify-center shadow-lg border border-gray-100 dark:border-white/10">
-                            <Trophy className={`w-5 h-5 ${stats.score >= 80 ? "text-yellow-500" : "text-gray-300"}`} />
-                          </div>
                         </div>
                         <div>
                           <h3 className="text-[24px] font-black text-[#1A2340] dark:text-white tracking-tight">{member.name}</h3>
                           <p className="text-[12px] font-black text-[#7D879C] uppercase tracking-[0.3em] mt-1 opacity-60">{member.department || 'Team Member'}</p>
-                        </div>
-                        
-                        <div className="py-6 px-1 bg-[#7C6CFF]/5 rounded-3xl border border-[#7C6CFF]/10">
-                          <p className="text-[42px] font-black text-[#7C6CFF] leading-none mb-1 tracking-tighter">{stats.score}%</p>
-                          <p className="text-[10px] font-bold text-[#7C6CFF] uppercase tracking-widest">실시간 기여도 점수</p>
-                        </div>
-                      </div>
-
-                      <div className="w-full pt-8">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center justify-between px-2">
-                             <div className="flex items-center gap-2 text-[11px] font-bold text-[#7D879C] uppercase tracking-widest">
-                              <TrendingUp className="w-4 h-4" /> 소통 점수
-                            </div>
-                            <span className="text-[11px] font-black text-[#7C6CFF]">{stats.chatCount * 2} Pts</span>
-                          </div>
-                          <div className="flex gap-1.5 px-1">
-                            {Array.from({ length: 10 }).map((_, i) => (
-                              <div 
-                                key={i} 
-                                className={`h-1.5 flex-1 rounded-full transition-all duration-1000 ${
-                                  i < (stats.chatCount || 0) ? "bg-[#7C6CFF] shadow-[0_0_8px_rgba(124,108,255,0.6)]" : "bg-gray-100 dark:bg-white/5"
-                                }`}
-                              ></div>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -259,16 +230,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                                 <p className="text-[13px] font-bold text-[#7D879C]">아직 완료된 작업이 없습니다.</p>
                               </div>
                             )}
-                            
-                            <div className="p-8 rounded-[32px] bg-gradient-to-br from-[#7C6CFF]/10 to-transparent border border-[#7C6CFF]/5 flex items-center justify-between group cursor-pointer hover:from-[#7C6CFF]/20 transition-all">
-                               <div>
-                                 <p className="text-[12px] font-black text-[#7C6CFF] uppercase tracking-widest mb-1">Performance Insight</p>
-                                 <p className="text-[14px] font-bold text-[#1A2340] dark:text-white">기여도 분석 보고서 보기</p>
-                               </div>
-                               <div className="w-10 h-10 rounded-full bg-white dark:bg-[#1A2340] flex items-center justify-center group-hover:translate-x-2 transition-transform">
-                                 <ArrowRight className="w-5 h-5 text-[#7C6CFF]" />
-                               </div>
-                            </div>
                           </div>
                         </div>
                       </div>

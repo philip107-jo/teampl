@@ -49,6 +49,11 @@ model User {
   driveFiles       DriveFile[]    @relation("UserDriveFiles")
 }
 
+enum ProjectTerm {
+  SHORT
+  LONG
+}
+
 model Project {
   id          Int      @id @default(autoincrement())
   name        String
@@ -56,6 +61,7 @@ model Project {
   description String?
   progress    Int      @default(0)
   deadline    String
+  termType    ProjectTerm @default(SHORT)
   members     Int      @default(1)
   color       String?  @default("purple")
   icon        String?  @default("Database")

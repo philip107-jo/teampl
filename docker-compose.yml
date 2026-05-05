@@ -31,7 +31,12 @@ services:
       - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
       - MS_REDIRECT_URI=${MS_REDIRECT_URI}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-ollama}
+      - LOCAL_AI_MODEL=${LOCAL_AI_MODEL:-llama3}
+      - AI_BASE_URL=http://host.docker.internal:11434/v1
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./teampl-back:/app
       - /app/node_modules

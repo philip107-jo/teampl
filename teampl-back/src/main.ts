@@ -5,12 +5,12 @@ import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import path from 'path';
 
-import projectsRouter from './modules/projects/projects.controller';
-import authRouter from './modules/auth/auth.controller';
+import projectsRouter from './modules/Projects/Projects.controller';
+import authRouter from './modules/Auth/Auth.controller';
 import usersRouter from './modules/users/users.controller';
-import tasksRouter from './modules/tasks/tasks.controller';
-import schedulesRouter from './modules/schedules/schedules.controller';
-import aiRouter from './modules/Ai/ai.controller';
+import tasksRouter from './modules/Tasks/Tasks.controller';
+import schedulesRouter from './modules/Schedules/Schedules.controller';
+import aiRouter from './modules/Ai/Ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
 import { ChatService } from './modules/chat/chat.service';

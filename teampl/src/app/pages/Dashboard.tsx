@@ -181,8 +181,8 @@ export default function Dashboard() {
 
       <div className="section-head">
         <div className="section-title-wrap">
-          <div className="section-kicker">↗ 팀 기여 분석</div>
-          <div className="section-sub">팀원별 활동 내역과 기여도를 확인하세요</div>
+          <div className="section-kicker">↗ 팀 활동 현황</div>
+          <div className="section-sub">팀원별 활동 내역과 업무 진행도를 확인하세요</div>
         </div>
 
         <button 
@@ -228,21 +228,22 @@ export default function Dashboard() {
         <article className="card analysis-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="analysis-title !mb-0">
-              <span className="analysis-dot"></span> 팀원별 기여도
+              <span className="analysis-dot"></span> 팀원별 업무 현황
             </h3>
           </div>
 
           <div className="contribution-list">
             {displayMembers.map((member: any, idx: number) => {
-              const stats = projectStats.find(s => s.email === member.email) || { score: 0, completed: 0, total: 0 };
-              const memberTasks = stats.total || 0;
-              const percent = stats.score || 0;
+              const stats = projectStats.find(s => s.email === member.email) || { completed: 0, total: 0 };
+              const completedTasks = stats.completed || 0;
+              const totalTasks = stats.total || 0;
+              const percent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
               const colors = ['purple', 'green', 'orange', 'red'];
               return (
                 <div key={member.id} className="member-row">
                   <div className="member-meta">
                     <span className="member-name truncate max-w-[80px]">{member.name}</span>
-                    <span className="member-count">{memberTasks}건 / {percent}점</span>
+                    <span className="member-count">{completedTasks} / {totalTasks}건 완료</span>
                     {member.role === 'LEADER' && (
                       <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)] flex-shrink-0" />
                     )}

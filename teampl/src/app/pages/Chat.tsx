@@ -34,7 +34,6 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
   const userTasks = tasks.filter(t => t.assignees && t.assignees.includes(selectedMember.email));
   const completedTasks = userTasks.filter(t => t.status === "DONE");
   const progressRate = userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0;
-  const contributionRate = tasks.length > 0 ? Math.round((userTasks.length / tasks.length) * 100) : 0;
 
   if (!selectedMember) return null;
   return createPortal(
@@ -124,15 +123,7 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[12px] font-bold text-[#7D879C]">프로젝트 기여도</span>
-                    <span className="text-[12px] font-black text-[#1A2340] dark:text-white">{contributionRate}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-gray-200 dark:bg-[#1A2340] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#7C6CFF] transition-all duration-1000" style={{ width: `${contributionRate}%` }}></div>
-                  </div>
-                </div>
+
               </div>
             </div>
           )}
@@ -324,7 +315,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     setAiLoading(true);
     setIsAnalyzing(true);
     try {
-      const suggestions = await aiApi.splitTasks(projectId, aiTeamSize, "메시지 분석", content);
+      const suggestions = await aiApi.splitTasks(projectId, aiTeamSize, "메시지 분석", content, 'SHORT');
       setAiSuggestions(suggestions);
     } catch (err) {
       console.error(err);
@@ -343,7 +334,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     setAiLoading(true);
     setIsAnalyzing(true);
     try {
-      const suggestions = await aiApi.splitTasks(projectId, aiTeamSize, aiTopic, aiInput);
+      const suggestions = await aiApi.splitTasks(projectId, aiTeamSize, aiTopic, aiInput, 'SHORT');
       setAiSuggestions(suggestions);
     } catch (err) {
       console.error(err);

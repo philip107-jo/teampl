@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AiService } from './ai.service';
+import { AiService } from './Ai.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router({ mergeParams: true });

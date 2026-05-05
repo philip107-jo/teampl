@@ -21,6 +21,7 @@ export default function Projects() {
     description: "",
     deadline: new Date().toISOString().split('T')[0],
     color: "#5C6AC4",
+    termType: "SHORT" as "SHORT" | "LONG",
   });
   
   const [projects, setProjects] = useState<any[]>([]);
@@ -93,10 +94,11 @@ export default function Projects() {
         members: 1,
         color: newProject.color,
         icon: "Database",
+        termType: newProject.termType,
         userName: user?.name || "팀장",
       });
       setProjects([p, ...projects]);
-      setNewProject({ name: "", course: "", description: "", deadline: new Date().toISOString().split('T')[0], color: "#5C6AC4" });
+      setNewProject({ name: "", course: "", description: "", deadline: new Date().toISOString().split('T')[0], color: "#5C6AC4", termType: "SHORT" });
       setIsAddModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -125,6 +127,7 @@ export default function Projects() {
       name: project.name,
       course: project.course,
       description: project.description,
+      termType: project.termType || "SHORT",
     });
     setIsEditModalOpen(true);
   };
@@ -144,6 +147,7 @@ export default function Projects() {
         name: editingProject.name,
         course: editingProject.course || "미지정",
         description: editingProject.description,
+        termType: editingProject.termType,
       });
       setProjects(projects.map(p => p.id === updated.id ? updated : p));
       setIsEditModalOpen(false);
@@ -355,6 +359,40 @@ export default function Projects() {
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                 />
               </div>
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">프로젝트 기간 성격</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setNewProject({ ...newProject, termType: "SHORT" })}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                      newProject.termType === "SHORT"
+                        ? "border-[#7C6CFF] bg-[#7C6CFF]/5"
+                        : "border-gray-200 dark:border-white/5 bg-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <Zap className={`w-6 h-6 ${newProject.termType === "SHORT" ? "text-[#7C6CFF]" : "text-gray-400"}`} />
+                    <div className="text-center">
+                      <p className={`text-sm font-black ${newProject.termType === "SHORT" ? "text-[#7C6CFF]" : "text-gray-400"}`}>단기 / 집중</p>
+                      <p className="text-[10px] font-bold text-gray-500 opacity-60">1~3주 과제용</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setNewProject({ ...newProject, termType: "LONG" })}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                      newProject.termType === "LONG"
+                        ? "border-[#7C6CFF] bg-[#7C6CFF]/5"
+                        : "border-gray-200 dark:border-white/5 bg-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <Target className={`w-6 h-6 ${newProject.termType === "LONG" ? "text-[#7C6CFF]" : "text-gray-400"}`} />
+                    <div className="text-center">
+                      <p className={`text-sm font-black ${newProject.termType === "LONG" ? "text-[#7C6CFF]" : "text-gray-400"}`}>장기 / 로드맵</p>
+                      <p className="text-[10px] font-bold text-gray-500 opacity-60">한 학기 / 연구용</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">마감 날짜</label>
@@ -430,6 +468,37 @@ export default function Projects() {
                   value={editingProject.description}
                   onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
                 />
+              </div>
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">프로젝트 기간 성격</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setEditingProject({ ...editingProject, termType: "SHORT" })}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                      editingProject.termType === "SHORT"
+                        ? "border-[#7C6CFF] bg-[#7C6CFF]/5"
+                        : "border-gray-200 dark:border-white/5 bg-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <Zap className={`w-6 h-6 ${editingProject.termType === "SHORT" ? "text-[#7C6CFF]" : "text-gray-400"}`} />
+                    <div className="text-center">
+                      <p className={`text-sm font-black ${editingProject.termType === "SHORT" ? "text-[#7C6CFF]" : "text-gray-400"}`}>단기 / 집중</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setEditingProject({ ...editingProject, termType: "LONG" })}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                      editingProject.termType === "LONG"
+                        ? "border-[#7C6CFF] bg-[#7C6CFF]/5"
+                        : "border-gray-200 dark:border-white/5 bg-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <Target className={`w-6 h-6 ${editingProject.termType === "LONG" ? "text-[#7C6CFF]" : "text-gray-400"}`} />
+                    <div className="text-center">
+                      <p className={`text-sm font-black ${editingProject.termType === "LONG" ? "text-[#7C6CFF]" : "text-gray-400"}`}>장기 / 로드맵</p>
+                    </div>
+                  </button>
+                </div>
               </div>
               <button
                 onClick={handleUpdateProject}

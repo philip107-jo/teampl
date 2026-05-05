@@ -1,17 +1,11 @@
-import OpenAI from 'openai';
+import axios from 'axios';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export const AiService = {
   splitTasks: async (description: string) => {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OpenAI API key is missing in .env');
-    }
+
 
     const prompt = `
 당신은 프로젝트 관리 전문가입니다. 사용자가 제공하는 과제 설명(description)을 분석하여, 5개에서 10개 사이의 구체적이고 실행 가능한 태스크(Task)로 분할해 주세요.
@@ -38,18 +32,35 @@ export const AiService = {
 ${description}
 `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // 또는 gpt-4o
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+    const aiModel = process.env.LOCAL_AI_MODEL || "llama3:latest";
+    const baseUrl = (process.env.AI_BASE_URL || "http://host.docker.internal:11434").replace(/\/v1\/?$/, "");
+
+    const response = await axios.post(`${baseUrl}/api/chat`, {
+        model: aiModel,
+        messages: [{ role: "user", content: prompt }],
+        stream: false
+    }, {
+        headers: { 'Content-Type': 'application/json' },
+        validateStatus: () => true,
+        timeout: 300000
     });
 
-    const content = response.choices[0].message.content;
+    if (response.status !== 200) {
+        throw new Error(`AI 서버와 통신 중 오류가 발생했습니다: ${response.statusText}`);
+    }
+
+    const data = response.data;
+    const content = data.message?.content;
     if (!content) throw new Error('AI 응답이 비어있습니다.');
     
     // JSON 파싱 (AI가 객체로 감싸서 줄 수도 있으므로 체크)
-    let tasks = JSON.parse(content);
+    let jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+        jsonStr = arrayMatch[0];
+    }
+    
+    let tasks = JSON.parse(jsonStr);
     if (tasks.tasks) tasks = tasks.tasks; // { "tasks": [...] } 형태 대응
     if (!Array.isArray(tasks)) tasks = [tasks];
 

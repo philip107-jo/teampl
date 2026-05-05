@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ProjectsService } from './projects.service';
+import { ProjectsService } from './Projects.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -276,11 +276,13 @@ router.get('/:id/stats', async (req, res) => {
 // POST /api/projects/:id/ai/split-tasks
 router.post('/:id/ai/split-tasks', async (req, res) => {
     try {
-        const { teamSize, topic, description } = req.body;
+        const { teamSize, topic, description, termType } = req.body;
+        console.log(`[AI Request] teamSize: ${teamSize}, topic: ${topic}, termType: ${termType}`);
         if (!teamSize || !topic) return res.status(400).json({ message: "팀 인원 수와 주제를 입력해주세요." });
-        const suggestions = await ProjectsService.generateTasksWithAi(teamSize, topic, description || "");
+        const suggestions = await ProjectsService.generateTasksWithAi(teamSize, topic, description || "", termType);
         res.json(suggestions);
     } catch (e: any) {
+        console.error("AI Error:", e);
         res.status(500).json({ message: e.message });
     }
 });

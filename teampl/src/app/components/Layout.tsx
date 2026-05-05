@@ -58,7 +58,7 @@ export default function Layout() {
   const navItems = projectId
     ? [
         { key: "overview", path: `/projects/${projectId}?tab=overview`, icon: LayoutDashboard, label: "개요" },
-        { key: "tasks", path: `/projects/${projectId}?tab=tasks`, icon: Users, label: "팀원기여도" },
+        { key: "tasks", path: `/projects/${projectId}?tab=tasks`, icon: Users, label: "업무 분담" },
         { key: "chat", path: `/projects/${projectId}?tab=chat`, icon: MessageSquare, label: "채팅" },
         { key: "drive", path: `/projects/${projectId}?tab=drive`, icon: FolderOpen, label: "파일" },
       ]

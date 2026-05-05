@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { SchedulesService } from './schedules.service';
+import { SchedulesService } from './Schedules.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router({ mergeParams: true });
