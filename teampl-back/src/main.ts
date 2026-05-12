@@ -61,13 +61,27 @@ app.use('/api/projects/:projectId/ai', aiRouter);
 app.use('/api/projects/:projectId/drive', driveRouter);
 
 // Socket.io 통신 처리
+const onlineUsers = new Set<string>();
+const socketToEmail = new Map<string, string>();
+
 io.on('connection', (socket: Socket) => {
   console.log('🟢 Client connected directly:', socket.id);
+
+  socket.on('userConnected', (email: string) => {
+    socketToEmail.set(socket.id, email);
+    onlineUsers.add(email);
+    io.emit('onlineUsers', Array.from(onlineUsers));
+  });
 
   // 방 입장 (프로젝트방 또는 1:1방)
   socket.on('joinRoom', (roomName: string) => {
     socket.join(roomName);
     console.log(`Socket ${socket.id} joined room: ${roomName}`);
+  });
+
+  // 타이핑 인디케이터
+  socket.on('typing', (data: { room: string, email: string, isTyping: boolean }) => {
+    socket.to(data.room).emit('userTyping', data);
   });
 
   // 메시지 전송
@@ -104,6 +118,12 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('disconnect', () => {
     console.log('🔴 Client disconnected:', socket.id);
+    const email = socketToEmail.get(socket.id);
+    if (email) {
+      onlineUsers.delete(email);
+      socketToEmail.delete(socket.id);
+      io.emit('onlineUsers', Array.from(onlineUsers));
+    }
   });
 });
 

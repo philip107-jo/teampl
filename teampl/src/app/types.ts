@@ -34,6 +34,18 @@ export type Task = {
   assignees: string[]; // User IDs
 };
 
+export type TaskComment = {
+  id: number;
+  taskId: string;
+  userEmail: string;
+  content: string;
+  createdAt: string;
+  user: {
+    name: string;
+    email: string;
+  };
+};
+
 export type ChatMessage = {
   id: string;
   workspaceId: string;

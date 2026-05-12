@@ -193,15 +193,20 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiTaskSuggestion[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { unreadCounts, clearUnread, simulateNoti, incrementUnread,
     socket, messagesStore, setMessages, addMessage, setActiveChatKey, initProjectChat } = useChat();
 
   // 소켓 초기화 (프로젝트 멤버 기반으로 방 조인)
+  const membersHash = JSON.stringify(projectMembers);
   useEffect(() => {
     if (projectId && user?.email && projectMembers.length > 0) {
       initProjectChat(projectId, user.email, projectMembers);
     }
-  }, [projectId, user, projectMembers, initProjectChat]);
+  }, [projectId, user, membersHash, initProjectChat]);
 
   const chatKey = chatMode === "TEAM" ? `team-${projectId}` : (selectedMember ? `${[user?.email, selectedMember.email].sort().join('-')}` : '');
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
@@ -243,7 +248,23 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     if (currentMessages.length === 0) {
       loadMsgs();
     }
-  }, [projectId, chatMode, selectedMember, user?.email, chatKey, setMessages]);
+
+    const onTyping = (data: { room: string, email: string, isTyping: boolean }) => {
+      if (data.room === chatKey && data.email !== user?.email) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (data.isTyping) newSet.add(data.email);
+          else newSet.delete(data.email);
+          return newSet;
+        });
+      }
+    };
+    socket.on('userTyping', onTyping);
+
+    return () => {
+      socket.off('userTyping', onTyping);
+    };
+  }, [projectId, chatMode, selectedMember, user?.email, chatKey, setMessages, socket]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -538,6 +559,17 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
         )}
       </div>
 
+      {typingUsers.size > 0 && (
+        <div className="px-6 py-2 text-xs text-[#7C6CFF] font-bold animate-pulse flex items-center gap-2 bg-gradient-to-t from-white dark:from-[#12182B] to-transparent">
+          <div className="flex gap-1">
+            <span className="w-1.5 h-1.5 bg-[#7C6CFF] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-1.5 h-1.5 bg-[#7C6CFF] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-1.5 h-1.5 bg-[#7C6CFF] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          </div>
+          {Array.from(typingUsers).map(email => projectMembers.find(m => m.email === email)?.name || email.split('@')[0]).join(', ')}님이 입력 중입니다...
+        </div>
+      )}
+
       <div className="p-4 bg-white dark:bg-[#12182B] border-t border-gray-200 dark:border-white/5">
         <div className="flex items-center gap-2 bg-[#f8faff] dark:bg-[#1A2340] border border-gray-200 dark:border-white/10 rounded-[20px] p-1.5 focus-within:border-[#7C6CFF]/50 focus-within:bg-white transition-all shadow-inner">
           <button
@@ -553,8 +585,24 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
             placeholder="메시지를 입력하세요..."
             className="flex-1 bg-transparent border-none focus:ring-0 text-[14px] font-medium placeholder-[#7D879C]/60 text-[#1A2340] dark:text-white outline-none px-2"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onChange={(e) => {
+              setInputText(e.target.value);
+              if (socket && chatKey) {
+                socket.emit('typing', { room: chatKey, email: user?.email, isTyping: true });
+                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = setTimeout(() => {
+                  socket.emit('typing', { room: chatKey, email: user?.email, isTyping: false });
+                }, 2000);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                 e.preventDefault();
+                 if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                 if (socket && chatKey) socket.emit('typing', { room: chatKey, email: user?.email, isTyping: false });
+                 handleSend();
+              }
+            }}
           />
           <button onClick={handleSend} disabled={!inputText.trim()} className={`w-11 h-11 flex items-center justify-center rounded-[14px] transition-all ${inputText.trim() ? "bg-[#7C6CFF] hover:bg-[#6b5cd8] text-white shadow-lg active:scale-95 shadow-[#7C6CFF]/30" : "bg-gray-100 dark:bg-white/5 text-gray-400"}`}>
             <Send className="w-5 h-5 ml-1" />

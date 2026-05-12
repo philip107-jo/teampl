@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { 
   ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
@@ -15,6 +15,7 @@ import Calendar from "./Calendar";
 import Chat from "./Chat";
 import Drive from "./Drive";
 import MemberTasks from "./MemberTasks";
+import { useChat } from "../context/ChatContext";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
@@ -22,6 +23,7 @@ export default function ProjectDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { onlineUsers, socket, activeChatKey } = useChat();
 
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
@@ -75,6 +77,33 @@ export default function ProjectDetails() {
     return () => clearInterval(intervalId);
   }, [projectId]);
 
+  // 전역 실시간 토스트 알림 (채팅 수신)
+  useEffect(() => {
+    if (!socket || !user) return;
+    
+    const onNewMessage = (m: any) => {
+      // 본인이 보낸 메시지는 알림 제외
+      if (m.senderEmail === user.email) return;
+
+      const mProjectId = m.projectId;
+      const receiverEmail = m.receiverEmail;
+      const msgRoom = m.room || (mProjectId ? `team-${mProjectId}` : [m.senderEmail, receiverEmail].sort().join('-'));
+
+      // 현재 사용자가 해당 채팅방을 보고 있지 않을 때만 토스트 발생
+      if (activeChatKey !== msgRoom) {
+        const senderName = m.sender?.name || m.senderEmail.split('@')[0];
+        const isTeam = !!mProjectId;
+        const prefix = isTeam ? `[팀 채팅] ${senderName}` : `[1:1] ${senderName}`;
+        showToast(`${prefix}: ${m.content}`, 'info');
+      }
+    };
+
+    socket.on('newMessage', onNewMessage);
+    return () => {
+      socket.off('newMessage', onNewMessage);
+    };
+  }, [socket, user, activeChatKey, showToast]);
+
   // Mock data for the specific project
   const mockProject = {
     id: projectId,
@@ -117,15 +146,19 @@ export default function ProjectDetails() {
     members: 1
   };
 
-  const rawMembers = project.membersList 
-    ? project.membersList 
-    : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }];
+  const rawMembers = useMemo(() => {
+    return project.membersList 
+      ? project.membersList 
+      : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }];
+  }, [project.membersList, user?.id, user?.name]);
 
-  const displayMembers = [...rawMembers].sort((a: any, b: any) => {
-    if (a.role === 'LEADER') return -1;
-    if (b.role === 'LEADER') return 1;
-    return 0;
-  });
+  const displayMembers = useMemo(() => {
+    return [...rawMembers].sort((a: any, b: any) => {
+      if (a.role === 'LEADER') return -1;
+      if (b.role === 'LEADER') return 1;
+      return 0;
+    });
+  }, [rawMembers]);
 
   const handleRegenerateInviteCode = async () => {
     if (!project) return;
@@ -290,6 +323,9 @@ export default function ProjectDetails() {
                               <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
                                 <Crown className="w-3.5 h-3.5 text-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.9)] fill-[#FFB547]" />
                               </div>
+                            )}
+                            {onlineUsers.includes(member.email) && (
+                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#151C31]"></div>
                             )}
                           </div>
                         );

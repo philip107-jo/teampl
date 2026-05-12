@@ -27,5 +27,23 @@ export const taskApi = {
   batchCreateTasks: async (projectId: number, tasks: Partial<Task>[]): Promise<Task[]> => {
     const response = await apiClient.post(`/projects/${projectId}/tasks/batch`, { tasks });
     return response.data;
+  },
+
+  updateTaskDetails: async (projectId: number, taskId: string, data: { title?: string; description?: string }): Promise<void> => {
+    await apiClient.patch(`/projects/${projectId}/tasks/${taskId}/details`, data);
+  },
+
+  getTaskComments: async (projectId: number, taskId: string): Promise<any[]> => {
+    const response = await apiClient.get(`/projects/${projectId}/tasks/${taskId}/comments`);
+    return response.data;
+  },
+
+  addTaskComment: async (projectId: number, taskId: string, content: string): Promise<any> => {
+    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/comments`, { content });
+    return response.data;
+  },
+
+  deleteTaskComment: async (projectId: number, taskId: string, commentId: number): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`);
   }
 };

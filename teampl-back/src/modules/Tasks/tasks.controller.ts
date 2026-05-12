@@ -88,4 +88,58 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// PATCH /api/projects/:projectId/tasks/:id/details
+router.patch('/:id/details', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const { title, description } = req.body;
+    try {
+        const updatedTask = await TasksService.updateDetails(email, projectId, id, { title, description });
+        res.json(updatedTask);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// GET /api/projects/:projectId/tasks/:id/comments
+router.get('/:id/comments', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    try {
+        const comments = await TasksService.getComments(email, projectId, id);
+        res.json(comments);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:projectId/tasks/:id/comments
+router.post('/:id/comments', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const { content } = req.body;
+    try {
+        const comment = await TasksService.addComment(email, projectId, id, content);
+        res.status(201).json(comment);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// DELETE /api/projects/:projectId/tasks/:id/comments/:commentId
+router.delete('/:id/comments/:commentId', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const commentId = parseInt(req.params.commentId, 10);
+    try {
+        await TasksService.deleteComment(email, projectId, commentId);
+        res.status(204).send();
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 export default router;

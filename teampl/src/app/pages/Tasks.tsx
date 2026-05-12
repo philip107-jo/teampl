@@ -10,6 +10,8 @@ import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
+import TaskDetailModal from "../components/TaskDetailModal";
+import TaskCreateModal from "../components/TaskCreateModal";
 
 interface TasksProps {
   projectId?: number;
@@ -25,6 +27,11 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [projectStats, setProjectStats] = useState<any[]>([]);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [createModalAssignee, setCreateModalAssignee] = useState<{email: string, name: string} | null>(null);
+
+  const currentUserMember = members.find(m => m.email === user?.email);
+  const isLeader = currentUserMember?.role === 'LEADER';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -198,7 +205,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                           <div className="space-y-4">
                             {inProgressTasks.length > 0 ? (
                               inProgressTasks.map(task => (
-                                <div key={task.id} className="group/task p-6 rounded-[28px] bg-white dark:bg-[#1A2340] border border-gray-100 dark:border-white/5 hover:border-[#7C6CFF]/30 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.02)] translate-y-0 hover:-translate-y-1">
+                                <div key={task.id} onClick={() => setSelectedTask(task)} className="group/task p-6 rounded-[28px] bg-white dark:bg-[#1A2340] border border-gray-100 dark:border-white/5 hover:border-[#7C6CFF]/30 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.02)] translate-y-0 hover:-translate-y-1 cursor-pointer">
                                   <div className="flex items-start justify-between mb-4">
                                      <h5 className="text-[17px] font-black text-[#1A2340] dark:text-white group-hover/task:text-[#7C6CFF] transition-colors line-clamp-2 leading-tight">{task.title}</h5>
                                      <div className={`flex-shrink-0 w-3 h-3 rounded-full ${task.status === 'IN_PROGRESS' ? 'bg-[#7C6CFF] animate-pulse shadow-[0_0_15px_#7C6CFF]' : 'bg-gray-200'}`}></div>
@@ -222,9 +229,14 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                                 <p className="text-[13px] font-bold text-[#7D879C]">진행 중인 작업이 없습니다.</p>
                               </div>
                             )}
-                            <button className="w-full p-4 rounded-[20px] border border-dashed border-gray-200 dark:border-white/10 text-[#7D879C] hover:border-[#7C6CFF]/40 hover:text-[#7C6CFF] transition-all flex items-center justify-center gap-2 text-[12px] font-black uppercase">
-                              <Plus className="w-4 h-4" /> 새로운 업무 할당
-                            </button>
+                            {(isLeader || member.email === user?.email) && (
+                              <button 
+                                onClick={() => setCreateModalAssignee({ email: member.email, name: member.name })}
+                                className="w-full p-4 rounded-[20px] border border-dashed border-gray-200 dark:border-white/10 text-[#7D879C] hover:border-[#7C6CFF]/40 hover:text-[#7C6CFF] transition-all flex items-center justify-center gap-2 text-[12px] font-black uppercase"
+                              >
+                                <Plus className="w-4 h-4" /> 새로운 업무 할당
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -241,7 +253,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                           <div className="space-y-4">
                             {completedTasks.length > 0 ? (
                               completedTasks.map(task => (
-                                <div key={task.id} className="p-6 rounded-[28px] bg-gray-50/50 dark:bg-white/5 border border-transparent grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:bg-white dark:hover:bg-[#1A2340] hover:border-[#23D7A1]/20 transition-all duration-500">
+                                <div key={task.id} onClick={() => setSelectedTask(task)} className="p-6 rounded-[28px] bg-gray-50/50 dark:bg-white/5 border border-transparent grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:bg-white dark:hover:bg-[#1A2340] hover:border-[#23D7A1]/20 transition-all duration-500 cursor-pointer">
                                   <h5 className="text-[16px] font-bold text-[#1A2340] dark:text-white line-through decoration-2 decoration-[#23D7A1]/40 mb-4">{task.title}</h5>
                                   <div className="flex items-center gap-3">
                                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-[8px] uppercase tracking-widest border opacity-50 ${getPriorityColor(task.priority)}`}>
@@ -279,6 +291,33 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
             );
           })}
         </div>
+      )}
+
+      {selectedTask && (
+        <TaskDetailModal 
+          projectId={numProjectId} 
+          task={selectedTask} 
+          onClose={() => setSelectedTask(null)}
+          onUpdate={async () => {
+             const tasksData = await taskApi.getTasks(numProjectId);
+             setTasks(tasksData);
+             const updatedTask = tasksData.find(t => t.id === selectedTask.id);
+             if (updatedTask) setSelectedTask(updatedTask);
+          }}
+        />
+      )}
+
+      {createModalAssignee && (
+        <TaskCreateModal
+          projectId={numProjectId}
+          assigneeEmail={createModalAssignee.email}
+          assigneeName={createModalAssignee.name}
+          onClose={() => setCreateModalAssignee(null)}
+          onCreate={async () => {
+            const tasksData = await taskApi.getTasks(numProjectId);
+            setTasks(tasksData);
+          }}
+        />
       )}
     </div>
   );

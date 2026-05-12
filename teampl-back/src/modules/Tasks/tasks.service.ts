@@ -117,5 +117,53 @@ export const TasksService = {
 
     deleteByProjectId: async (projectId: number) => {
         await prisma.task.deleteMany({ where: { projectId } });
+    },
+
+    updateDetails: async (email: string, projectId: number, taskId: string, data: { description?: string; title?: string }) => {
+        await verifyMembership(email, projectId);
+        const updated = await prisma.task.update({
+            where: { id: taskId },
+            data: {
+                title: data.title,
+                description: data.description,
+            }
+        });
+        emitTaskUpdate(projectId);
+        return updated;
+    },
+
+    getComments: async (email: string, projectId: number, taskId: string) => {
+        await verifyMembership(email, projectId);
+        return await prisma.taskComment.findMany({
+            where: { taskId },
+            include: { user: { select: { name: true, email: true } } },
+            orderBy: { createdAt: 'asc' }
+        });
+    },
+
+    addComment: async (email: string, projectId: number, taskId: string, content: string) => {
+        await verifyMembership(email, projectId);
+        const comment = await prisma.taskComment.create({
+            data: {
+                taskId,
+                userEmail: email,
+                content
+            },
+            include: { user: { select: { name: true, email: true } } }
+        });
+        // We could emit a specific comment update, but task update suffices to trigger refresh
+        emitTaskUpdate(projectId);
+        return comment;
+    },
+
+    deleteComment: async (email: string, projectId: number, commentId: number) => {
+        const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
+        if (!comment) throw new Error("댓글을 찾을 수 없습니다.");
+        if (comment.userEmail !== email) throw new Error("본인의 댓글만 삭제할 수 있습니다.");
+        
+        await verifyMembership(email, projectId);
+        await prisma.taskComment.delete({ where: { id: commentId } });
+        emitTaskUpdate(projectId);
+        return true;
     }
 };

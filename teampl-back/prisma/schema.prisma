@@ -47,6 +47,7 @@ model User {
   sentMessages     Message[]      @relation("SentMessages")
   receivedMessages Message[]      @relation("ReceivedMessages")
   driveFiles       DriveFile[]    @relation("UserDriveFiles")
+  taskComments     TaskComment[]
 }
 
 model Project {
@@ -90,6 +91,7 @@ model Task {
   id          String   @id @default(uuid())
   projectId   Int
   title       String
+  description String?
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(medium)
   difficulty  Int          @default(3)
@@ -100,6 +102,18 @@ model Task {
   createdAt   DateTime @default(now())
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  comments    TaskComment[]
+}
+
+model TaskComment {
+  id          Int      @id @default(autoincrement())
+  taskId      String
+  userEmail   String
+  content     String
+  createdAt   DateTime @default(now())
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 }
 
 model Schedule {
