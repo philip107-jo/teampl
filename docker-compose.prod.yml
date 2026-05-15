@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: teampl-db-prod
+    restart: always
+    environment:
+      POSTGRES_USER: teampl_user
+      POSTGRES_PASSWORD: teampl_password
+      POSTGRES_DB: teampl_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - teampl_pgdata_prod:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./teampl-back
+      dockerfile: Dockerfile.prod
+    container_name: teampl-backend-prod
+    restart: always
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgresql://teampl_user:teampl_password@db:5432/teampl_db?schema=public
+      - JWT_SECRET=fallback-secret-key-prod
+      - MS_CLIENT_ID=${MS_CLIENT_ID}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
+      - MS_REDIRECT_URI=${MS_REDIRECT_URI}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./teampl
+      dockerfile: Dockerfile.prod
+    container_name: teampl-frontend-prod
+    restart: always
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
+
+volumes:
+  teampl_pgdata_prod:
