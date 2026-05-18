@@ -10,7 +10,7 @@ import authRouter from './modules/auth/auth.controller';
 import usersRouter from './modules/users/users.controller';
 import tasksRouter from './modules/tasks/tasks.controller';
 import schedulesRouter from './modules/schedules/schedules.controller';
-import aiRouter from './modules/Ai/ai.controller';
+import aiRouter from './modules/ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
 import { ChatService } from './modules/chat/chat.service';
