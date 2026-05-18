@@ -28,12 +28,10 @@ COPY --from=builder /app/prisma ./prisma
 
 # Add production script
 # This script will run database migrations (push) and seed before starting the app
-COPY <<EOF /app/start.sh
-#!/bin/sh
-npx prisma db push
-npx prisma db seed
-npm run start:prod
-EOF
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'npx prisma db push' >> /app/start.sh && \
+    echo 'npx prisma db seed' >> /app/start.sh && \
+    echo 'npm run start:prod' >> /app/start.sh
 RUN chmod +x /app/start.sh
 
 EXPOSE 8080
