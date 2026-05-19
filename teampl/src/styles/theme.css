@@ -51,7 +51,7 @@
   --card-foreground: #F5F7FF;
   --popover: #151C31;
   --popover-foreground: #F5F7FF;
-  --primary: #7C6CFF;
+  --primary: #11B886;
   --primary-foreground: #F5F7FF;
   --secondary: #12182B;
   --secondary-foreground: #F5F7FF;
@@ -66,20 +66,20 @@
   --border-strong: rgba(255, 255, 255, 0.14);
   --divider: rgba(255, 255, 255, 0.06);
   --input: transparent;
-  --ring: rgba(124, 108, 255, 0.16);
-  --chart-1: #7C6CFF;
+  --ring: rgba(17, 184, 134, 0.16);
+  --chart-1: #11B886;
   --chart-2: #27D7A1;
   --chart-3: #FFB547;
   --chart-4: #FF6B7A;
   --chart-5: #6E7891;
   --sidebar: #0B1020;
   --sidebar-foreground: #F5F7FF;
-  --sidebar-primary: #7C6CFF;
+  --sidebar-primary: #11B886;
   --sidebar-primary-foreground: #F5F7FF;
   --sidebar-accent: #12182B;
   --sidebar-accent-foreground: #F5F7FF;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: rgba(124, 108, 255, 0.16);
+  --sidebar-ring: rgba(17, 184, 134, 0.16);
 }
 
 @theme inline {
@@ -116,8 +116,8 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   
-  --color-purple: #7C6CFF;
-  --color-blue: #7C6CFF;
+  --color-purple: #11B886;
+  --color-blue: #11B886;
   --color-green: #27D7A1;
   --color-orange: #FFB547;
   --color-red: #FF6B7A;

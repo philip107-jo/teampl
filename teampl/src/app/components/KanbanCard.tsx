@@ -67,7 +67,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, projectMembers = [
           {(!task.assignees || task.assignees.length === 0) ? (
             <button 
               onClick={() => onClaim?.(task.id)}
-              className="px-3 py-1.5 bg-[#7C6CFF]/10 hover:bg-[#7C6CFF] text-[#7C6CFF] hover:text-white text-[10px] font-black rounded-lg transition-all border border-[#7C6CFF]/20"
+              className="px-3 py-1.5 bg-[#11B886]/10 hover:bg-[#11B886] text-[#11B886] hover:text-white text-[10px] font-black rounded-lg transition-all border border-[#11B886]/20"
             >
               나에게 배정
             </button>

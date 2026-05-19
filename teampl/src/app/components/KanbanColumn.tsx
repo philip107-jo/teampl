@@ -37,7 +37,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const getStatusColor = (s: TaskStatus) => {
     switch (s) {
       case 'TODO': return 'bg-white/20 shadow-none';
-      case 'IN_PROGRESS': return 'bg-[#7C6CFF] shadow-[0_0_10px_rgba(124,108,255,0.4)]';
+      case 'IN_PROGRESS': return 'bg-[#11B886] shadow-[0_0_10px_rgba(17,184,134,0.4)]';
       case 'DONE': return 'bg-[#23D7A1] shadow-[0_0_10px_rgba(35,215,161,0.4)]';
       default: return 'bg-white/20';
     }
@@ -47,7 +47,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     <div
       ref={drop as any}
       className={`flex flex-col w-full min-w-[320px] h-full rounded-[40px] p-6 transition-all border ${
-        isOver && canDrop ? 'bg-white/50 dark:bg-white/5 border-[#7C6CFF]/30 shadow-[0_0_30px_rgba(124,108,255,0.1)]' : 'bg-white dark:bg-[#12182B] border-gray-200 dark:border-white/5'
+        isOver && canDrop ? 'bg-white/50 dark:bg-white/5 border-[#11B886]/30 shadow-[0_0_30px_rgba(17,184,134,0.1)]' : 'bg-white dark:bg-[#12182B] border-gray-200 dark:border-white/5'
       }`}
     >
       <div className="flex items-center justify-between mb-6 px-2">

@@ -7,7 +7,7 @@ export const currentUser: User = {
   studentId: '20240001',
   department: '컴퓨터공학과',
   avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky',
-  avatarColor: 'bg-[#7C6CFF]'
+  avatarColor: 'bg-[#11B886]'
 };
 
 export const initialMembers: User[] = [

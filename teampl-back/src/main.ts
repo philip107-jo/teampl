@@ -53,6 +53,8 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
+import globalSchedulesRouter from './modules/schedules/global-schedules.controller';
+app.use('/api/schedules', globalSchedulesRouter);
 
 // 프로젝트 하위 라우트 (방 기반 구조)
 app.use('/api/projects/:projectId/tasks', tasksRouter);

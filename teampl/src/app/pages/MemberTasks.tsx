@@ -171,12 +171,12 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
         </div>
       );
       case "IN_PROGRESS": return (
-        <div className="w-10 h-10 rounded-2xl bg-[#7C6CFF]/20 flex items-center justify-center border border-[#7C6CFF]/30 shadow-[0_0_20px_rgba(124,108,255,0.3)]">
-          <Clock className="w-6 h-6 text-[#7C6CFF]" />
+        <div className="w-10 h-10 rounded-2xl bg-[#11B886]/20 flex items-center justify-center border border-[#11B886]/30 shadow-[0_0_20px_rgba(17,184,134,0.3)]">
+          <Clock className="w-6 h-6 text-[#11B886]" />
         </div>
       );
       default: return (
-        <div className="w-10 h-10 rounded-2xl bg-white/40 dark:bg-[#12182B] flex items-center justify-center border border-gray-300 dark:border-white/10 transition-all hover:border-[#7C6CFF]/40">
+        <div className="w-10 h-10 rounded-2xl bg-white/40 dark:bg-[#12182B] flex items-center justify-center border border-gray-300 dark:border-white/10 transition-all hover:border-[#11B886]/40">
           <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-white/20" />
         </div>
       );
@@ -199,14 +199,14 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
               <div className="flex bg-white dark:bg-[#12182B] p-1.5 rounded-2xl border border-gray-300 dark:border-white/10">
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-2.5 rounded-xl transition-all ${viewMode === "list" ? "bg-white/60 dark:bg-white/10 text-[#7C6CFF]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
+                  className={`p-2.5 rounded-xl transition-all ${viewMode === "list" ? "bg-white/60 dark:bg-white/10 text-[#11B886]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
                   title="리스트 뷰"
                 >
                   <ListIcon className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("board")}
-                  className={`p-2.5 rounded-xl transition-all ${viewMode === "board" ? "bg-white/60 dark:bg-white/10 text-[#7C6CFF]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
+                  className={`p-2.5 rounded-xl transition-all ${viewMode === "board" ? "bg-white/60 dark:bg-white/10 text-[#11B886]" : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"}`}
                   title="칸반 보드"
                 >
                   <LayoutGrid className="w-5 h-5" />
@@ -214,7 +214,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
               </div>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-[#7C6CFF] text-white rounded-2xl text-[14px] font-black shadow-[0_0_20px_rgba(124,108,255,0.4)] hover:opacity-90 active:scale-95 transition-all border border-[#7C6CFF]/50"
+                className="flex items-center gap-2 px-6 py-3 bg-[#11B886] text-white rounded-2xl text-[14px] font-black shadow-[0_0_20px_rgba(17,184,134,0.4)] hover:opacity-90 active:scale-95 transition-all border border-[#11B886]/50"
               >
                 <Plus className="w-5 h-5" />
                 태스크 추가
@@ -232,7 +232,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                   key={f}
                   onClick={() => setFilter(f as any)}
                   className={`px-5 py-2.5 rounded-[12px] text-[12px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${filter === f
-                    ? "bg-[#7C6CFF] text-white shadow-[0_0_15px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/50"
+                    ? "bg-[#11B886] text-white shadow-[0_0_15px_rgba(17,184,134,0.4)] border border-[#11B886]/50"
                     : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white"
                   }`}
                 >
@@ -254,7 +254,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-6">
                       <div className="flex-1 min-w-0">
-                        <h3 className={`font-black text-[17px] tracking-tight truncate mb-2.5 transition-colors ${task.status === 'DONE' ? 'line-through text-[#7D879C]/80 dark:text-white/40' : 'text-[#1A2340] dark:text-white group-hover:text-[#7C6CFF]'}`}>
+                        <h3 className={`font-black text-[17px] tracking-tight truncate mb-2.5 transition-colors ${task.status === 'DONE' ? 'line-through text-[#7D879C]/80 dark:text-white/40' : 'text-[#1A2340] dark:text-white group-hover:text-[#11B886]'}`}>
                           {task.title}
                         </h3>
                         <div className="flex items-center gap-4">
@@ -273,7 +273,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                                 <div 
                                   key={email}
                                   title={m?.name || "알 수 없는 유저"}
-                                  className={`w-6 h-6 rounded-full border-2 border-[var(--theme-bg)] flex items-center justify-center text-[9px] font-black text-white bg-[#7C6CFF]`}
+                                  className={`w-6 h-6 rounded-full border-2 border-[var(--theme-bg)] flex items-center justify-center text-[9px] font-black text-white bg-[#11B886]`}
                                 >
                                   {m?.name?.[0] || '?'}
                                 </div>
@@ -328,7 +328,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                       type="text"
                       placeholder="무엇을 완료해야 하나요?"
                       autoFocus
-                      className="w-full px-6 py-4 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] focus:bg-white/40 dark:bg-[#1A2340] outline-none transition-all placeholder-white/20 font-black text-[#1A2340] dark:text-white text-[15px]"
+                      className="w-full px-6 py-4 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] focus:bg-white/40 dark:bg-[#1A2340] outline-none transition-all placeholder-white/20 font-black text-[#1A2340] dark:text-white text-[15px]"
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
                     />
@@ -341,7 +341,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                         <button
                           onClick={() => setNewTaskStatus("TODO")}
                           className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${newTaskStatus === "TODO" 
-                            ? "bg-white/60 dark:bg-white/10 text-[#7C6CFF]"
+                            ? "bg-white/60 dark:bg-white/10 text-[#11B886]"
                             : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"
                           }`}
                         >
@@ -350,7 +350,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                         <button
                           onClick={() => setNewTaskStatus("IN_PROGRESS")}
                           className={`flex-1 py-2.5 rounded-xl text-[11px] font-black transition-all ${newTaskStatus === "IN_PROGRESS" 
-                            ? "bg-[#7C6CFF]/20 text-[#7C6CFF] border border-[#7C6CFF]/30"
+                            ? "bg-[#11B886]/20 text-[#11B886] border border-[#11B886]/30"
                             : "text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white"
                           }`}
                         >
@@ -363,7 +363,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                       <label className="hero-meta ml-1">마감일</label>
                       <input
                         type="date"
-                        className="w-full px-5 py-2.5 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] outline-none transition-all font-black text-[#1A2340] dark:text-white text-[13px]"
+                        className="w-full px-5 py-2.5 bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] outline-none transition-all font-black text-[#1A2340] dark:text-white text-[13px]"
                         value={newTaskDeadline}
                         onChange={(e) => setNewTaskDeadline(e.target.value)}
                       />
@@ -387,7 +387,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                             }}
                             className={`group relative flex items-center justify-center w-10 h-10 rounded-xl font-black text-[14px] transition-all ${
                               selectedAssignees.includes(m.email)
-                                ? "bg-[#7C6CFF] text-white ring-4 ring-[#7C6CFF]/20"
+                                ? "bg-[#11B886] text-white ring-4 ring-[#11B886]/20"
                                 : "bg-gray-100 dark:bg-white/5 text-[#7D879C] hover:bg-gray-200 dark:hover:bg-white/10"
                             }`}
                           >
@@ -426,7 +426,7 @@ export default function MemberTasks({ projectId: propProjectId }: MemberTasksPro
                   <button
                     onClick={handleAddTask}
                     disabled={!newTaskTitle.trim()}
-                    className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:bg-white/50 dark:bg-white/5 disabled:text-gray-300 dark:text-white/20 disabled:shadow-none transition-all active:scale-[0.98] border border-[#7C6CFF]/50 disabled:border-transparent text-[14px]"
+                    className="w-full py-5 bg-[#11B886] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(17,184,134,0.3)] disabled:bg-white/50 dark:bg-white/5 disabled:text-gray-300 dark:text-white/20 disabled:shadow-none transition-all active:scale-[0.98] border border-[#11B886]/50 disabled:border-transparent text-[14px]"
                   >
                     태스크 생성하기
                   </button>

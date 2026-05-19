@@ -92,7 +92,7 @@ export default function Notifications() {
             onClick={() => setActiveTab(tab)}
             className={`px-6 py-3 rounded-[20px] text-[12px] font-black uppercase tracking-widest transition-all ${
               activeTab === tab
-                ? "bg-[#7C6CFF] text-white shadow-[0_0_20px_rgba(124,108,255,0.4)] border border-[#7C6CFF]/40"
+                ? "bg-[#11B886] text-white shadow-[0_0_20px_rgba(17,184,134,0.4)] border border-[#11B886]/40"
                 : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-white/5 hover:text-[#1A2340] dark:text-white"
             }`}
           >
@@ -113,7 +113,7 @@ export default function Notifications() {
                 }`}
               >
                 {!noti.isRead && (
-                  <div className="absolute left-0 top-6 bottom-6 w-1.5 rounded-r-lg bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.6)]"></div>
+                  <div className="absolute left-0 top-6 bottom-6 w-1.5 rounded-r-lg bg-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.6)]"></div>
                 )}
                 
                 <div className={`schedule-item ${noti.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>

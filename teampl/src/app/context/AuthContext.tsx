@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('user', JSON.stringify(freshUser));
         } catch (e) {
           console.error("Token invalid or server error", e);
-          // logout(); // Optional: clear session if token invalid
+          logout(); // Clear session if token invalid
         }
       }
       

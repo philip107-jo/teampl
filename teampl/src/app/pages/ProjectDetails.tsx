@@ -5,7 +5,7 @@ import {
   ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
   CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard,
   Settings, UserX, UserCheck, RefreshCw, X, Crown,
-  CheckSquare, FolderOpen
+  CheckSquare, FolderOpen, BarChart3
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
@@ -26,7 +26,7 @@ export default function ProjectDetails() {
   const { onlineUsers, socket, activeChatKey } = useChat();
 
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const activeTab = searchParams.get('tab') || 'tasks';
 
   const [realProject, setRealProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,9 +115,9 @@ export default function ProjectDetails() {
     progress: 75,
     deadline: "2026.03.20",
     members: [
-      { id: 1, name: "나 (팀장)", avatarColor: "bg-[#7C6CFF]" },
+      { id: 1, name: "나 (팀장)", avatarColor: "bg-[#11B886]" },
       { id: 2, name: "김철수", avatarColor: "bg-[#27D7A1]" },
-      { id: 3, name: "이영희", avatarColor: "bg-[#7C6CFF]" },
+      { id: 3, name: "이영희", avatarColor: "bg-[#FF6B7A]" },
       { id: 4, name: "박민수", avatarColor: "bg-[#FFB547]" },
     ],
     theme: "blue",
@@ -151,7 +151,7 @@ export default function ProjectDetails() {
   const rawMembers = useMemo(() => {
     return project.membersList 
       ? project.membersList 
-      : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#7C6CFF]" }];
+      : [{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#11B886]" }];
   }, [project.membersList, user?.id, user?.name]);
 
   const displayMembers = useMemo(() => {
@@ -230,162 +230,96 @@ export default function ProjectDetails() {
   if (isLoading) {
     return (
       <div className="flex h-[75vh] items-center justify-center">
-         <div className="animate-spin w-8 h-8 border-4 border-[#7C6CFF] border-t-transparent rounded-full"></div>
+         <div className="animate-spin w-8 h-8 border-4 border-[#11B886] border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard pt-4">
-      {/* Header Sticky */}
-      <div className="hero-top mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate("/projects")}
-            className="hero-action flex items-center justify-center p-0"
-          >
-            <ChevronLeft className="w-6 h-6 text-[#1A2340] dark:text-white" />
-          </button>
-          <div className="flex items-center gap-4">
-            <div className={`schedule-item ${project.theme} !border-none !p-0 bg-transparent`}>
-              <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                {typeof project.icon === 'string' || !project.icon ? <Database className="w-6 h-6" /> : <project.icon className="w-6 h-6" />}
-              </div>
-            </div>
+    <div className="dashboard pt-0">
+      {/* White Header & Tab Wrapper */}
+      <div className="bg-white dark:bg-[#132038] border-b border-gray-200 dark:border-white/10 pt-6 mb-8">
+        {/* New Top Header matched to screenshot */}
+        <div className="flex items-start justify-between px-4 md:px-8 mb-6">
+          <div className="flex items-start gap-4">
+            <button 
+              onClick={() => navigate("/")}
+              className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
             <div>
-              <p className="hero-meta">{project.course}</p>
-              <h1 className="hero-title" style={{ fontSize: '1.4rem' }}>{project.name}</h1>
+              <h1 className="text-xl md:text-[22px] font-black text-[#1A2340] dark:text-white tracking-tight">{project.name}</h1>
+              <p className="text-[13px] text-gray-500 font-medium mt-0.5">{project.course}</p>
+            </div>
+          </div>
+          
+          {/* Profile & Settings (Right Side) */}
+          <div className="flex items-center gap-3">
+            <div className="hidden xs:flex items-center gap-2 mr-2">
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                <span className="text-xs font-bold text-gray-600">{user?.name?.[0]}</span>
+              </div>
+              <span className="text-sm font-bold text-gray-700 dark:text-white/80">{user?.name}님</span>
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              {isDropdownOpen && project.userRole === 'LEADER' && (
+                <div className="absolute right-0 top-12 mt-2 w-48 bg-white dark:bg-[#132038] rounded-xl shadow-lg border border-gray-100 dark:border-white/10 py-1 z-50">
+                  <button 
+                    onClick={() => { setIsSettingModalOpen(true); setIsDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold text-[#1A2340] dark:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    프로젝트 설정
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {project.inviteCode && (
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(project.inviteCode);
-                showToast("초대 코드가 클립보드에 복사되었습니다!", "success");
-              }}
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#12182B] text-[#27D7A1] rounded-2xl text-[14px] font-black border border-[#27D7A1]/30 shadow-[0_0_15px_rgba(39,215,161,0.2)] hover:bg-[#27D7A1]/10 transition-all"
-              title="클릭하여 복사하기"
+
+        {/* Tab Navigation Menu */}
+        <div className="px-4 md:px-8 flex gap-6 overflow-x-auto no-scrollbar pb-0.5">
+          {[
+            { id: 'tasks', label: '과제 관리', icon: CheckSquare },
+            { id: 'calendar', label: '일정', icon: CalendarIcon },
+            { id: 'chat', label: '채팅', icon: MessageSquare },
+            { id: 'drive', label: '자료실', icon: FolderOpen },
+            { id: 'vote', label: '투표', icon: BarChart3 },
+            { id: 'members', label: '팀원', icon: Users }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => navigate(`/projects/${projectId}?tab=${tab.id}`, { replace: true })}
+              className={`flex items-center gap-2 pb-3 px-1 border-b-2 whitespace-nowrap transition-colors -mb-[2px] ${
+                activeTab === tab.id
+                  ? "border-[#11B886] text-[#11B886] font-bold"
+                  : "border-transparent text-gray-500 hover:text-gray-700 font-medium"
+              }`}
             >
-              초대 코드: {project.inviteCode}
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
             </button>
-          )}
-          <button className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-[#12182B] text-[#7C6CFF] rounded-2xl text-[14px] font-black border border-gray-200 dark:border-white/5 shadow-[0_0_15px_rgba(124,108,255,0.2)] hover:bg-[#7C6CFF]/10 transition-all">
-            <LayoutDashboard className="w-4 h-4" />
-            칸반 뷰
-          </button>
-          <div className="relative">
-            <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="hero-action p-0 text-[#1A2340] dark:text-white flex items-center justify-center border-none bg-transparent hover:bg-white/60 dark:bg-white/10 shadow-none focus:outline-none z-10"
-            >
-              <Settings className="w-6 h-6" />
-            </button>
-            {isDropdownOpen && project.userRole === 'LEADER' && (
-              <div className="absolute right-0 top-12 mt-2 w-48 bg-white dark:bg-[#132038] rounded-xl shadow-lg border border-gray-100 dark:border-white/10 py-1 z-50">
-                <button 
-                  onClick={() => { setIsSettingModalOpen(true); setIsDropdownOpen(false); }}
-                  className="w-full text-left px-4 py-3 text-sm font-bold text-[#1A2340] dark:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  프로젝트 설정
-                </button>
-              </div>
-            )}
-          </div>
+          ))}
         </div>
       </div>
 
       {/* ===== Tab Content ===== */}
-      <section className="card hero-card mb-8">
-        {activeTab === 'overview' && (
-          <>
-            {/* Overview Info Card */}
-            <div className="card hero-card mb-8">
-            <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
-              <div className="space-y-8 flex-1">
-                <div>
-                  <h2 className="hero-title mb-3" style={{ fontSize: '2rem' }}>{project.name}</h2>
-                  <p className="text-[15px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed max-w-2xl">{project.description}</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-8">
-                  <div className="flex items-center gap-4">
-                    <div className="schedule-item orange !p-0 !border-none !bg-transparent">
-                      <div className="schedule-icon" style={{ width: 40, height: 40, borderRadius: 10 }}>
-                        <CalendarIcon className="w-5 h-5 text-[#1A2340] dark:text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="hero-meta mb-1 uppercase">마감일</p>
-                      <p className="text-[16px] font-black text-[#1A2340] dark:text-white">{project.deadline}</p>
-                    </div>
-                  </div>
-                  <div className="w-px h-12 bg-white/60 dark:bg-white/10"></div>
-                  <div>
-                    <p className="hero-meta uppercase mb-2">참여 팀원</p>
-                    <div className="flex -space-x-3">
-                      {displayMembers.map((member: any) => {
-                        const isLeader = member.role === 'LEADER';
-                        return (
-                          <div
-                            key={member.id}
-                            className={`w-10 h-10 rounded-full ${member.avatarColor} border-[3px] ${
-                              isLeader ? 'border-[#FFB547] shadow-[0_0_8px_rgba(255,181,71,0.7)]' : 'border-[#151C31]'
-                            } flex items-center justify-center text-white text-[13px] font-black shadow-md z-10 relative`}
-                            title={isLeader ? `${member.name} (팀장)` : member.name}
-                          >
-                            {member.name[0]}
-                            {isLeader && (
-                              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                                <Crown className="w-3.5 h-3.5 text-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.9)] fill-[#FFB547]" />
-                              </div>
-                            )}
-                            {onlineUsers.includes(member.email) && (
-                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#151C31]"></div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Circle */}
-              <div className="bg-white dark:bg-[#12182B] rounded-[32px] p-8 flex flex-col items-center justify-center min-w-[220px] border border-gray-200 dark:border-white/5 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
-                <div className="relative w-28 h-28 flex items-center justify-center mb-4">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/5" />
-                    <circle 
-                      cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="10" fill="transparent" 
-                      strokeDasharray="301.6" 
-                      strokeDashoffset={301.6 - (301.6 * (project.progress || 0)) / 100}
-                      className="text-[#7C6CFF] shadow-[0_0_20px_rgba(124,108,255,0.6)]" 
-                      strokeLinecap="round" 
-                    />
-                  </svg>
-                  <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-[28px] font-black text-[#1A2340] dark:text-white tracking-tight">{project.progress || 0}%</span>
-                  </div>
-                </div>
-                <p className="hero-meta uppercase mt-1">전체 진척도</p>
-              </div>
-            </div>
-          </div>
-
-          {/* MemberTasks embedded in overview */}
-          <MemberTasks projectId={numProjectId} />
-        </>
-      )}
-
-      {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
-      {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
-      {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
-      {activeTab === 'drive' && <Drive projectId={numProjectId} />}
-
-      </section>
+      <div className="px-4 md:px-8">
+        {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
+        {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
+        {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
+        {activeTab === 'drive' && <Drive projectId={numProjectId} />}
+        {activeTab === 'vote' && <div className="text-center py-20 text-gray-500">투표 기능은 준비중입니다.</div>}
+        {activeTab === 'members' && <div className="text-center py-20 text-gray-500">팀원 관리 기능은 준비중입니다.</div>}
+      </div>
 
       {/* Settings Modal */}
       {isSettingModalOpen && createPortal(
@@ -394,7 +328,7 @@ export default function ProjectDetails() {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0d1526]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#7C6CFF]/10 flex items-center justify-center text-[#7C6CFF]">
+                <div className="w-10 h-10 rounded-xl bg-[#11B886]/10 flex items-center justify-center text-[#11B886]">
                   <Settings className="w-5 h-5" />
                 </div>
                 <div>
@@ -414,7 +348,7 @@ export default function ProjectDetails() {
             <div className="flex border-b border-gray-200 dark:border-white/10">
               <button 
                 onClick={() => { setSettingTab("invite"); setSelectedUser(""); }}
-                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "invite" ? "text-[#7C6CFF] border-b-2 border-[#7C6CFF] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "invite" ? "text-[#11B886] border-b-2 border-[#11B886] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <RefreshCw className="w-4 h-4" />
                 팀원 초대
@@ -450,12 +384,12 @@ export default function ProjectDetails() {
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
                         placeholder="가입된 팀원의 이메일 입력"
-                        className="flex-1 bg-gray-50 dark:bg-[#0d1526] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#7C6CFF] transition-all placeholder-gray-400 font-medium"
+                        className="flex-1 bg-gray-50 dark:bg-[#0d1526] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all placeholder-gray-400 font-medium"
                       />
                       <button 
                         onClick={handleInviteByEmail}
                         disabled={!inviteEmail.trim()}
-                        className="px-6 py-3 bg-[#1A2340] dark:bg-[#7C6CFF] text-white rounded-xl text-sm font-black disabled:opacity-50 hover:bg-[#7C6CFF] transition-all whitespace-nowrap"
+                        className="px-6 py-3 bg-[#1A2340] dark:bg-[#11B886] text-white rounded-xl text-sm font-black disabled:opacity-50 hover:bg-[#0EA271] transition-all whitespace-nowrap"
                       >
                         초대 발송
                       </button>
@@ -465,7 +399,7 @@ export default function ProjectDetails() {
                   {/* 기존 초대코드 방식 */}
                   <div className="text-center space-y-2 pt-2">
                     <p className="text-[#1A2340] dark:text-white font-bold text-sm">초대코드 공유용 (외부 팀원)</p>
-                    <div className="text-3xl font-black tracking-widest text-[#7C6CFF] bg-[#7C6CFF]/10 py-4 rounded-2xl mx-auto max-w-[200px] border border-[#7C6CFF]/20">
+                    <div className="text-3xl font-black tracking-widest text-[#11B886] bg-[#11B886]/10 py-4 rounded-2xl mx-auto max-w-[200px] border border-[#11B886]/20">
                       {project.inviteCode || '-'}
                     </div>
                   </div>
@@ -479,7 +413,7 @@ export default function ProjectDetails() {
                   </div>
                   <button 
                     onClick={handleRegenerateInviteCode}
-                    className="w-full py-4 bg-[#7C6CFF] hover:bg-[#6A5BDB] text-white font-black rounded-xl transition-colors shadow-lg shadow-[#7C6CFF]/30 active:scale-[0.98]"
+                    className="w-full py-4 bg-[#11B886] hover:bg-[#0EA271] text-white font-black rounded-xl transition-colors shadow-lg shadow-[#11B886]/30 active:scale-[0.98]"
                   >
                     새 코드 발급하기
                   </button>

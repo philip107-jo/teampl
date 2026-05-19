@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Save } from "lucide-react";
+import { X, Calendar as CalendarIcon } from "lucide-react";
 import { taskApi } from "../api/taskApi";
 
 interface TaskCreateModalProps {
@@ -13,8 +13,6 @@ interface TaskCreateModalProps {
 export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName, onClose, onCreate }: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-  const [difficulty, setDifficulty] = useState<number>(3);
   const [deadline, setDeadline] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,8 +29,8 @@ export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName
         title,
         description,
         status: "TODO",
-        priority,
-        difficulty,
+        priority: "medium", // Default priority since removed from UI
+        difficulty: 3,      // Default difficulty since removed from UI
         deadline: deadline || "마감일 없음",
         ownerEmail: assigneeEmail,
         assignees: [assigneeEmail],
@@ -48,83 +46,78 @@ export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#1A2340] w-full max-w-lg rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-6 md:p-8 border-b border-gray-100 dark:border-white/5">
-          <div>
-            <h2 className="text-xl font-black text-[#1A2340] dark:text-white">새로운 업무 할당</h2>
-            <p className="text-sm font-bold text-[#7D879C] mt-1">{assigneeName} 님에게 배정할 태스크</p>
-          </div>
-          <button onClick={onClose} className="p-2 bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-gray-600 rounded-full transition-colors">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">새 과제 추가</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="space-y-2">
-            <label className="text-xs font-black text-[#7D879C] uppercase tracking-widest">업무 제목</label>
+            <label className="text-sm font-bold text-gray-700">과제 제목</label>
             <input 
               type="text" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 메인 페이지 UI 디자인"
-              className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#7C6CFF] transition-all dark:text-white"
+              placeholder="과제 제목을 입력하세요"
+              className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#11B886] transition-colors placeholder-gray-400"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-black text-[#7D879C] uppercase tracking-widest">상세 설명</label>
+            <label className="text-sm font-bold text-gray-700">설명</label>
             <textarea 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="업무의 상세 내용을 입력해주세요 (선택)"
-              className="w-full h-24 p-4 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm resize-none focus:outline-none focus:border-[#7C6CFF] transition-all dark:text-white"
+              placeholder="과제에 대한 설명"
+              className="w-full h-28 px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm resize-none focus:outline-none focus:border-[#11B886] transition-colors placeholder-gray-400"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-black text-[#7D879C] uppercase tracking-widest">우선순위</label>
-              <select 
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#7C6CFF] transition-all dark:text-white"
-              >
-                <option value="low">여유 (Low)</option>
-                <option value="medium">보통 (Medium)</option>
-                <option value="high">긴급 (High)</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-black text-[#7D879C] uppercase tracking-widest">난이도 (1~5)</label>
+              <label className="text-sm font-bold text-gray-700">담당자</label>
               <input 
-                type="number" 
-                min="1" max="5"
-                value={difficulty}
-                onChange={(e) => setDifficulty(Number(e.target.value))}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#7C6CFF] transition-all dark:text-white"
+                type="text" 
+                readOnly
+                value={assigneeName}
+                placeholder="담당자 이름"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-500 cursor-not-allowed outline-none"
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">마감일</label>
+              <div className="relative">
+                <input 
+                  type="date" 
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#11B886] transition-colors text-gray-600"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-black text-[#7D879C] uppercase tracking-widest">마감일</label>
-            <input 
-              type="text" 
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              placeholder="예: 5월 20일"
-              className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#7C6CFF] transition-all dark:text-white"
-            />
-          </div>
-
-          <div className="pt-4">
+          {/* Footer Buttons */}
+          <div className="flex items-center gap-3 pt-4">
+            <button 
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3.5 bg-white border border-gray-200 text-gray-700 font-bold text-sm rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
             <button 
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-[#7C6CFF] hover:bg-[#6A5AE0] text-white font-black rounded-xl transition-all shadow-lg shadow-[#7C6CFF]/30 disabled:opacity-50 active:scale-[0.98]"
+              className="flex-1 py-3.5 bg-[#11B886] hover:bg-[#0EA271] text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
             >
-              {loading ? "생성 중..." : "업무 생성 및 할당"}
+              {loading ? "추가 중..." : "추가하기"}
             </button>
           </div>
         </form>

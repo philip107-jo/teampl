@@ -103,9 +103,9 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[14px] font-black text-[#7D879C] uppercase tracking-widest">상세 설명</h3>
               {!isEditingDesc ? (
-                <button onClick={() => setIsEditingDesc(true)} className="text-[12px] font-bold text-[#7C6CFF] hover:underline">편집</button>
+                <button onClick={() => setIsEditingDesc(true)} className="text-[12px] font-bold text-[#11B886] hover:underline">편집</button>
               ) : (
-                <button onClick={handleSaveDescription} className="flex items-center gap-1 text-[12px] font-bold text-white bg-[#7C6CFF] px-3 py-1 rounded-full hover:bg-[#6A5AE0]">
+                <button onClick={handleSaveDescription} className="flex items-center gap-1 text-[12px] font-bold text-white bg-[#11B886] px-3 py-1 rounded-full hover:bg-[#11B886]/90">
                   <Save className="w-3 h-3" /> 저장
                 </button>
               )}
@@ -116,7 +116,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="업무에 대한 자세한 내용을 작성해주세요 (마크다운 지원 가능)"
-                className="w-full h-32 p-4 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm resize-none focus:outline-none focus:border-[#7C6CFF] transition-colors"
+                className="w-full h-32 p-4 rounded-xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm resize-none focus:outline-none focus:border-[#11B886] transition-colors"
               />
             ) : (
               <div className="w-full min-h-[5rem] p-4 rounded-xl bg-gray-50 dark:bg-[#12182B]/50 border border-transparent text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
@@ -142,7 +142,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                 ) : (
                   comments.map(comment => (
                     <div key={comment.id} className="group flex gap-4 p-4 rounded-2xl bg-white dark:bg-[#12182B] border border-gray-100 dark:border-white/5 shadow-sm">
-                      <div className="w-8 h-8 rounded-full bg-[#7C6CFF] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#11B886] text-white flex items-center justify-center font-bold text-sm shrink-0">
                         {comment.user.name[0]}
                       </div>
                       <div className="flex-1">
@@ -172,12 +172,12 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="댓글을 입력하세요..."
-                className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#7C6CFF] transition-all"
+                className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#11B886] transition-all"
               />
               <button 
                 type="submit"
                 disabled={!newComment.trim()}
-                className="absolute right-2 top-2 bottom-2 px-4 bg-[#7C6CFF] hover:bg-[#6A5AE0] disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                className="absolute right-2 top-2 bottom-2 px-4 bg-[#11B886] hover:bg-[#11B886]/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
               >
                 등록
               </button>

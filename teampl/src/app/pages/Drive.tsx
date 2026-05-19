@@ -176,7 +176,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               새 폴더
             </button>
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-            <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-[#7C6CFF] text-white rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_0_20px_rgba(124,108,255,0.4)]">
+            <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-3.5 bg-[#11B886] text-white rounded-[20px] text-[14px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_0_20px_rgba(17,184,134,0.4)]">
               <Upload className="w-5 h-5" />
               파일 업로드
             </button>
@@ -195,7 +195,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide w-full sm:w-auto text-[14px] font-black uppercase tracking-widest">
               {currentPath.map((path, idx) => (
                 <div key={path.id} className="flex items-center gap-3 group whitespace-nowrap">
-                  <button className={`hover:text-[#7C6CFF] transition-all ${idx === currentPath.length - 1 ? 'text-[#1A2340] dark:text-white' : 'text-[#7D879C]/80 dark:text-white/40'}`}>
+                  <button className={`hover:text-[#11B886] transition-all ${idx === currentPath.length - 1 ? 'text-[#1A2340] dark:text-white' : 'text-[#7D879C]/80 dark:text-white/40'}`}>
                     {path.name}
                   </button>
                   {idx < currentPath.length - 1 && (
@@ -206,13 +206,13 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {isLoading && <Loader2 className="w-5 h-5 animate-spin text-[#7C6CFF]" />}
+              {isLoading && <Loader2 className="w-5 h-5 animate-spin text-[#11B886]" />}
               <div className="relative flex-1 sm:w-72 group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7D879C]/80 dark:text-white/40 group-focus-within:text-[#7C6CFF] transition-colors" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7D879C]/80 dark:text-white/40 group-focus-within:text-[#11B886] transition-colors" />
                 <input
                   type="text"
                   placeholder="통합 검색..."
-                  className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/5 rounded-[20px] text-[14px] font-black uppercase tracking-widest text-[#1A2340] dark:text-white placeholder-white/20 focus:outline-none focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] transition-all"
+                  className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/5 rounded-[20px] text-[14px] font-black uppercase tracking-widest text-[#1A2340] dark:text-white placeholder-white/20 focus:outline-none focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] transition-all"
                 />
               </div>
               <button className="p-3.5 bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/5 rounded-[20px] text-[#7D879C]/80 dark:text-white/40 hover:text-[#1A2340] dark:text-white hover:bg-white/60 dark:bg-white/10 transition-all shadow-sm">
@@ -261,7 +261,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-[#7C6CFF] text-white shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/60 dark:bg-white/10'}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-[#11B886] text-white shadow-[0_0_15px_rgba(17,184,134,0.4)]' : 'bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/60 dark:bg-white/10'}`}
                   >
                     {tab}
                   </button>
@@ -286,7 +286,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white truncate transition-colors mb-0.5 group-hover:text-[#7C6CFF]">{file.name}</p>
+                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white truncate transition-colors mb-0.5 group-hover:text-[#11B886]">{file.name}</p>
                         <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{file.isWeb ? 'WEB DOCUMENT' : 'STATIC FILE'}</p>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                                 e.stopPropagation();
                                 if ((file as any).webUrl) window.open((file as any).webUrl, '_blank');
                               }}
-                              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#7C6CFF]/20 text-[#7C6CFF] border border-[#7C6CFF]/30 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_10px_rgba(124,108,255,0.2)] hover:bg-[#7C6CFF]/30" 
+                              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#11B886]/20 text-[#11B886] border border-[#11B886]/30 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_10px_rgba(17,184,134,0.2)] hover:bg-[#11B886]/30" 
                               title="웹에서 열기"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
@@ -370,7 +370,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               </div>
             </div>
             <p className="text-[14px] font-black text-[#1A2340] dark:text-white mb-1 uppercase tracking-widest">DRAG & DROP</p>
-            <p className="text-[11px] font-black text-[#7C6CFF] uppercase tracking-widest">ZIP, PDF, MP4, ETC</p>
+            <p className="text-[11px] font-black text-[#11B886] uppercase tracking-widest">ZIP, PDF, MP4, ETC</p>
           </div>
 
           <div className="card !p-8 border border-gray-200 dark:border-white/5">
@@ -433,15 +433,15 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               initial={{ scale: 0.9, y: 40, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 40, opacity: 0 }}
-              className="card w-full max-w-[440px] !p-8 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(124,108,255,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
+              className="card w-full max-w-[440px] !p-8 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(17,184,134,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
               style={isDark ? { background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' } : {}}
             >
               {/* Decoration Glow */}
-              <div className={`absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/15 blur-[60px] rounded-full`} />
+              <div className={`absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#11B886]/15 blur-[60px] rounded-full`} />
               
               <div className="relative z-10 space-y-8">
                 <div className="flex justify-between items-center mb-2">
-                   <div className={`px-4 py-1.5 rounded-xl bg-[#7C6CFF]/10 text-[#7C6CFF] text-[11px] font-black uppercase tracking-widest`}>
+                   <div className={`px-4 py-1.5 rounded-xl bg-[#11B886]/10 text-[#11B886] text-[11px] font-black uppercase tracking-widest`}>
                       Create Microsoft Asset
                    </div>
                    <button 
@@ -489,7 +489,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                           }
                        }}
                        placeholder="파일 제목 입력"
-                       className="w-full px-6 py-4 bg-white dark:bg-[#12182B]/60 border border-gray-200 dark:border-white/10 rounded-2xl text-[16px] font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7C6CFF]/50 transition-all shadow-inner"
+                       className="w-full px-6 py-4 bg-white dark:bg-[#12182B]/60 border border-gray-200 dark:border-white/10 rounded-2xl text-[16px] font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#11B886]/50 transition-all shadow-inner"
                      />
                   </div>
                 </div>
@@ -513,7 +513,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                         setIsCreating(false);
                       }
                     }}
-                    className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(124,108,255,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                    className="w-full py-5 bg-[#11B886] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(17,184,134,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                   >
                     {isCreating ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

@@ -73,11 +73,11 @@ export default function EditProfile() {
       <div className="pb-24">
         <div className="card !p-10 border border-gray-200 dark:border-white/5 relative overflow-hidden !rounded-[40px]">
           {/* Decorative blob */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-[#7C6CFF]/10 rounded-bl-full -z-10 blur-3xl" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#11B886]/10 rounded-bl-full -z-10 blur-3xl" />
 
           {/* Avatar Preview */}
           <div className="flex items-center gap-6 mb-10">
-            <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-[#7C6CFF] to-[#3B2D9C] flex items-center justify-center text-white text-[32px] font-black shadow-[0_0_30px_rgba(124,108,255,0.4)] flex-shrink-0">
+            <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white text-[32px] font-black shadow-[0_0_30px_rgba(17,184,134,0.4)] flex-shrink-0">
               {formData.name?.[0] || user?.name?.[0] || "U"}
             </div>
             <div>
@@ -101,12 +101,12 @@ export default function EditProfile() {
               <label className="text-sm font-bold text-[#7D879C] ml-1">이름</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
+                  <User className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-[#11B886] transition-colors" />
                 </div>
                 <input
                   type="text"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[#1A2340] dark:text-white placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[#1A2340] dark:text-white placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] outline-none transition-all"
                   placeholder="홍길동"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -119,11 +119,11 @@ export default function EditProfile() {
               <label className="text-sm font-bold text-[#7D879C] ml-1">학번</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <GraduationCap className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
+                  <GraduationCap className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-[#11B886] transition-colors" />
                 </div>
                 <input
                   type="text"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[#1A2340] dark:text-white placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[#1A2340] dark:text-white placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] outline-none transition-all"
                   placeholder="20240001"
                   value={formData.studentId}
                   onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
@@ -137,10 +137,10 @@ export default function EditProfile() {
               <button
                 type="button"
                 onClick={() => setIsDeptOpen(!isDeptOpen)}
-                className="w-full px-5 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-left flex items-center justify-between group hover:border-indigo-200 transition-all"
+                className="w-full px-5 py-4 bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-left flex items-center justify-between group hover:border-[#11B886]/30 transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-[#7D879C]/80 group-hover:text-indigo-600 transition-colors" />
+                  <Building2 className="w-5 h-5 text-[#7D879C]/80 group-hover:text-[#11B886] transition-colors" />
                   <span className={formData.department ? "text-[#1A2340] dark:text-white font-medium" : "text-[#7D879C]/80"}>
                     {formData.department || "소속 학과를 선택해주세요"}
                   </span>
@@ -155,10 +155,10 @@ export default function EditProfile() {
                       key={dept}
                       type="button"
                       onClick={() => { setFormData({ ...formData, department: dept }); setIsDeptOpen(false); }}
-                      className="w-full px-4 py-3 text-left text-sm text-[#7D879C] dark:text-white/70 hover:bg-indigo-50 dark:hover:bg-white/5 hover:text-indigo-600 rounded-xl transition-colors flex items-center justify-between group"
+                      className="w-full px-4 py-3 text-left text-sm text-[#7D879C] dark:text-white/70 hover:bg-[#11B886]/10 dark:hover:bg-white/5 hover:text-[#11B886] rounded-xl transition-colors flex items-center justify-between group"
                     >
                       {dept}
-                      {formData.department === dept && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                      {formData.department === dept && <CheckCircle2 className="w-4 h-4 text-[#11B886]" />}
                     </button>
                   ))}
                 </div>
@@ -178,7 +178,7 @@ export default function EditProfile() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 py-4 bg-[#11B886] hover:bg-[#11B886]/90 text-white rounded-2xl font-bold shadow-lg shadow-[#11B886]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target, Crown } from "lucide-react";
+import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target, Crown, Calendar as CalendarIcon, MessageSquare, FolderOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { initialMembers } from "../mockData";
 import { Task } from "../types";
@@ -78,7 +78,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="dashboard pb-safe flex items-center justify-center p-6 h-[70vh]">
-        <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#7C6CFF] border-t-transparent"></div>
+        <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#11B886] border-t-transparent"></div>
       </div>
     );
   }
@@ -93,7 +93,7 @@ export default function Dashboard() {
         <p className="text-[13px] font-bold text-[#7D879C]/80 dark:text-white/40 mb-8 max-w-[280px] leading-relaxed">대시보드를 보려면 먼저 프로젝트를 생성하거나 초대를 통해 팀에 합류하세요.</p>
         <button 
           onClick={() => navigate("/projects")}
-          className="px-6 py-4 bg-[#7C6CFF] text-white rounded-2xl text-[14px] font-black tracking-widest uppercase shadow-[0_0_20px_rgba(124,108,255,0.3)] hover:opacity-90 active:scale-95 transition-all"
+          className="px-6 py-4 bg-[#11B886] text-white rounded-2xl text-[14px] font-black tracking-widest uppercase shadow-[0_0_20px_rgba(17,184,134,0.3)] hover:opacity-90 active:scale-95 transition-all"
         >
           프로젝트 화면으로 가기
         </button>
@@ -194,34 +194,24 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <section className="stats-grid">
-        <article className="stat-card orange">
-          <div className="stat-icon"><BarChart3 className="w-7 h-7" /></div>
-          <div className="stat-label">총 작업량</div>
-          <div className="stat-value">{totalTasks.toLocaleString()}건</div>
-          <div className="stat-delta positive">+0 vs start</div>
-        </article>
-
-        <article className="stat-card green">
-          <div className="stat-icon"><CheckCircle2 className="w-7 h-7" /></div>
-          <div className="stat-label">완료율</div>
-          <div className="stat-value">{progressPercentage}%</div>
-          <div className="stat-delta positive">Based on {completedCount} tasks</div>
-        </article>
-
-        <article className="stat-card red">
-          <div className="stat-icon"><AlertCircle className="w-7 h-7" /></div>
-          <div className="stat-label">남은 작업</div>
-          <div className="stat-value">{todoCount}건</div>
-          <div className="stat-delta negative">{inProgressCount} in progress</div>
-        </article>
-
-        <article className="stat-card blue">
-          <div className="stat-icon"><Users2 className="w-7 h-7" /></div>
-          <div className="stat-label">팀원 수</div>
-          <div className="stat-value">{displayMembers.length}명</div>
-          <div className="stat-delta">0 vs last week</div>
-        </article>
+      <section className="flex justify-center gap-6 sm:gap-10 my-8">
+        {[
+          { id: 'tasks', label: '업무', icon: <CheckCircle2 className="w-8 h-8" />, color: 'bg-[#FFB547]', link: `/projects/${selectedProject.id}?tab=tasks` },
+          { id: 'calendar', label: '일정', icon: <CalendarIcon className="w-8 h-8" />, color: 'bg-[#11B886]', link: `/projects/${selectedProject.id}?tab=calendar` },
+          { id: 'chat', label: '채팅', icon: <MessageSquare className="w-8 h-8" />, color: 'bg-[#27D7A1]', link: `/projects/${selectedProject.id}?tab=chat` },
+          { id: 'drive', label: '자료', icon: <FolderOpen className="w-8 h-8" />, color: 'bg-[#FF6B7A]', link: `/projects/${selectedProject.id}?tab=drive` }
+        ].map(shortcut => (
+          <button 
+            key={shortcut.id}
+            onClick={() => navigate(shortcut.link)}
+            className="flex flex-col items-center gap-3 group active:scale-95 transition-all"
+          >
+            <div className={`w-20 h-20 rounded-full ${shortcut.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-2xl transition-all group-hover:-translate-y-2`}>
+              {shortcut.icon}
+            </div>
+            <span className="text-sm font-black text-[#1A2340] dark:text-white/80">{shortcut.label}</span>
+          </button>
+        ))}
       </section>
 
       <section className="analysis-grid">
@@ -319,11 +309,11 @@ export default function Dashboard() {
                   onClick={() => handleSelectProject(project)}
                   className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-95 text-left border ${
                     selectedProject.id === project.id 
-                      ? "bg-[#7C6CFF]/10 border-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.2)]" 
+                      ? "bg-[#11B886]/10 border-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.2)]" 
                       : "bg-white/5 border-white/5 hover:bg-white/10"
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-[#7C6CFF]/20 text-[#7C6CFF]`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-[#11B886]/20 text-[#11B886]`}>
                     {typeof project.icon === 'string' || !project.icon ? <Database className="w-6 h-6"/> : <project.icon className="w-6 h-6" />}
                   </div>
                   <div>

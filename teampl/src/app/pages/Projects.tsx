@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle, FolderOpen } from "lucide-react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
@@ -173,139 +173,90 @@ export default function Projects() {
   };
 
   return (
-    <div className="dashboard pt-4">
-      {/* Page Title & Actions Section - Hero Card Style */}
-      <section className="card hero-card">
-        <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
-          <div>
-            <div className="hero-meta">관리중인</div>
-            <h1 className="hero-title" style={{ fontSize: '2rem' }}>팀 프로젝트</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsJoinModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#12182B] text-[#7C6CFF] rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.1)] transition-all hover:scale-105 border border-[#7C6CFF]/30 active:scale-95"
-            >
-              초대코드로 방 입장하기
-            </button>
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#7C6CFF] text-white rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.4)] transition-all hover:scale-105 border border-gray-300 dark:border-white/10 active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              새 프로젝트
-            </button>
-          </div>
+    <div className="dashboard pt-8 pb-safe max-w-7xl mx-auto px-4 md:px-8">
+      {/* Page Title & Actions Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
+        <div>
+          <h1 className="text-[26px] font-black text-[#1A2340] dark:text-white tracking-tight mb-2">내 프로젝트</h1>
+          <p className="text-[14px] text-[#7D879C] font-medium">참여 중인 팀프로젝트를 관리하세요</p>
         </div>
-      </section>
-
-      {/* Summary Cards Section */}
-      <section className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-        <article className="stat-card blue">
-          <div className="stat-icon"><Clock className="w-6 h-6" /></div>
-          <div className="stat-label">진행중</div>
-          <div className="stat-value">{projects.filter(p => p.progress < 100).length}개</div>
-        </article>
-        
-        <article className="stat-card green">
-          <div className="stat-icon"><CheckCircle2 className="w-6 h-6" /></div>
-          <div className="stat-label">완료</div>
-          <div className="stat-value">{projects.filter(p => p.progress === 100).length}개</div>
-        </article>
-      </section>
-
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 mt-2 mb-2">
-        {["전체", "진행중", "완료", "보류"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-[20px] py-[8px] rounded-xl text-[13px] font-bold transition-all ${activeTab === tab
-                ? "bg-[#7C6CFF] text-white shadow-[0_0_15px_rgba(124,108,255,0.4)]"
-                : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/60 dark:bg-white/10"
-              }`}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsJoinModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-[#12182B] text-[#7D879C] rounded-full text-[14px] font-bold shadow-sm hover:shadow-md transition-all active:scale-95 border border-gray-200 dark:border-white/10"
           >
-            {tab}
+            초대 코드 입력
           </button>
-        ))}
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-full text-[14px] font-bold shadow-[0_4px_14px_rgba(17,184,134,0.3)] transition-all active:scale-95 border-none"
+          >
+            <Plus className="w-5 h-5" />
+            프로젝트 생성
+          </button>
+        </div>
       </div>
 
       {/* Projects List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
           {projects.filter(p => p.userStatus !== 'KICKED').map((project) => (
             <motion.div
               key={project.id}
               layout
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -20, transition: { duration: 0.2 } }}
-              transition={{ 
-                duration: 0.4, 
-                ease: [0.25, 0.1, 0.25, 1], // ease-out-quart-ish
-                layout: { duration: 0.3 }
-              }}
-              style={{ width: '100%', height: '100%' }}
+              exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
             >
               <Link
                 to={`/projects/${project.id}`}
-                className="card !block group transition-transform hover:scale-[1.02] border border-gray-200 dark:border-white/5 h-full"
-                style={{ padding: '1.5rem 1.8rem' }}
+                className="block bg-white dark:bg-[#132038] rounded-2xl p-7 border border-gray-100 dark:border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 h-full flex flex-col relative group"
               >
-                <div className="flex items-start justify-between mb-6">
-                  <div className={`schedule-item ${project.theme || project.color} !border-none !p-0 bg-transparent`} style={project.color?.startsWith('#') ? {} : undefined}>
-                    <div className="schedule-icon" style={{ width: 60, height: 60, borderRadius: 16, ...(project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${project.color}30` } : {}) }}>
-                      {typeof project.icon === 'string' || !project.icon ? <Database className="w-8 h-8"/> : <project.icon className="w-8 h-8" />}
-                    </div>
+                {/* Project Header: Icon & Actions */}
+                <div className="flex items-start justify-between mb-5">
+                  <div 
+                    className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center shadow-sm"
+                    style={project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white' } : { backgroundColor: '#11B886', color: 'white' }}
+                  >
+                    <FolderOpen className="w-6 h-6" />
                   </div>
+                  
                   {project.userRole === 'LEADER' && (
-                    <div className="flex items-center gap-1 z-10 relative">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
-                        className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-[#7C6CFF] hover:bg-[#7C6CFF]/10 rounded-lg transition-all"
+                        className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"
                         onClick={(e) => handleEditClick(e, project)}
                         title="수정하기"
                       >
-                        <Edit2 className="w-5 h-5" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        className="p-1.5 text-[#7D879C]/80 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                         onClick={(e) => handleDeleteClick(e, project)}
                         title="삭제하기"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-3 mb-6">
-                  <span className="badge">{project.course}</span>
-                  <h3 className="card-title text-[1.4rem] tracking-tight">{project.name}</h3>
-                  <p className="text-[13px] text-[#7D879C] dark:text-white/50 font-medium leading-relaxed">{project.description}</p>
+                {/* Project Info */}
+                <div className="mb-8 flex-1">
+                  <h3 className="text-[18px] font-bold text-[#1A2340] dark:text-white tracking-tight mb-2 line-clamp-1">{project.name}</h3>
+                  <p className="text-[13px] text-[#7D879C] dark:text-white/60 leading-relaxed line-clamp-2">{project.description}</p>
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5 mt-auto">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">진척도</span>
-                      <span className="text-[13px] font-black text-[#1A2340] dark:text-white">{project.progress}%</span>
-                    </div>
-                    <div className={`bar ${project.theme}`}>
-                      <span style={{ width: `${project.progress}%` }}></span>
-                    </div>
+                {/* Project Meta Footer */}
+                <div className="flex items-center gap-4 text-[12px] text-[#9AA4B2] font-medium pt-4 border-t border-gray-100 dark:border-white/5">
+                  <div className="flex items-center gap-1.5">
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span className="truncate max-w-[100px]">{project.course}</span>
                   </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
-                        <Calendar className="w-4 h-4" />
-                        <span>{project.deadline}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#7D879C]/80 dark:text-white/40">
-                        <Users className="w-4 h-4" />
-                        <span>{project.members}명</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{project.deadline}</span>
                   </div>
                 </div>
               </Link>
@@ -331,7 +282,7 @@ export default function Projects() {
                   type="text"
                   placeholder="프로젝트 이름을 입력하세요"
                   autoFocus
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
                   value={newProject.name}
                   onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
                 />
@@ -341,7 +292,7 @@ export default function Projects() {
                 <input
                   type="text"
                   placeholder="예: 데이터베이스, 졸업과제"
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
                   value={newProject.course}
                   onChange={(e) => setNewProject({ ...newProject, course: e.target.value })}
                 />
@@ -350,7 +301,7 @@ export default function Projects() {
                 <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">설명</label>
                 <textarea
                   placeholder="프로젝트에 대한 간단한 설명"
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[100px]"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[100px]"
                   value={newProject.description}
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                 />
@@ -360,7 +311,7 @@ export default function Projects() {
                   <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">마감 날짜</label>
                   <input
                     type="date"
-                    className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all dark:text-white"
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all dark:text-white"
                     value={newProject.deadline}
                     onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
                   />
@@ -381,7 +332,7 @@ export default function Projects() {
               <button
                 onClick={handleAddProject}
                 disabled={!newProject.name.trim()}
-                className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
+                className="w-full py-5 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(17,184,134,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
               >
                 프로젝트 생성하기
               </button>
@@ -407,7 +358,7 @@ export default function Projects() {
                   type="text"
                   placeholder="프로젝트 이름을 입력하세요"
                   autoFocus
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
                   value={editingProject.name}
                   onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
                 />
@@ -417,7 +368,7 @@ export default function Projects() {
                 <input
                   type="text"
                   placeholder="예: 데이터베이스, 졸업과제"
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white"
                   value={editingProject.course}
                   onChange={(e) => setEditingProject({ ...editingProject, course: e.target.value })}
                 />
@@ -426,7 +377,7 @@ export default function Projects() {
                 <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">설명</label>
                 <textarea
                   placeholder="프로젝트에 대한 간단한 설명"
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[100px]"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white min-h-[100px]"
                   value={editingProject.description}
                   onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
                 />
@@ -434,7 +385,7 @@ export default function Projects() {
               <button
                 onClick={handleUpdateProject}
                 disabled={!editingProject.name.trim()}
-                className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
+                className="w-full py-5 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(17,184,134,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
               >
                 변경사항 저장하기
               </button>
@@ -499,7 +450,7 @@ export default function Projects() {
                   type="text"
                   placeholder="6자리 영문/숫자 코드"
                   autoFocus
-                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white uppercase font-black tracking-widest text-lg"
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white uppercase font-black tracking-widest text-lg"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 />
@@ -507,7 +458,7 @@ export default function Projects() {
               <button
                 onClick={handleJoinProject}
                 disabled={!inviteCode.trim() || inviteCode.trim().length < 2}
-                className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(124,108,255,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
+                className="w-full py-5 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(17,184,134,0.3)] disabled:opacity-30 transition-all active:scale-[0.98]"
               >
                 참여하기
               </button>
@@ -529,14 +480,14 @@ export default function Projects() {
               initial={{ scale: 0.9, y: 40, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 40, opacity: 0 }}
-              className="card w-full max-w-[440px] !p-10 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(124,108,255,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
+              className="card w-full max-w-[440px] !p-10 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(17,184,134,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
               style={isDark ? { background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' } : {}}
             >
               {/* Glow Decoration */}
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#7C6CFF]/15 dark:bg-[#7C6CFF]/20 blur-[60px] rounded-full" />
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#11B886]/15 dark:bg-[#11B886]/20 blur-[60px] rounded-full" />
               
               <div className="relative z-10">
-                <div className="w-24 h-24 bg-[#7C6CFF]/10 rounded-[32px] flex items-center justify-center text-[#7C6CFF] mb-8 mx-auto shadow-[inset_0_0_20px_rgba(124,108,255,0.1),0_0_30px_rgba(124,108,255,0.1)] dark:shadow-[inset_0_0_20px_rgba(124,108,255,0.2),0_0_30px_rgba(124,108,255,0.2)]">
+                <div className="w-24 h-24 bg-[#11B886]/10 rounded-[32px] flex items-center justify-center text-[#11B886] mb-8 mx-auto shadow-[inset_0_0_20px_rgba(17,184,134,0.1),0_0_30px_rgba(17,184,134,0.1)] dark:shadow-[inset_0_0_20px_rgba(17,184,134,0.2),0_0_30px_rgba(17,184,134,0.2)]">
                   <CheckCircle2 className="w-12 h-12" />
                 </div>
                 
@@ -550,7 +501,7 @@ export default function Projects() {
                 <div className="grid gap-3">
                   <button
                     onClick={() => setIsMsSuccessModalOpen(false)}
-                    className="w-full py-5 bg-[#7C6CFF] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(124,108,255,0.3)] hover:scale-[1.02] active:scale-95 transition-all"
+                    className="w-full py-5 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(17,184,134,0.3)] hover:scale-[1.02] active:scale-95 transition-all"
                   >
                     지금 바로 시작하기
                   </button>

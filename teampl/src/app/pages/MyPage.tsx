@@ -34,16 +34,16 @@ export default function MyPage() {
         <div className="lg:col-span-8 space-y-8">
           {/* Profile Card */}
           <div className="card !p-10 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden group transition-all !rounded-[40px] border border-gray-200 dark:border-white/5">
-            <div className={`absolute top-0 right-0 w-48 h-48 bg-[#7C6CFF]/10 rounded-bl-full -z-10 opacity-50 blur-3xl group-hover:scale-110 transition-transform duration-700`}></div>
+            <div className={`absolute top-0 right-0 w-48 h-48 bg-[#11B886]/10 rounded-bl-full -z-10 opacity-50 blur-3xl group-hover:scale-110 transition-transform duration-700`}></div>
             
             <div className="relative group/avatar cursor-pointer flex-shrink-0">
-              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-[#7C6CFF] to-[#3B2D9C] flex items-center justify-center text-[#1A2340] dark:text-white text-[48px] font-black shadow-[0_0_40px_rgba(124,108,255,0.4)]">
+              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-[#1A2340] dark:text-white text-[48px] font-black shadow-[0_0_40px_rgba(17,184,134,0.4)]">
                 {user?.name?.[0] || "U"}
               </div>
               <div className="absolute inset-0 bg-black/60 rounded-[40px] opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
                 <Camera className="w-10 h-10 text-[#1A2340] dark:text-white" />
               </div>
-              <button className="absolute -bottom-2 -right-2 w-11 h-11 bg-white/40 dark:bg-[#1A2340] rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/80 hover:text-[#7C6CFF] transition-all active:scale-95">
+              <button className="absolute -bottom-2 -right-2 w-11 h-11 bg-white/40 dark:bg-[#1A2340] rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/80 hover:text-[#11B886] transition-all active:scale-95">
                 <Camera className="w-5 h-5" />
               </button>
             </div>
@@ -72,7 +72,7 @@ export default function MyPage() {
             {/* Account Info */}
             <div className="card !p-8 space-y-8 border border-gray-200 dark:border-white/5">
               <h3 className="hero-meta flex items-center gap-3">
-                <User className="w-5 h-5 text-[#7C6CFF]" />
+                <User className="w-5 h-5 text-[#11B886]" />
                 계정 상세 정보
               </h3>
               <div className="space-y-4">
@@ -88,10 +88,10 @@ export default function MyPage() {
                            window.location.href = `http://localhost:8080/api/users/ms-login?token=${localStorage.getItem('access_token')}`;
                         }
                     }}
-                    className={`flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 transition-all group ${item.isMsAuth && !user?.isUnivVerified ? 'cursor-pointer hover:bg-[#7C6CFF]/10 hover:border-[#7C6CFF]/30 hover:shadow-[0_4px_20px_rgba(124,108,255,0.2)]' : 'cursor-default hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}
+                    className={`flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 transition-all group ${item.isMsAuth && !user?.isUnivVerified ? 'cursor-pointer hover:bg-[#11B886]/10 hover:border-[#11B886]/30 hover:shadow-[0_4px_20px_rgba(17,184,134,0.2)]' : 'cursor-default hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}
                   >
                     <div className="flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 transition-all ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547] group-hover:text-[#7C6CFF]' : 'text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF]'}`}>
+                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 transition-all ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547] group-hover:text-[#11B886]' : 'text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#11B886]'}`}>
                         <item.icon className="w-5 h-5" />
                       </div>
                       <div>
@@ -108,14 +108,14 @@ export default function MyPage() {
               {/* App Settings */}
               <div className="card !p-8 space-y-8 border border-gray-200 dark:border-white/5">
                 <h3 className="hero-meta flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-[#7C6CFF]" />
+                  <Bell className="w-5 h-5 text-[#11B886]" />
                   환경 설정
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] transition-all">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5">
-                        <Bell className="w-5 h-5 text-[#7C6CFF]" />
+                        <Bell className="w-5 h-5 text-[#11B886]" />
                       </div>
                       <div>
                         <p className="text-[15px] font-black text-[#1A2340] dark:text-white">앱 푸시 알림</p>
@@ -124,7 +124,7 @@ export default function MyPage() {
                     </div>
                     <button 
                       onClick={() => setPushNoti(!pushNoti)}
-                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${pushNoti ? 'bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
+                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${pushNoti ? 'bg-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
                     >
                       <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${pushNoti ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
                     </button>
@@ -132,7 +132,7 @@ export default function MyPage() {
                   <div className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] transition-all">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5">
-                        {darkMode ? <Moon className="w-5 h-5 text-[#7C6CFF]" /> : <Sun className="w-5 h-5 text-[#FFB547]" />}
+                        {darkMode ? <Moon className="w-5 h-5 text-[#11B886]" /> : <Sun className="w-5 h-5 text-[#FFB547]" />}
                       </div>
                       <div>
                         <p className="text-[15px] font-black text-[#1A2340] dark:text-white">다크 모드</p>
@@ -141,7 +141,7 @@ export default function MyPage() {
                     </div>
                     <button 
                       onClick={setDarkModeToggle}
-                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${darkMode ? 'bg-[#7C6CFF] shadow-[0_0_15px_rgba(124,108,255,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
+                      className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${darkMode ? 'bg-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
                     >
                       <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${darkMode ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
                     </button>
@@ -153,7 +153,7 @@ export default function MyPage() {
               <div className="card !p-6 border border-gray-200 dark:border-white/5 space-y-4">
                 <button className="w-full flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-lg transition-all group">
                   <div className="flex items-center gap-5 text-[#7D879C] dark:text-white/80 font-black uppercase tracking-widest text-[13px]">
-                    <Shield className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#7C6CFF] transition-colors" />
+                    <Shield className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#11B886] transition-colors" />
                     보안 및 비밀번호 변경
                   </div>
                   <ChevronRight className="w-5 h-5 text-[#7D879C]/80 dark:text-white/30 group-hover:text-[#1A2340] dark:text-white transition-all" />
@@ -213,21 +213,21 @@ export default function MyPage() {
           </div>
 
           {/* Quick Actions Card */}
-          <div className="card !p-10 border border-[#7C6CFF]/30 bg-gradient-to-br from-[#12182B] to-[#1A2340] text-[#1A2340] dark:text-white space-y-8 relative overflow-hidden group shadow-[0_0_30px_rgba(124,108,255,0.15)]">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#7C6CFF]/20 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
-            <h2 className="text-[18px] font-black tracking-tight uppercase tracking-widest relative z-10 text-[#7C6CFF]">빠른 업무 생산</h2>
+          <div className="card !p-10 border border-[#11B886]/30 bg-gradient-to-br from-[#12182B] to-[#1A2340] text-[#1A2340] dark:text-white space-y-8 relative overflow-hidden group shadow-[0_0_30px_rgba(17,184,134,0.15)]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#11B886]/20 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
+            <h2 className="text-[18px] font-black tracking-tight uppercase tracking-widest relative z-10 text-[#11B886]">빠른 업무 생산</h2>
             <div className="space-y-3 relative z-10">
               {[
                 { label: "새 팀원 초대하기", icon: Plus },
                 { label: "전체 공지 메시지", icon: MessageSquare },
                 { label: "성과 리포트 익스포트", icon: TrendingUp },
               ].map((action, i) => (
-                <button key={i} className="w-full flex items-center justify-between p-5 bg-white dark:bg-[#12182B]/80 hover:bg-[#7C6CFF]/10 rounded-[20px] transition-all text-left group/btn border border-gray-200 dark:border-white/5 hover:border-[#7C6CFF]/30 active:scale-95 shadow-lg">
+                <button key={i} className="w-full flex items-center justify-between p-5 bg-white dark:bg-[#12182B]/80 hover:bg-[#11B886]/10 rounded-[20px] transition-all text-left group/btn border border-gray-200 dark:border-white/5 hover:border-[#11B886]/30 active:scale-95 shadow-lg">
                   <div className="flex items-center gap-4">
-                    <action.icon className="w-5 h-5 text-[#7D879C] dark:text-white/50 group-hover/btn:text-[#7C6CFF] group-hover/btn:scale-110 transition-all" />
+                    <action.icon className="w-5 h-5 text-[#7D879C] dark:text-white/50 group-hover/btn:text-[#11B886] group-hover/btn:scale-110 transition-all" />
                     <span className="text-[14px] font-black uppercase tracking-widest text-[#7D879C] dark:text-white/80 group-hover/btn:text-[#1A2340] dark:text-white">{action.label}</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover/btn:text-[#7C6CFF] group-hover/btn:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover/btn:text-[#11B886] group-hover/btn:translate-x-1 transition-all" />
                 </button>
               ))}
             </div>

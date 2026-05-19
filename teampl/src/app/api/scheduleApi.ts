@@ -10,6 +10,7 @@ export interface Schedule {
 }
 
 export const scheduleApi = {
+  // --- Project Specific Schedules ---
   getSchedules: async (projectId: number): Promise<Schedule[]> => {
     const response = await apiClient.get(`/projects/${projectId}/schedules`);
     return response.data;
@@ -27,5 +28,25 @@ export const scheduleApi = {
 
   deleteSchedule: async (projectId: number, id: string | number): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/schedules/${id}`);
+  },
+
+  // --- Global Schedules ---
+  getGlobalSchedules: async (): Promise<Schedule[]> => {
+    const response = await apiClient.get(`/schedules`);
+    return response.data;
+  },
+
+  createGlobalSchedule: async (data: Partial<Schedule> & { projectId?: string | number | null }): Promise<Schedule> => {
+    const response = await apiClient.post(`/schedules`, data);
+    return response.data;
+  },
+
+  updateGlobalSchedule: async (id: string | number, data: Partial<Schedule> & { projectId?: string | number | null }): Promise<Schedule> => {
+    const response = await apiClient.patch(`/schedules/${id}`, data);
+    return response.data;
+  },
+
+  deleteGlobalSchedule: async (id: string | number, projectId?: string | number | null): Promise<void> => {
+    await apiClient.delete(`/schedules/${id}${projectId ? `?projectId=${projectId}` : ''}`);
   }
 };

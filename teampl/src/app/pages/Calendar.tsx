@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Clock, AlertCircle, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import { useAuth } from "../context/AuthContext";
@@ -14,19 +14,19 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
   const params = useParams<{ projectId: string }>();
   const numProjectId = propProjectId || Number(params.projectId);
 
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-  
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-
-  const [dragStart, setDragStart] = useState<string | null>(null);
-  const [dragEnd, setDragEnd] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ title: '', project: '', date: '', endDate: '', type: 'other' });
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    project: '', 
+    date: todayStr, 
+    endDate: todayStr, 
+    type: 'other' 
+  });
 
   useEffect(() => {
     projectApi.getProjects()
@@ -37,27 +37,34 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
       scheduleApi.getSchedules(numProjectId)
         .then(data => setEvents(data))
         .catch(console.error);
+    } else {
+      scheduleApi.getGlobalSchedules()
+        .then(data => setEvents(data))
+        .catch(console.error);
     }
-
-    const handleGlobalMouseUp = () => {
-      if (isDragging) {
-        setIsDragging(false);
-        setDragStart(null);
-        setDragEnd(null);
-      }
-    };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, [numProjectId, isDragging]);
+  }, [numProjectId]);
 
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetProjectId = numProjectId || (formData.project === 'personal' ? null : Number(formData.project));
+      const payload = { ...formData, projectId: targetProjectId };
+      
       if (editingEventId) {
-        const updatedEvent = await scheduleApi.updateSchedule(numProjectId, editingEventId, formData);
+        let updatedEvent;
+        if (numProjectId) {
+          updatedEvent = await scheduleApi.updateSchedule(numProjectId, editingEventId, formData);
+        } else {
+          updatedEvent = await scheduleApi.updateGlobalSchedule(editingEventId, payload);
+        }
         setEvents(events.map(ev => ev.id === editingEventId ? updatedEvent : ev));
       } else {
-        const newEvent = await scheduleApi.createSchedule(numProjectId, formData);
+        let newEvent;
+        if (numProjectId) {
+          newEvent = await scheduleApi.createSchedule(numProjectId, formData);
+        } else {
+          newEvent = await scheduleApi.createGlobalSchedule(payload);
+        }
         setEvents([...events, newEvent]);
       }
       closeModal();
@@ -69,9 +76,30 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
   const handleDeleteEvent = async () => {
     if (!editingEventId) return;
     try {
-      await scheduleApi.deleteSchedule(numProjectId, editingEventId);
+      if (numProjectId) {
+        await scheduleApi.deleteSchedule(numProjectId, editingEventId);
+      } else {
+        const targetProjectId = formData.project === 'personal' ? null : Number(formData.project);
+        await scheduleApi.deleteGlobalSchedule(editingEventId, targetProjectId);
+      }
       setEvents(events.filter(ev => ev.id !== editingEventId));
       closeModal();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDirectDelete = async (e: React.MouseEvent, eventItem: any) => {
+    e.stopPropagation();
+    if (!confirm('이 일정을 삭제하시겠습니까?')) return;
+    try {
+      if (numProjectId) {
+        await scheduleApi.deleteSchedule(numProjectId, eventItem.id);
+      } else {
+        const targetProjectId = eventItem.projectId || null;
+        await scheduleApi.deleteGlobalSchedule(eventItem.id, targetProjectId);
+      }
+      setEvents(events.filter(ev => ev.id !== eventItem.id));
     } catch (err) {
       console.error(err);
     }
@@ -80,337 +108,215 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingEventId(null);
-    setFormData({ title: '', project: '', date: '', endDate: '', type: 'other' });
+    setFormData({ title: '', project: numProjectId ? String(numProjectId) : 'personal', date: todayStr, endDate: todayStr, type: 'other' });
   };
 
-  const openAddModal = (startStr?: string, endStr?: string) => {
-    const defaultDate = startStr || selectedDate;
+  const openAddModal = () => {
     setFormData({ 
       title: '', 
-      project: projects.length > 0 ? projects[0].name : '팀 전체 일정', 
+      project: numProjectId ? String(numProjectId) : (projects.length > 0 ? String(projects[0].id) : 'personal'), 
       type: 'other', 
-      date: defaultDate, 
-      endDate: endStr || defaultDate 
+      date: todayStr, 
+      endDate: todayStr 
     });
     setEditingEventId(null);
     setIsModalOpen(true);
   };
 
   const handleEventClick = (event: any) => {
+    if (String(event.id).startsWith('proj-')) return;
+    
     setEditingEventId(event.id);
     setFormData({
       title: event.title,
-      project: event.project,
-      date: event.date,
-      endDate: event.endDate || event.date,
+      project: event.projectId ? String(event.projectId) : 'personal',
+      date: event.date.split('T')[0],
+      endDate: (event.endDate || event.date).split('T')[0],
       type: event.type
     });
     setIsModalOpen(true);
   };
 
-  const handleMouseDown = (day: number | null) => {
-    if (!day) return;
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    setDragStart(dateStr);
-    setDragEnd(dateStr);
-    setIsDragging(true);
+  const parseDateBadge = (dateStr: string) => {
+    if (!dateStr) return { month: '01월', day: '01', cleanDate: '' };
+    const cleanDate = dateStr.split('T')[0].replace(/\./g, '-');
+    const parts = cleanDate.split('-');
+    const month = parts[1] ? `${parts[1]}월` : '01월';
+    const day = parts[2] ? parts[2] : '01';
+    return { month, day, cleanDate };
   };
 
-  const handleMouseEnter = (day: number | null) => {
-    if (!day || !isDragging) return;
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    setDragEnd(dateStr);
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isDragging && dragStart && dragEnd) {
-      if (dragStart !== dragEnd) {
-        const start = new Date(dragStart).getTime();
-        const end = new Date(dragEnd).getTime();
-        const finalStart = start < end ? dragStart : dragEnd;
-        const finalEnd = start < end ? dragEnd : dragStart;
-        setSelectedDate(finalStart); 
-        openAddModal(finalStart, finalEnd);
-      } else {
-        setSelectedDate(dragStart);
-      }
+  const getTypeDescription = (type: string) => {
+    switch (type) {
+      case 'deadline':
+        return '중요 마감 일정입니다. 기한 내 완수를 적극 권장합니다.';
+      case 'meeting':
+        return '팀원 간 상호 협업 및 조율을 위한 정기/임시 회의 일정입니다.';
+      case 'presentation':
+        return '개발 산출물 발표 및 피드백 공유를 위한 일정입니다.';
+      case 'milestone':
+        return '프로젝트 완수를 향한 이정표이자 마일스톤 단계입니다.';
+      default:
+        return '팀 공동 과업 수행 및 개인을 위한 맞춤형 일정입니다.';
     }
-    setIsDragging(false);
-    setDragStart(null);
-    setDragEnd(null);
   };
 
-  const handleDayDoubleClick = (day: number | null) => {
-    if (!day) return;
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    setSelectedDate(dateStr);
-    openAddModal(dateStr, dateStr);
-  };
-
-  const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    return { 
-      daysInMonth: new Date(year, month + 1, 0).getDate(), 
-      startingDayOfWeek: new Date(year, month, 1).getDay() 
-    };
-  };
-
-  const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
-  const days: (number | null)[] = Array.from({ length: startingDayOfWeek }, () => null as number | null).concat(
-    Array.from({ length: daysInMonth }, (_, i) => i + 1)
-  );
-
-  const getEventsForDate = (dateStr: string) => {
-    const targetDate = new Date(dateStr).getTime();
-    const daySchedules = events.filter((event) => {
-      const startStr = event.date.split('T')[0].replace(/\./g, '-');
-      const endStr = (event.endDate || event.date).split('T')[0].replace(/\./g, '-');
-      const start = new Date(startStr).getTime();
-      const end = new Date(endStr).getTime();
-      return targetDate >= start && targetDate <= end;
-    });
-
-    const dayProjects = projects.filter((project) => {
-      if (!project.deadline) return false;
-      const startStr = project.createdAt ? project.createdAt.split('T')[0].replace(/\./g, '-') : new Date().toISOString().split('T')[0];
-      const start = new Date(startStr).getTime();
-      const endStr = project.deadline.split('T')[0].replace(/\./g, '-');
-      const end = new Date(endStr).getTime();
-      return targetDate >= start && targetDate <= end;
-    }).map(project => ({
-       id: `proj-${project.id}`,
-       title: `[프로젝트] ${project.name}`,
-       project: project.name,
-       date: project.createdAt ? project.createdAt.split('T')[0].replace(/\./g, '-') : new Date().toISOString().split('T')[0],
-       endDate: project.deadline,
-       type: 'project',
-       color: project.color?.startsWith('#') ? project.color : '#7C6CFF'
-    }));
-
-    return [...dayProjects, ...daySchedules];
-  };
-
-  const isToday = (day: number | null) => {
-    if (!day) return false;
-    const today = new Date();
-    return day === today.getDate() && currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
-  };
-
-  const isDateSelected = (day: number | null) => {
-    if (!day) return false;
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    
-    if (isDragging && dragStart && dragEnd) {
-      const current = new Date(dateStr).getTime();
-      const start = new Date(dragStart).getTime();
-      const end = new Date(dragEnd).getTime();
-      return current >= Math.min(start, end) && current <= Math.max(start, end);
-    }
-    
-    if (selectedDate) return dateStr === selectedDate;
-    return false;
-  };
-
-  const selectedDateEvents = getEventsForDate(selectedDate);
-  const selectedDateObj = new Date(selectedDate);
+  const sortedEvents = [...events].sort((a, b) => {
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
 
   return (
-    <div className="dashboard pt-4 lg:max-w-5xl lg:mx-auto">
-      <section className="card hero-card mb-6">
-        <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
-          <div>
-            <div className="hero-meta">팀 일정</div>
-            <h1 className="hero-title" style={{ fontSize: '2rem' }}>캘린더</h1>
-          </div>
-          <button onClick={() => openAddModal()} className="flex items-center gap-2 px-4 py-2 bg-[#7C6CFF] text-white rounded-[14px] text-[14px] font-bold shadow-[0_0_15px_rgba(124,108,255,0.4)] transition-all hover:scale-105 border border-gray-300 dark:border-white/10">
-            <Plus className="w-5 h-5" />
-            일정 추가
-          </button>
+    <div className="dashboard pt-4 w-full max-w-5xl mx-auto px-4 sm:px-6">
+      {/* Top Title & Header Section */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="hero-meta">{numProjectId ? "팀 일정" : "전체 일정"}</div>
+          <h1 className="hero-title" style={{ fontSize: '2.2rem' }}>
+            {numProjectId ? "일정 관리" : "스케줄러"}
+          </h1>
         </div>
-      </section>
-
-      {/* Calendar Card */}
-      <div className="card select-none">
-        <div className="flex items-center justify-between mb-8 px-2">
-          <h2 className="hero-title" style={{ fontSize: '1.6rem' }}>
-            {currentDate.getFullYear()}년 {monthNames[currentDate.getMonth()]}
-          </h2>
-          <div className="flex items-center gap-1 bg-white/50 dark:bg-white/5 p-1 rounded-xl border border-gray-300 dark:border-white/10">
-            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))} className="p-2 hover:bg-white/60 dark:bg-white/10 rounded-lg transition-all">
-              <ChevronLeft className="w-5 h-5 text-[#1A2340] dark:text-white" />
-            </button>
-            <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))} className="p-2 hover:bg-white/60 dark:bg-white/10 rounded-lg transition-all">
-              <ChevronRight className="w-5 h-5 text-[#1A2340] dark:text-white" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-7 gap-1 mb-4">
-          {["일", "월", "화", "수", "목", "금", "토"].map((day, i) => (
-            <div key={day} className={`text-center text-[10px] font-black uppercase tracking-widest py-2 ${i === 0 ? 'text-[#FF6B7A]' : 'text-[#7D879C]/80 dark:text-white/40'}`}>
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((day, index) => {
-            let dayEvents: any[] = [];
-            if (day) {
-              const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              dayEvents = getEventsForDate(dateStr);
-            }
-            const today = isToday(day);
-            const selected = isDateSelected(day);
-            
-            return (
-              <div
-                key={index}
-                onMouseDown={() => handleMouseDown(day)}
-                onMouseEnter={() => handleMouseEnter(day)}
-                onMouseUp={handleMouseUp}
-                onDoubleClick={() => handleDayDoubleClick(day)}
-                className={`min-h-[100px] flex flex-col rounded-2xl p-2.5 relative transition-all group select-none ${
-                  day ? "bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:border-white/20 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer" : "bg-transparent"
-                } ${today && !selected ? "ring-1 ring-[#7C6CFF] ring-offset-0" : ""} ${selected ? "border-[#7C6CFF] ring-1 ring-[#7C6CFF] bg-[#7C6CFF]/10 shadow-[0_0_15px_rgba(124,108,255,0.2)]" : ""}`}
-              >
-                {day && (
-                  <>
-                    <span className={`text-[13px] font-black mb-2 transition-colors z-10 w-7 h-7 rounded-full flex items-center justify-center -ml-1 -mt-1 ${today && !selected ? "text-[#7C6CFF] bg-[#7C6CFF]/10" : (selected ? "text-white bg-[#7C6CFF]" : (index % 7 === 0 ? "text-[#FF6B7A]" : "text-[#7D879C] dark:text-white/60"))}`}>
-                      {day}
-                    </span>
-                    <div className="flex flex-col gap-1.5 w-full overflow-hidden z-10">
-                      {dayEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className={`w-full h-1.5 rounded-full shadow-sm ${!event.color ? 'bg-white/60 dark:bg-white/10' : ''}`}
-                          style={event.color ? { backgroundColor: event.color } : undefined}
-                          title={event.title}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <button 
+          onClick={openAddModal} 
+          className="flex items-center gap-2 px-5 py-3 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-[16px] text-[14px] font-bold shadow-[0_4px_20px_rgba(17,184,134,0.3)] transition-all hover:scale-[1.03] active:scale-95 border border-[#11B886]/20"
+        >
+          <Plus className="w-5 h-5" />
+          일정 추가
+        </button>
       </div>
 
-      {/* Selected Day Events Section */}
-      <div className="space-y-4 pt-6 pb-10">
-        <div className="section-head">
-          <div className="section-kicker">
-            <span className="analysis-dot" style={{ background: '#7C6CFF', boxShadow: '0 0 8px #7C6CFF' }}></span>
-            {selectedDateObj.getMonth() + 1}월 {selectedDateObj.getDate()}일의 일정
-          </div>
-          <button onClick={() => openAddModal(selectedDate, selectedDate)} className="filter-btn !bg-transparent !border-none !text-[#7C6CFF] hover:!text-[#1A2340] dark:!text-white hover:underline transition-all !p-0">+ 일정 등록</button>
-        </div>
-
-        {selectedDateEvents.length === 0 ? (
-          <div className="card text-center text-sm font-bold text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 py-16 shadow-none">
-            해당하는 날짜에 일정이 없습니다.<br/>
-            <span className="text-[12px] text-gray-300 dark:text-white/20 font-medium mt-2 block">달력 날짜를 더블 클릭하여 일정을 추가해 보세요.</span>
+      {/* Schedule Cards Container */}
+      <div className="space-y-4">
+        {sortedEvents.length === 0 ? (
+          <div className="card text-center py-20 border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0F172A] rounded-[32px] shadow-sm">
+            <CalendarIcon className="w-12 h-12 text-[#7D879C]/40 mx-auto mb-4" />
+            <p className="text-sm font-black text-[#7D879C] dark:text-white/60">등록된 일정이 없습니다.</p>
+            <span className="text-[12px] text-gray-400 dark:text-white/30 font-medium mt-2 block">우측 상단의 "+ 일정 추가" 버튼을 눌러 첫 일정을 등록해보세요.</span>
           </div>
         ) : (
           <div className="grid gap-4">
-            {selectedDateEvents.map((event) => (
-              <div 
-                key={event.id} 
-                onClick={() => handleEventClick(event)} 
-                className="card !p-6 flex items-center gap-6 hover:bg-white/40 dark:bg-[#1A2340] cursor-pointer group"
-              >
-                <div className={`schedule-item purple !border-none !p-0 bg-transparent`} style={event.color ? {} : undefined}>
-                  <div className="schedule-icon" style={{ width: 64, height: 64, borderRadius: 16, ...(event.color ? { backgroundColor: event.color, color: 'white', border: 'none', boxShadow: `0 8px 16px ${event.color}40` } : {}) }}>
-                    <CalendarIcon className="w-8 h-8" />
+            {sortedEvents.map((event) => {
+              const { month, day, cleanDate } = parseDateBadge(event.date);
+              const isProjectDeadline = String(event.id).startsWith('proj-');
+              
+              return (
+                <div 
+                  key={event.id} 
+                  onClick={() => handleEventClick(event)} 
+                  className={`card !p-5 flex items-center gap-5 hover:bg-gray-50/50 dark:hover:bg-white/5 cursor-pointer border border-gray-100 dark:border-white/5 bg-white dark:bg-[#0F172A] rounded-[24px] transition-all group shadow-sm hover:translate-y-[-2px] ${
+                    isProjectDeadline ? 'opacity-85 pointer-events-none' : ''
+                  }`}
+                >
+                  {/* Left Date Square Badge */}
+                  <div className="w-[60px] h-[60px] rounded-2xl bg-[#11B886] text-white flex flex-col items-center justify-center shrink-0 shadow-md shadow-[#11B886]/10">
+                    <span className="text-[10px] font-bold tracking-tight opacity-90">{month}</span>
+                    <span className="text-[20px] font-black leading-tight -mt-0.5">{day}</span>
                   </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="card-title text-[1.2rem] group-hover:text-[#7C6CFF] transition-colors">{event.title}</h3>
-                  <p className="hero-meta mt-1">{event.project}</p>
-                  <div className="flex items-center gap-3 mt-4">
-                    <div className="badge !bg-white/50 dark:!bg-white/5 !text-[#7D879C] dark:!text-white/60 !border-gray-300 dark:!border-white/10 hidden sm:flex">
-                      <Clock className="w-4 h-4" />
-                      {event.date} {event.endDate && event.endDate !== event.date ? `~ ${event.endDate}` : ''}
+
+                  {/* Center Main Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base font-black text-[#1A2340] dark:text-white truncate group-hover:text-[#11B886] transition-colors">
+                        {event.title}
+                      </h3>
+                      {event.type === 'deadline' && (
+                        <span className="px-2 py-0.5 text-[9px] font-black bg-red-500/10 text-red-500 rounded-md border border-red-500/20">
+                          긴급
+                        </span>
+                      )}
                     </div>
-                    {event.type === 'deadline' && (
-                      <div className="badge !bg-[#FF6B7A]/10 !text-[#FF6B7A] !border-[#FF6B7A]/20">
-                        <AlertCircle className="w-4 h-4" />
-                        긴급
+                    <p className="text-[12px] text-gray-400 dark:text-white/40 truncate leading-relaxed">
+                      {getTypeDescription(event.type)}
+                    </p>
+                    <div className="flex items-center gap-4 mt-3">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 dark:text-white/30">
+                        <Clock className="w-3.5 h-3.5" />
+                        {cleanDate} {event.endDate && event.endDate.split('T')[0] !== cleanDate ? `~ ${event.endDate.split('T')[0]}` : ''}
                       </div>
-                    )}
+                      <span className="text-[10px] font-black text-[#11B886] bg-[#11B886]/10 px-2 py-0.5 rounded-full">
+                        {numProjectId ? "팀 프로젝트" : (event.project?.name || event.project || "개인 일정")}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Right Actions */}
+                  {!isProjectDeadline && (
+                    <button 
+                      onClick={(e) => handleDirectDelete(e, event)}
+                      className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
-                <ChevronRight className="w-6 h-6 text-gray-300 dark:text-white/20 group-hover:text-[#7C6CFF] transition-colors" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* Add / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="card rounded-[40px] w-full max-w-lg p-10 shadow-[0_20px_60px_rgba(0,0,0,0.5)] border border-gray-300 dark:border-white/10">
-            <div className="flex items-center justify-between mb-8">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="card rounded-[32px] w-full max-w-lg p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-gray-100 dark:border-white/10 bg-white dark:bg-[#0F172A]">
+            <div className="flex items-center justify-between mb-6">
               <h2 className="hero-title" style={{ fontSize: '1.6rem' }}>
                 {editingEventId ? '일정 상세 및 수정' : '새 일정 추가'}
               </h2>
               {editingEventId && (
-                <button type="button" onClick={handleDeleteEvent} className="p-3 text-[#FF6B7A] hover:bg-[#FF6B7A]/10 rounded-2xl transition-all">
-                  <Trash2 className="w-6 h-6" />
+                <button type="button" onClick={handleDeleteEvent} className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all">
+                  <Trash2 className="w-5 h-5" />
                 </button>
               )}
             </div>
-            <form onSubmit={handleSaveEvent} className="space-y-6">
-              <div className="space-y-2">
+            
+            <form onSubmit={handleSaveEvent} className="space-y-5">
+              <div className="space-y-1.5">
                 <label className="hero-meta ml-1">일정명</label>
-                <input required type="text" placeholder="예: 첫 번째 리뷰 미팅" className="w-full font-black bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl py-4 px-5 outline-none focus:bg-white/40 dark:bg-[#1A2340] focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] transition-all text-[#1A2340] dark:text-white placeholder-white/20" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                <input required type="text" placeholder="예: 첫 번째 리뷰 미팅" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.15)] transition-all text-[#1A2340] dark:text-white placeholder-gray-400 dark:placeholder-white/20" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
               </div>
-              <div className="space-y-2">
-                <label className="hero-meta ml-1">관련 프로젝트</label>
-                <select required className="w-full font-black bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl py-4 px-5 outline-none focus:bg-white/40 dark:bg-[#1A2340] focus:border-[#7C6CFF] focus:shadow-[0_0_15px_rgba(124,108,255,0.2)] transition-all text-[#1A2340] dark:text-white appearance-none" value={formData.project} onChange={e => setFormData({...formData, project: e.target.value})}>
-                  <option value="" disabled className="bg-[#f8faff] dark:bg-[#0B1020]">프로젝트 선택</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.name} className="bg-[#f8faff] dark:bg-[#0B1020]">{p.name}</option>
-                  ))}
-                  <option value="개인 일정" className="bg-[#f8faff] dark:bg-[#0B1020]">개인 일정</option>
-                  <option value="팀 전체 일정" className="bg-[#f8faff] dark:bg-[#0B1020]">팀 전체 일정</option>
-                </select>
-              </div>
+
+              {!numProjectId && (
+                <div className="space-y-1.5">
+                  <label className="hero-meta ml-1">관련 프로젝트</label>
+                  <select required className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.15)] transition-all text-[#1A2340] dark:text-white appearance-none" value={formData.project} onChange={e => setFormData({...formData, project: e.target.value})}>
+                    <option value="" disabled className="bg-white dark:bg-[#0F172A]">분류 선택</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={String(p.id)} className="bg-white dark:bg-[#0F172A]">{p.name}</option>
+                    ))}
+                    <option value="personal" className="bg-white dark:bg-[#0F172A]">개인 일정</option>
+                  </select>
+                </div>
+              )}
               
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <label className="hero-meta ml-1">시작 날짜</label>
-                  <input required type="date" className="w-full font-black bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl py-4 px-5 outline-none focus:bg-white/40 dark:bg-[#1A2340] focus:border-[#7C6CFF] transition-all text-[#1A2340] dark:text-white" value={formData.date} onChange={e => {
+                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white" value={formData.date} onChange={e => {
                     const newDate = e.target.value;
                     setFormData(prev => ({...prev, date: newDate, endDate: prev.endDate < newDate ? newDate : prev.endDate}))
                   }} style={{ colorScheme: 'dark' }} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="hero-meta ml-1">종료 날짜</label>
-                  <input required type="date" className="w-full font-black bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl py-4 px-5 outline-none focus:bg-white/40 dark:bg-[#1A2340] focus:border-[#7C6CFF] transition-all text-[#1A2340] dark:text-white" value={formData.endDate} min={formData.date} onChange={e => setFormData({...formData, endDate: e.target.value})} style={{ colorScheme: 'dark' }} />
+                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white" value={formData.endDate} min={formData.date} onChange={e => setFormData({...formData, endDate: e.target.value})} style={{ colorScheme: 'dark' }} />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="hero-meta ml-1">유형</label>
-                <select className="w-full font-black bg-white dark:bg-[#12182B] border border-gray-300 dark:border-white/10 rounded-2xl py-4 px-5 outline-none focus:bg-white/40 dark:bg-[#1A2340] focus:border-[#7C6CFF] transition-all text-[#1A2340] dark:text-white appearance-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                  <option value="deadline" className="bg-[#f8faff] dark:bg-[#0B1020]">마감일 (긴급)</option>
-                  <option value="meeting" className="bg-[#f8faff] dark:bg-[#0B1020]">미팅</option>
-                  <option value="presentation" className="bg-[#f8faff] dark:bg-[#0B1020]">발표</option>
-                  <option value="milestone" className="bg-[#f8faff] dark:bg-[#0B1020]">마일스톤</option>
-                  <option value="other" className="bg-[#f8faff] dark:bg-[#0B1020]">기타</option>
+                <select className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white appearance-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                  <option value="deadline" className="bg-white dark:bg-[#0F172A]">마감일 (긴급)</option>
+                  <option value="meeting" className="bg-white dark:bg-[#0F172A]">미팅</option>
+                  <option value="presentation" className="bg-white dark:bg-[#0F172A]">발표</option>
+                  <option value="milestone" className="bg-white dark:bg-[#0F172A]">마일스톤</option>
+                  <option value="other" className="bg-white dark:bg-[#0F172A]">기타</option>
                 </select>
               </div>
 
-              <div className="flex gap-4 pt-6">
-                <button type="button" onClick={closeModal} className="flex-1 py-4 font-black bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:bg-white/10 text-[#7D879C] dark:text-white/60 hover:text-[#1A2340] dark:text-white rounded-2xl transition-all uppercase tracking-widest border border-gray-300 dark:border-white/10">닫기</button>
-                <button type="submit" className="flex-1 py-4 font-black bg-[#7C6CFF] hover:bg-[#7C6CFF]/90 text-white rounded-2xl shadow-[0_0_20px_rgba(124,108,255,0.3)] transition-all active:scale-95 uppercase tracking-widest border border-[#7C6CFF]/50">
-                  {editingEventId ? '수정 내용 저장' : '추가하기'}
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={closeModal} className="flex-1 py-3.5 font-black bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-white/60 rounded-2xl transition-all uppercase tracking-widest border border-gray-200 dark:border-white/10">닫기</button>
+                <button type="submit" className="flex-1 py-3.5 font-black bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl shadow-[0_4px_15px_rgba(17,184,134,0.3)] transition-all active:scale-95 uppercase tracking-widest border border-[#11B886]/50">
+                  {editingEventId ? '수정 완료' : '추가하기'}
                 </button>
               </div>
             </form>
