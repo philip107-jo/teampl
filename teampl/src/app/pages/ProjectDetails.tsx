@@ -40,6 +40,8 @@ export default function ProjectDetails() {
   const [isKickedProcessed, setIsKickedProcessed] = useState(false);
   const [confirmKickOpen, setConfirmKickOpen] = useState(false);
   const [confirmTransferOpen, setConfirmTransferOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const prevUserRoleRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function ProjectDetails() {
     fetchProject();
     const intervalId = setInterval(fetchProject, 3000);
     return () => clearInterval(intervalId);
-  }, [projectId]);
+  }, [projectId, refreshTrigger, isKickedProcessed, navigate, showToast]);
 
   // 전역 실시간 토스트 알림 (채팅 수신)
   useEffect(() => {
@@ -167,7 +169,21 @@ export default function ProjectDetails() {
         await projectApi.regenerateInviteCode(Number(projectId));
         showToast('초대 코드가 성공적으로 갱신되었습니다.', 'success');
         setIsSettingModalOpen(false);
+        setRefreshTrigger(prev => prev + 1);
       }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || e.message, 'error');
+    }
+  };
+
+  const handleInviteByEmail = async () => {
+    if (!inviteEmail.trim()) return showToast('초대할 이메일을 입력하세요.', 'error');
+    if (!project) return;
+    try {
+      await projectApi.inviteByEmail(Number(projectId), inviteEmail.trim());
+      showToast('성공적으로 초대했습니다.', 'success');
+      setInviteEmail("");
+      setRefreshTrigger(prev => prev + 1);
     } catch (e: any) {
       showToast(e.response?.data?.message || e.message, 'error');
     }
@@ -184,6 +200,7 @@ export default function ProjectDetails() {
       showToast('성공적으로 위임되었습니다.', 'success');
       setIsSettingModalOpen(false);
       setConfirmTransferOpen(false);
+      setRefreshTrigger(prev => prev + 1);
     } catch (e: any) {
       showToast(e.response?.data?.message || e.message, 'error');
     }
@@ -204,6 +221,7 @@ export default function ProjectDetails() {
       setIsSettingModalOpen(false);
       setConfirmKickOpen(false);
       setSelectedUser(""); // 초기화
+      setRefreshTrigger(prev => prev + 1);
     } catch (e: any) {
       showToast(e.response?.data?.message || e.message, 'error');
     }
@@ -399,7 +417,7 @@ export default function ProjectDetails() {
                 className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "invite" ? "text-[#7C6CFF] border-b-2 border-[#7C6CFF] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <RefreshCw className="w-4 h-4" />
-                초대코드 재발급
+                팀원 초대
               </button>
               <button 
                 onClick={() => { setSettingTab("transfer"); setSelectedUser(""); }}
@@ -421,8 +439,32 @@ export default function ProjectDetails() {
             <div className="p-8">
               {settingTab === "invite" && (
                 <div className="space-y-6">
-                  <div className="text-center space-y-2">
-                    <p className="text-[#1A2340] dark:text-white font-bold text-sm">현재 재생성 전 초대코드</p>
+                  {/* 이메일 직접 초대 */}
+                  <div className="space-y-3 pb-6 border-b border-gray-200 dark:border-white/10">
+                    <label className="text-sm font-bold text-[#1A2340] dark:text-white flex justify-between">
+                      이메일로 초대하기
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="가입된 팀원의 이메일 입력"
+                        className="flex-1 bg-gray-50 dark:bg-[#0d1526] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#7C6CFF] transition-all placeholder-gray-400 font-medium"
+                      />
+                      <button 
+                        onClick={handleInviteByEmail}
+                        disabled={!inviteEmail.trim()}
+                        className="px-6 py-3 bg-[#1A2340] dark:bg-[#7C6CFF] text-white rounded-xl text-sm font-black disabled:opacity-50 hover:bg-[#7C6CFF] transition-all whitespace-nowrap"
+                      >
+                        초대 발송
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 기존 초대코드 방식 */}
+                  <div className="text-center space-y-2 pt-2">
+                    <p className="text-[#1A2340] dark:text-white font-bold text-sm">초대코드 공유용 (외부 팀원)</p>
                     <div className="text-3xl font-black tracking-widest text-[#7C6CFF] bg-[#7C6CFF]/10 py-4 rounded-2xl mx-auto max-w-[200px] border border-[#7C6CFF]/20">
                       {project.inviteCode || '-'}
                     </div>

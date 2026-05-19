@@ -196,6 +196,56 @@ export const ProjectsService = {
         });
     },
 
+    inviteByEmail: async (email: string, projectId: number, targetEmail: string) => {
+        // 1. 요청한 사람이 방장인지 확인
+        const me = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!me || me.role !== 'LEADER') throw new Error('팀원 초대 권한이 없습니다.');
+
+        // 2. 타겟 이메일을 가진 유저가 존재하는지 확인
+        const targetUser = await prisma.user.findUnique({
+            where: { email: targetEmail }
+        });
+        if (!targetUser) throw new Error('가입되지 않은 회원입니다.');
+
+        // 3. 이미 해당 프로젝트에 가입되어 있는지 확인
+        const existing = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: targetEmail, projectId } }
+        });
+        
+        if (existing) {
+            if (existing.status === 'ACTIVE') {
+                throw new Error('이미 프로젝트에 참여 중인 회원입니다.');
+            } else {
+                // KICKED 또는 LEFT 상태인 경우 다시 가입 처리
+                await prisma.projectMember.update({
+                    where: { id: existing.id },
+                    data: { status: 'ACTIVE', role: 'MEMBER', kickReason: null }
+                });
+                return await prisma.project.update({
+                    where: { id: projectId },
+                    data: { members: { increment: 1 } }
+                });
+            }
+        }
+
+        // 4. 새로운 멤버 추가
+        await prisma.projectMember.create({
+            data: {
+                userEmail: targetEmail,
+                projectId,
+                role: 'MEMBER',
+                status: 'ACTIVE'
+            }
+        });
+
+        return await prisma.project.update({
+            where: { id: projectId },
+            data: { members: { increment: 1 } }
+        });
+    },
+
     transferLeadership: async (email: string, projectId: number, targetUserId: string) => {
         const me = await prisma.projectMember.findUnique({
             where: { userEmail_projectId: { userEmail: email, projectId } }

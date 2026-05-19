@@ -62,6 +62,11 @@ export const projectApi = {
         return response.data;
     },
 
+    inviteByEmail: async (id: number, targetEmail: string): Promise<void> => {
+        const response = await apiClient.post(`/projects/${id}/invite-email`, { targetEmail });
+        return response.data;
+    },
+
     getKickedAlerts: async (): Promise<{projectId: number, projectName: string, kickReason: string}[]> => {
         const response = await apiClient.get('/projects/kicked-alerts');
         return response.data;

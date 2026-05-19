@@ -89,6 +89,19 @@ router.patch('/:id/invite-code', async (req, res) => {
     }
 });
 
+// POST /api/projects/:id/invite-email
+router.post('/:id/invite-email', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const { targetEmail } = req.body;
+    try {
+        await ProjectsService.inviteByEmail(email, id, targetEmail);
+        res.json({ success: true, message: "팀원을 성공적으로 초대했습니다." });
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 // PATCH /api/projects/:id/transfer-leadership
 router.patch('/:id/transfer-leadership', async (req, res) => {
     const email = req.user!.email;

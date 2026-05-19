@@ -4,15 +4,15 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router({ mergeParams: true });
 
-// POST /api/projects/:projectId/ai/split
-router.post('/split', authMiddleware, async (req: any, res) => {
+// POST /api/projects/:projectId/ai/split-tasks
+router.post('/split-tasks', authMiddleware, async (req: any, res) => {
   try {
-    const { description } = req.body;
+    const { teamSize, topic, description } = req.body;
     if (!description) {
       return res.status(400).json({ error: '과제 설명이 필요합니다.' });
     }
 
-    const tasks = await AiService.splitTasks(description);
+    const tasks = await AiService.splitTasks(teamSize, topic, description);
     res.json({ tasks });
   } catch (error: any) {
     console.error('AI Split Error:', error);
