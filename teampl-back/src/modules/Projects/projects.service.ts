@@ -1,5 +1,10 @@
 import { prisma } from '../../prisma';
 import axios from 'axios';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export interface Project {
     id: number;
@@ -70,7 +75,7 @@ export const ProjectsService = {
                 members: typeof data.members === 'number' ? data.members : 1,
                 color: data.color || "bg-[#f1f5f9]",
                 icon: data.icon || "Target",
-                termType: data.termType || 'SHORT',
+                termType: (data.termType || 'SHORT') as any,
                 inviteCode: generatedInviteCode,
             }
         });
@@ -110,7 +115,7 @@ export const ProjectsService = {
         if (data.members !== undefined) updateData.members = data.members;
         if (data.color !== undefined) updateData.color = data.color;
         if (data.icon !== undefined) updateData.icon = data.icon;
-        if (data.termType !== undefined) updateData.termType = data.termType;
+        if (data.termType !== undefined) updateData.termType = data.termType as any;
 
         return await prisma.project.update({
             where: { id: Number(id) },
@@ -301,6 +306,10 @@ export const ProjectsService = {
     },
 
     generateTasksWithAi: async (teamSize: number, topic: string, description: string, termType: 'SHORT' | 'LONG' = 'SHORT') => {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key is missing in .env');
+        }
+
         const systemPrompt = `
 You are an expert project manager assistant. Your job is to break down the user's project into essential milestones based on its duration.
 
@@ -331,36 +340,23 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
 
         const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
 
-        const aiModel = process.env.LOCAL_AI_MODEL || "llama3:latest";
-        const baseUrl = (process.env.AI_BASE_URL || "http://host.docker.internal:11434").replace(/\/v1\/?$/, "");
-
-        const response = await axios.post(`${baseUrl}/api/chat`, {
-            model: aiModel,
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            stream: false
-        }, {
-            headers: { 'Content-Type': 'application/json' },
-            validateStatus: () => true, // Handle errors manually
-            timeout: 300000 // 5 minutes
+            temperature: 0.7,
+            response_format: { type: "json_object" }
         });
 
-        if (response.status !== 200) {
-            throw new Error(`AI 서버와 통신 중 오류가 발생했습니다: ${response.statusText}`);
-        }
-
-        const data = response.data;
-        const content = data.message?.content || "[]";
+        const content = response.choices[0].message.content;
+        if (!content) throw new Error('AI 응답이 비어있습니다.');
+        
         try {
-            // Extract JSON array using regex to ignore conversational text
-            let jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
-            const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
-            if (arrayMatch) {
-                jsonStr = arrayMatch[0];
-            }
-            const tasks = JSON.parse(jsonStr);
+            let tasks = JSON.parse(content);
+            if (tasks.tasks) tasks = tasks.tasks;
+            if (!Array.isArray(tasks)) tasks = [tasks];
             return tasks;
         } catch (e) {
             console.error("Failed to parse AI output:", content);
