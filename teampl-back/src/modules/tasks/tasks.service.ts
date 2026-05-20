@@ -1,5 +1,6 @@
 import { prisma } from '../../prisma';
 import { emitTaskUpdate } from '../../socket';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // 해당 프로젝트의 멤버인지 확인하는 헬퍼
 async function verifyMembership(email: string, projectId: number) {
@@ -38,6 +39,21 @@ export const TasksService = {
                 assignees: data.assignees || [],
             }
         });
+        
+        // 새 업무가 할당된 담당자들에게 알림 생성
+        if (data.assignees && data.assignees.length > 0) {
+            for (const assigneeEmail of data.assignees) {
+                if (assigneeEmail !== email) {
+                    await NotificationsService.createNotification({
+                        userEmail: assigneeEmail,
+                        type: 'task',
+                        title: '새로운 업무 할당',
+                        content: `'${task.title}' 업무 담당자로 지정되었습니다.`
+                    });
+                }
+            }
+        }
+        
         emitTaskUpdate(projectId);
         return task;
     },
@@ -100,6 +116,19 @@ export const TasksService = {
             where: { id: taskId },
             data: { assignees }
         });
+
+        // 새로 추가된 담당자에게 알림 발송
+        for (const assigneeEmail of assignees) {
+            if (assigneeEmail !== email) {
+                await NotificationsService.createNotification({
+                    userEmail: assigneeEmail,
+                    type: 'task',
+                    title: '업무 담당자 변경',
+                    content: `'${updated.title}' 업무 담당자로 지정되었습니다.`
+                });
+            }
+        }
+        
         emitTaskUpdate(projectId);
         return updated;
     },

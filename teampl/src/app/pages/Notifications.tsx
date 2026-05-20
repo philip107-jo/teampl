@@ -1,61 +1,44 @@
-import { useState } from "react";
-import { Bell, CheckCircle2, MessageSquare, AlertCircle, Calendar as CalendarIcon, FileText, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, CheckCircle2, MessageSquare, AlertCircle, Calendar as CalendarIcon, FileText, Check, Loader2 } from "lucide-react";
+import { notificationApi, Notification } from "../api/notificationApi";
 
 export default function Notifications() {
   const [activeTab, setActiveTab] = useState("전체");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const notifications = [
-    {
-      id: 1,
-      type: "mention",
-      title: "김철수님이 나를 언급했습니다.",
-      content: "데이터베이스 설계 프로젝트: ERD 초안 리뷰 부탁드립니다.",
-      time: "10분 전",
-      isRead: false,
-      icon: MessageSquare,
-      theme: "purple"
-    },
-    {
-      id: 2,
-      type: "task",
-      title: "새로운 업무가 할당되었습니다.",
-      content: "모바일 앱 개발: 로그인 화면 UI 프로토타입 작성",
-      time: "1시간 전",
-      isRead: false,
-      icon: CheckCircle2,
-      theme: "green"
-    },
-    {
-      id: 3,
-      type: "alert",
-      title: "마감일 알림 (긴급)",
-      content: "AI 모델 구현: 데이터셋 전처리 완료 마감이 내일입니다.",
-      time: "어제",
-      isRead: true,
-      icon: AlertCircle,
-      theme: "red"
-    },
-    {
-      id: 4,
-      type: "calendar",
-      title: "일정 변경 안내",
-      content: "웹 서비스 기획: 주간 회의 시간이 오후 2시로 변경되었습니다.",
-      time: "어제",
-      isRead: true,
-      icon: CalendarIcon,
-      theme: "orange"
-    },
-    {
-      id: 5,
-      type: "file",
-      title: "새 파일 업로드",
-      content: "이영희님이 '요구사항_정의 정의서_v2.pdf'를 업로드했습니다.",
-      time: "2일 전",
-      isRead: true,
-      icon: FileText,
-      theme: "blue"
-    },
-  ];
+  const fetchNotifications = async () => {
+    try {
+      const data = await notificationApi.getNotifications();
+      setNotifications(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await notificationApi.markAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const filteredNotis = activeTab === "전체" 
     ? notifications 
@@ -63,92 +46,133 @@ export default function Notifications() {
       ? notifications.filter(n => !n.isRead) 
       : notifications.filter(n => n.type === activeTab);
 
-  return (
-    <div className="dashboard pt-4 lg:max-w-4xl lg:mx-auto">
-      {/* Header */}
-      <section className="card hero-card mb-6">
-        <div className="hero-top" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
-          <div>
-            <p className="hero-meta uppercase">알림 피드</p>
-            <h1 className="hero-title flex items-center gap-4" style={{ fontSize: '2rem' }}>
-              알림 센터
-              <span className="flex items-center justify-center min-w-[32px] h-[32px] px-2.5 bg-[#FF6B7A] text-white text-[13px] font-black rounded-[10px] shadow-[0_0_15px_rgba(255,107,122,0.4)] border border-[#FF6B7A]/50">
-                {notifications.filter(n => !n.isRead).length}
-              </span>
-            </h1>
-          </div>
-          <button className="flex items-center gap-3 px-6 py-3.5 bg-white/50 dark:bg-white/5 border border-gray-300 dark:border-white/10 text-[#7D879C] dark:text-white/60 rounded-[20px] text-[13px] font-black uppercase tracking-widest hover:bg-white/60 dark:bg-white/10 hover:text-[#1A2340] dark:text-white transition-all shadow-sm active:scale-95 group">
-            <Check className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            모두 읽음
-          </button>
-        </div>
-      </section>
+  const tabs = ["전체", "안 읽음", "task", "mention"];
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide mb-6 relative z-10">
-        {["전체", "안 읽음", "mention", "task"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 rounded-[20px] text-[12px] font-black uppercase tracking-widest transition-all ${
-              activeTab === tab
-                ? "bg-[#11B886] text-white shadow-[0_0_20px_rgba(17,184,134,0.4)] border border-[#11B886]/40"
-                : "bg-white dark:bg-[#12182B] text-[#7D879C]/80 dark:text-white/40 border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-white/5 hover:text-[#1A2340] dark:text-white"
-            }`}
-          >
-            {tab === "mention" ? "멘션" : tab === "task" ? "업무" : tab}
-          </button>
-        ))}
+  const getIconAndTheme = (type: string) => {
+    switch (type) {
+      case 'task': return { icon: CheckCircle2, theme: 'green' };
+      case 'mention': return { icon: MessageSquare, theme: 'purple' };
+      case 'alert': return { icon: AlertCircle, theme: 'red' };
+      default: return { icon: Bell, theme: 'blue' };
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-[#12182B] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#11B886]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-[#12182B]">
+      {/* Header */}
+      <div className="px-4 py-4 md:px-8 md:py-6 border-b border-gray-100 dark:border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 bg-white/95 dark:bg-[#12182B]/95 backdrop-blur-xl z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-900 dark:text-white">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">알림 센터</h1>
+            <p className="text-sm font-bold text-[#7D879C] mt-1">새로운 소식과 업데이트를 확인하세요.</p>
+          </div>
+        </div>
+        <button 
+          onClick={handleMarkAllAsRead}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-bold text-[#1A2340] dark:text-white bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl transition-colors active:scale-95"
+        >
+          <Check className="w-4 h-4" />
+          모두 읽음 처리
+        </button>
       </div>
 
-      {/* Notification List */}
-      <div className="space-y-4 pb-24">
-        {filteredNotis.length > 0 ? (
-          <div className="space-y-4">
-            {filteredNotis.map((noti) => (
-              <div 
-                key={noti.id} 
-                className={`card !p-6 flex gap-6 cursor-pointer relative group transition-all !border-gray-200 dark:!border-white/5 ${
-                  !noti.isRead ? "!bg-white/40 dark:!bg-[#1A2340] hover:!bg-white/50 dark:!bg-[#222E54]" : "hover:!bg-white/40 dark:!bg-[#1A2340]"
-                }`}
-              >
-                {!noti.isRead && (
-                  <div className="absolute left-0 top-6 bottom-6 w-1.5 rounded-r-lg bg-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.6)]"></div>
-                )}
-                
-                <div className={`schedule-item ${noti.theme} !p-0 !border-none bg-transparent flex-shrink-0`}>
-                  <div className="schedule-icon" style={{ width: 64, height: 64, borderRadius: 16 }}>
-                    <noti.icon className="w-8 h-8 text-[#1A2340] dark:text-white" />
-                  </div>
-                </div>
-                
-                <div className="flex-1 min-w-0 py-1">
-                  <div className="flex items-center justify-between gap-4 mb-2">
-                    <h3 className={`text-[17px] tracking-tight truncate ${!noti.isRead ? "font-black text-[#1A2340] dark:text-white" : "font-black text-[#7D879C] dark:text-white/70"}`}>
-                      {noti.title}
-                    </h3>
-                    <span className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest whitespace-nowrap">
-                      {noti.time}
-                    </span>
-                  </div>
-                  <p className="text-[14px] text-[#7D879C] dark:text-white/60 font-medium leading-relaxed group-hover:text-white/90 transition-opacity">
-                    {noti.content}
-                  </p>
-                </div>
+      {/* Tabs */}
+      <div className="px-4 md:px-8 py-3 border-b border-gray-100 dark:border-white/5 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                activeTab === tab
+                  ? "bg-[#11B886] text-white shadow-md shadow-[#11B886]/20"
+                  : "bg-gray-50 dark:bg-white/5 text-[#7D879C] hover:text-[#1A2340] dark:hover:text-white"
+              }`}
+            >
+              {tab === 'task' ? '업무' : tab === 'mention' ? '멘션' : tab}
+              {tab === "안 읽음" && (
+                <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black">
+                  {notifications.filter(n => !n.isRead).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-3">
+          {filteredNotis.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-16 h-16 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center text-gray-400 mb-4">
+                <Bell className="w-8 h-8 opacity-50" />
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="card !py-32 flex flex-col items-center justify-center text-center !border-gray-200 dark:!border-white/5">
-            <div className={`schedule-item purple !p-0 !border-none bg-transparent mb-6 opacity-40`}>
-              <div className="schedule-icon" style={{ width: 80, height: 80, borderRadius: 24 }}>
-                <Bell className="w-10 h-10 text-[#1A2340] dark:text-white" />
-              </div>
+              <h3 className="text-[15px] font-bold text-[#1A2340] dark:text-white">새로운 알림이 없습니다</h3>
+              <p className="text-sm text-[#7D879C] mt-1">모든 소식을 확인하셨습니다.</p>
             </div>
-            <p className="text-[20px] font-black text-[#1A2340] dark:text-white mb-2 uppercase tracking-tight">상태 확인 완료</p>
-            <p className="hero-meta !text-[#7D879C]/80 dark:!text-white/40">새로운 알림이 없습니다.</p>
-          </div>
-        )}
+          ) : (
+            filteredNotis.map((noti) => {
+              const { icon: Icon, theme } = getIconAndTheme(noti.type);
+              
+              const themeColors = {
+                purple: "bg-[#7C6CFF]/10 text-[#7C6CFF] border-[#7C6CFF]/20",
+                green: "bg-[#11B886]/10 text-[#11B886] border-[#11B886]/20",
+                red: "bg-red-500/10 text-red-500 border-red-500/20",
+                orange: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+                blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+              };
+              const colorClass = themeColors[theme as keyof typeof themeColors];
+
+              return (
+                <div 
+                  key={noti.id}
+                  onClick={() => handleMarkAsRead(noti.id)}
+                  className={`group relative p-4 md:p-5 rounded-2xl border transition-all cursor-pointer ${
+                    !noti.isRead 
+                      ? "bg-white dark:bg-[#151C31] border-transparent shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)]" 
+                      : "bg-gray-50/50 dark:bg-[#0d1526] border-gray-100 dark:border-white/5 opacity-70"
+                  }`}
+                >
+                  <div className="flex gap-4 items-start">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${colorClass}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">
+                        <h3 className={`text-[15px] font-black truncate ${!noti.isRead ? "text-[#1A2340] dark:text-white" : "text-[#1A2340]/70 dark:text-white/70"}`}>
+                          {noti.title}
+                        </h3>
+                        <span className="text-xs font-bold text-[#7D879C] whitespace-nowrap">
+                          {new Date(noti.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className={`text-sm leading-relaxed ${!noti.isRead ? "text-gray-600 dark:text-gray-300 font-bold" : "text-gray-500 dark:text-gray-400 font-medium"}`}>
+                        {noti.content}
+                      </p>
+                    </div>
+
+                    {!noti.isRead && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 mt-2 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );

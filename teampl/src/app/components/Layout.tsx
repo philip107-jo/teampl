@@ -12,10 +12,12 @@ import {
   Calendar as CalendarIcon,
   LayoutDashboard,
   FolderKanban,
-  LogOut
+  LogOut,
+  Bell
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
+import { notificationApi, Notification } from "../api/notificationApi";
 import { useChat } from "../context/ChatContext";
 
 export default function Layout() {
@@ -29,6 +31,9 @@ export default function Layout() {
   // Kicked Alerts State
   const [kickedAlerts, setKickedAlerts] = useState<{projectId: number, projectName: string, kickReason: string}[]>([]);
 
+  // Notifications State
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+
   useEffect(() => {
     if (!user) return;
 
@@ -36,13 +41,23 @@ export default function Layout() {
       try {
         const alerts = await projectApi.getKickedAlerts();
         setKickedAlerts(alerts);
-      } catch (error) {
-        // console.error("Failed to fetch kicked alerts", error);
-      }
+      } catch (error) {}
+    };
+
+    const fetchNotifications = async () => {
+      try {
+        const notis = await notificationApi.getNotifications();
+        const unread = notis.filter(n => !n.isRead).length;
+        setUnreadNotificationsCount(unread);
+      } catch (error) {}
     };
 
     fetchAlerts();
-    const intervalId = setInterval(fetchAlerts, 5000);
+    fetchNotifications();
+    const intervalId = setInterval(() => {
+      fetchAlerts();
+      fetchNotifications();
+    }, 5000);
     return () => clearInterval(intervalId);
   }, [user]);
 
@@ -86,9 +101,8 @@ export default function Layout() {
   return (
     <div className="flex flex-col h-screen bg-[var(--theme-bg)] dark:bg-[var(--theme-bg-gradient)] transition-all duration-500 overflow-hidden">
       {/* Top Bar - Slimmer for Mobile */}
-      {/* Global Top Bar - Hidden when inside a project */}
-      {!projectId && (
-        <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-6 py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
+      {/* Global Top Bar - Always visible */}
+      <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-6 py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
           <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
@@ -122,21 +136,33 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="text-right">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/notifications')}
+                  className="relative p-2.5 text-[#7D879C]/80 hover:text-[#11B886] bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
+                  title="알림 센터"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadNotificationsCount > 0 && (
+                    <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-[#151C31] shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse"></div>
+                  )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-2.5 text-[#7D879C]/80 hover:text-red-500 bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
+                  title="로그아웃"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="text-right ml-2 border-l border-gray-200 dark:border-white/10 pl-4">
                 <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
                 <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-2.5 text-[#7D879C]/80 hover:text-red-500 bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
-                title="로그아웃"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
-        </header>
-      )}
+      </header>
 
       {/* Page Content */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden scrolling-touch relative">

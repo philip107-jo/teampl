@@ -6,7 +6,6 @@ export type User = {
   department?: string;
   avatarUrl?: string;
   avatarColor?: string;
-  isUnivVerified?: boolean;
 };
 
 export type Workspace = {

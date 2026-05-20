@@ -13,6 +13,7 @@ import schedulesRouter from './modules/schedules/schedules.controller';
 import aiRouter from './modules/ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
+import notificationsRouter from './modules/notifications/notifications.controller';
 import { ChatService } from './modules/chat/chat.service';
 import { setIo } from './socket';
 
@@ -55,6 +56,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
 import globalSchedulesRouter from './modules/schedules/global-schedules.controller';
 app.use('/api/schedules', globalSchedulesRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // 프로젝트 하위 라우트 (방 기반 구조)
 app.use('/api/projects/:projectId/tasks', tasksRouter);

@@ -38,7 +38,7 @@ services:
     depends_on:
       - db
     # 컨테이너 구동 시 Prisma 스키마를 DB에 반영하고 최신 클라이언트를 생성합니다. (익명 볼륨 캐싱 문제 해결)
-    command: sh -c "npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"
+    command: sh -c "npm install && npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"
 
   frontend:
     build:

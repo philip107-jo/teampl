@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { 
   ChevronLeft, Trophy, Calendar as CalendarIcon, 
   PlayCircle, CheckCircle2, ArrowRight, Plus, 
-  TrendingUp, User, Trash2, CheckCheck
+  TrendingUp, User, Trash2, CheckCheck, Sparkles
 } from "lucide-react";
 import { socket, joinProjectChannel } from "../socket";
 import { Task } from "../types";
@@ -12,6 +12,7 @@ import { projectApi } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
 import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
+import AiTaskSplitModal from "../components/AiTaskSplitModal";
 
 interface TasksProps {
   projectId?: number;
@@ -29,6 +30,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const [projectStats, setProjectStats] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createModalAssignee, setCreateModalAssignee] = useState<{email: string, name: string} | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   const currentUserMember = members.find(m => m.email === user?.email);
   const isLeader = currentUserMember?.role === 'LEADER';
@@ -56,6 +58,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
         setLoading(false);
       }
     };
+    
     fetchData();
     
     // 실시간 업데이트 구독
@@ -95,13 +98,22 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white">과제 관리</h2>
-        <button 
-          onClick={() => setCreateModalAssignee({ email: user?.email || '', name: user?.name || '' })}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-full text-sm font-bold transition-all border-none"
-        >
-          <Plus className="w-4 h-4" />
-          과제 추가
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsAiModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#7C6CFF] hover:bg-[#6A5BDB] text-white rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(124,108,255,0.4)]"
+          >
+            <Sparkles className="w-4 h-4" />
+            AI 업무 분할
+          </button>
+          <button 
+            onClick={() => setCreateModalAssignee({ email: user?.email || '', name: user?.name || '' })}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-full text-sm font-bold transition-all border-none"
+          >
+            <Plus className="w-4 h-4" />
+            과제 추가
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -224,6 +236,20 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
           onCreate={async () => {
             const tasksData = await taskApi.getTasks(numProjectId);
             setTasks(tasksData);
+          }}
+        />
+      )}
+
+      {/* AI Task Split Modal */}
+      {numProjectId && (
+        <AiTaskSplitModal
+          projectId={numProjectId}
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          onSuccess={() => {
+            setIsAiModalOpen(false);
+            // Re-fetch tasks after successful batch creation
+            taskApi.getTasks(numProjectId).then(setTasks);
           }}
         />
       )}

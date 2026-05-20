@@ -38,16 +38,13 @@ model User {
   studentId        String?
   department       String?
   createdAt        DateTime @default(now())
-  
-  msAccountId      String?  @unique
-  msRefreshToken   String?
-  isUnivVerified   Boolean  @default(false)
-  
   projectMembers   ProjectMember[]
   sentMessages     Message[]      @relation("SentMessages")
   receivedMessages Message[]      @relation("ReceivedMessages")
   driveFiles       DriveFile[]    @relation("UserDriveFiles")
   taskComments     TaskComment[]
+  notifications    Notification[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Project {
@@ -66,7 +63,6 @@ model Project {
   projectMembers ProjectMember[]
   tasks           Task[]
   schedules       Schedule[]
-  sharedDocuments SharedDocument[]
   messages        Message[]
   driveFolders    DriveFolder[]
   driveFiles      DriveFile[]
@@ -138,17 +134,6 @@ model ProjectDeleteAlert {
   createdAt     DateTime @default(now())
 }
 
-model SharedDocument {
-  id          Int      @id @default(autoincrement())
-  projectId   Int
-  fileName    String
-  fileType    String   // 'word', 'excel', 'ppt'
-  webUrl      String   // MS Graph webUrl
-  creatorEmail String
-  createdAt   DateTime @default(now())
-
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
 
 model Message {
   id            Int      @id @default(autoincrement())
@@ -161,6 +146,30 @@ model Message {
   sender        User     @relation("SentMessages", fields: [senderEmail], references: [email], onDelete: Cascade)
   receiver      User?    @relation("ReceivedMessages", fields: [receiverEmail], references: [email], onDelete: Cascade)
   project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userEmail String
+  type      String   // 'task', 'mention', 'alert'
+  title     String
+  content   String
+  isRead    Boolean  @default(false)
+  link      String?  // Optional link to redirect to
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userEmail String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 }
 
 model DriveFolder {

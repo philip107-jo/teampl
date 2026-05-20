@@ -9,7 +9,6 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { useDarkMode } from "../context/DarkModeContext";
-import { officeApi, SharedDocument } from "../api/officeApi";
 import { driveApi, DriveFolder, DriveFile } from "../api/driveApi";
 import { useRef } from "react";
 
@@ -24,17 +23,10 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
 
   const [currentPath, setCurrentPath] = useState([{ name: propProjectId ? "프로젝트 파일" : "전체 스페이스", id: "root" }]);
   const [activeTab, setActiveTab] = useState("전체");
-  const [officeDocs, setOfficeDocs] = useState<SharedDocument[]>([]);
   const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { isDark } = useDarkMode();
-
-  // Custom Create Modal States
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newDocTitle, setNewDocTitle] = useState("");
-  const [targetDocApp, setTargetDocApp] = useState<{label: string, type: string, theme: string} | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +40,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     if (!propProjectId) return;
     setIsLoading(true);
     try {
-      const [docs, driveContents] = await Promise.all([
-        officeApi.getSharedDocuments(propProjectId),
-        driveApi.getDriveContents(propProjectId)
-      ]);
-      setOfficeDocs(docs);
+      const driveContents = await driveApi.getDriveContents(propProjectId);
       setDriveFolders(driveContents.folders);
       setDriveFiles(driveContents.files);
     } catch (err) {
@@ -94,20 +82,6 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     }
   };
 
-  // 실제 DB 데이터와 목업 데이터를 조합
-  const displayDocs = officeDocs.map(doc => ({
-    id: `ms-${doc.id}`,
-    name: doc.fileName,
-    type: doc.fileType,
-    creator: doc.creatorEmail === user?.email ? "나" : doc.creatorEmail.split('@')[0],
-    date: new Date(doc.createdAt).toLocaleDateString(),
-    size: "-",
-    isWeb: true,
-    webUrl: doc.webUrl,
-    icon: doc.fileType === 'excel' ? FileBarChart : doc.fileType === 'ppt' ? FileImage : FileText,
-    theme: doc.fileType === 'excel' ? "green" : doc.fileType === 'ppt' ? "orange" : "blue",
-    url: doc.webUrl
-  }));
 
   const displayDbFiles = driveFiles.map(file => {
     const isImage = file.type.startsWith('image/');
@@ -126,13 +100,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     };
   });
 
-  const allFiles = [...displayDocs, ...displayDbFiles];
+  const allFiles = [...displayDbFiles];
   
-  const filteredFiles = allFiles.filter(file => {
-    if (activeTab === "MS오피스") return file.isWeb;
-    if (activeTab === "일반파일") return !file.isWeb;
-    return true;
-  });
+  const filteredFiles = allFiles;
 
   const displayFolders = driveFolders.map(f => ({
     ...f, items: driveFiles.filter(file => file.folderId === f.id).length
@@ -257,7 +227,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <div className="flex items-center justify-between px-1">
               <h2 className="hero-meta">통합 목록</h2>
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide max-w-[200px] sm:max-w-none">
-                {["전체", "일반파일", "MS오피스"].map(tab => (
+                {["전체"].map(tab => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -286,8 +256,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white truncate transition-colors mb-0.5 group-hover:text-[#11B886]">{file.name}</p>
-                        <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{file.isWeb ? 'WEB DOCUMENT' : 'STATIC FILE'}</p>
+                        <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">STATIC FILE</p>
                       </div>
                     </div>
                     <div className="hidden sm:block col-span-2 text-[13px] font-black text-[#7D879C] dark:text-white/60">
@@ -302,36 +271,6 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     <div className="hidden sm:flex col-span-3 items-center justify-end gap-3 pr-2">
                       <span className="text-[12px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest pr-2">{file.date}</span>
                       <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0 translate-x-2">
-                        {file.isWeb ? (
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if ((file as any).webUrl) window.open((file as any).webUrl, '_blank');
-                              }}
-                              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#11B886]/20 text-[#11B886] border border-[#11B886]/30 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap shadow-[0_0_10px_rgba(17,184,134,0.2)] hover:bg-[#11B886]/30" 
-                              title="웹에서 열기"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              Edit
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if ((file as any).webUrl) {
-                                  const url = (file as any).webUrl;
-                                  const dlUrl = url.includes('?') ? `${url}&download=1` : `${url}?download=1`;
-                                  window.open(dlUrl, '_blank');
-                                }
-                              }}
-                              className="flex items-center justify-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 text-[#7D879C] dark:text-white/80 border border-gray-300 dark:border-white/10 rounded-xl transition-all text-[11px] font-black uppercase tracking-widest whitespace-nowrap hover:bg-white/60 dark:bg-white/10" 
-                              title="사본 다운로드"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              Download
-                            </button>
-                          </div>
-                        ) : (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -346,7 +285,6 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                              <Download className="w-3.5 h-3.5" />
                              Download
                           </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -372,168 +310,8 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             <p className="text-[14px] font-black text-[#1A2340] dark:text-white mb-1 uppercase tracking-widest">DRAG & DROP</p>
             <p className="text-[11px] font-black text-[#11B886] uppercase tracking-widest">ZIP, PDF, MP4, ETC</p>
           </div>
-
-          <div className="card !p-8 border border-gray-200 dark:border-white/5">
-            <h3 className="hero-meta mb-6">INTEGRATIONS</h3>
-            <div className="space-y-3">
-              {[
-                { label: "Word 문서", icon: FileText, theme: "blue", type: "word" },
-                { label: "Excel 시트", icon: FileBarChart, theme: "green", type: "excel" },
-                { label: "PPT 발표", icon: FileImage, theme: "orange", type: "ppt" },
-              ].map((app, i) => {
-                const isLocked = !user?.isUnivVerified;
-                
-                const handleMsDocClick = () => {
-                  if (isLocked) {
-                    alert('대학생 인증이 필요한 기능입니다. 마이페이지에서 Microsoft 계정 연동을 진행해주세요.');
-                    return;
-                  }
-                  if (!propProjectId) {
-                     alert('진행 중인 프로젝트 내에서만 생성할 수 있습니다.');
-                     return;
-                  }
-                  
-                  setTargetDocApp(app);
-                  setNewDocTitle(`새 ${app.label}`);
-                  setIsCreateModalOpen(true);
-                };
-
-                return (
-                  <button 
-                    key={i} 
-                    onClick={handleMsDocClick}
-                    className={`w-full flex items-center justify-between p-4 bg-white dark:bg-[#12182B] rounded-2xl border border-gray-200 dark:border-white/5 transition-all group ${isLocked ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:bg-white/50 dark:hover:bg-white/5 cursor-pointer'}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`schedule-item ${app.theme} !border-none !p-0 bg-transparent flex-shrink-0`}>
-                        <div className="schedule-icon" style={{ width: 44, height: 44, borderRadius: 12 }}>
-                          <app.icon className="w-5 h-5" />
-                        </div>
-                      </div>
-                      <span className="text-[13px] font-black text-[#7D879C] dark:text-white/80 group-hover:text-[#1A2340] dark:text-white uppercase tracking-widest">{app.label}</span>
-                    </div>
-                    {isLocked && <div className="text-gray-400 group-hover:text-red-400" title="잠김">🔒</div>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
-      {/* -- Custom MS Create Modal -- */}
-      <AnimatePresence>
-        {isCreateModalOpen && targetDocApp && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-2xl"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 40, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 40, opacity: 0 }}
-              className="card w-full max-w-[440px] !p-8 text-center border border-gray-200 dark:border-none shadow-[0_30px_90px_rgba(17,184,134,0.15)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.8)] relative overflow-visible bg-white"
-              style={isDark ? { background: 'linear-gradient(180deg, #162540 0%, #132038 100%)' } : {}}
-            >
-              {/* Decoration Glow */}
-              <div className={`absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#11B886]/15 blur-[60px] rounded-full`} />
-              
-              <div className="relative z-10 space-y-8">
-                <div className="flex justify-between items-center mb-2">
-                   <div className={`px-4 py-1.5 rounded-xl bg-[#11B886]/10 text-[#11B886] text-[11px] font-black uppercase tracking-widest`}>
-                      Create Microsoft Asset
-                   </div>
-                   <button 
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                   >
-                     <X className="w-5 h-5" />
-                   </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="text-left">
-                    <h2 className="text-[24px] font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                      제목을 설정하세요
-                    </h2>
-                    <p className="text-[13px] font-bold text-slate-500 dark:text-white/40 mt-1">
-                      {targetDocApp.label}를 생성합니다. (나중에 변경 가능)
-                    </p>
-                  </div>
-
-                  <div className="relative group/input">
-                     <input 
-                       autoFocus
-                       type="text"
-                       value={newDocTitle}
-                       onChange={(e) => setNewDocTitle(e.target.value)}
-                       onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !isCreating) {
-                            (async () => {
-                              if (!propProjectId) return;
-                              setIsCreating(true);
-                              try {
-                                const data = await officeApi.createSharedDocument(propProjectId, targetDocApp.type, newDocTitle);
-                                if (data.webUrl) {
-                                  window.open(data.webUrl, '_blank');
-                                  loadDocuments();
-                                  setIsCreateModalOpen(false);
-                                }
-                              } catch (e: any) {
-                                alert(e.response?.data?.message || '실패!');
-                              } finally {
-                                setIsCreating(false);
-                              }
-                            })();
-                          }
-                       }}
-                       placeholder="파일 제목 입력"
-                       className="w-full px-6 py-4 bg-white dark:bg-[#12182B]/60 border border-gray-200 dark:border-white/10 rounded-2xl text-[16px] font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#11B886]/50 transition-all shadow-inner"
-                     />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    disabled={isCreating}
-                    onClick={async () => {
-                      if (!propProjectId) return;
-                      setIsCreating(true);
-                      try {
-                        const data = await officeApi.createSharedDocument(propProjectId, targetDocApp.type, newDocTitle);
-                        if (data.webUrl) {
-                          window.open(data.webUrl, '_blank');
-                          loadDocuments();
-                          setIsCreateModalOpen(false);
-                        }
-                      } catch (e: any) {
-                        alert(e.response?.data?.message || '생성 실패');
-                      } finally {
-                        setIsCreating(false);
-                      }
-                    }}
-                    className="w-full py-5 bg-[#11B886] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_12px_24px_rgba(17,184,134,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  >
-                    {isCreating ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-5 h-5" />
-                    )}
-                    {isCreating ? 'CREATING...' : '문서 생성하기'}
-                  </button>
-                  <button
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="w-full py-4 text-slate-400 dark:text-white/30 text-[12px] font-black uppercase tracking-widest hover:text-slate-600 dark:hover:text-white transition-all underline underline-offset-4"
-                  >
-                    나중에 할게요
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

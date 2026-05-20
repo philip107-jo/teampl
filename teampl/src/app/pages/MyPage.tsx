@@ -1,14 +1,86 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Mail, Phone, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, TrendingUp, Star, Plus, MessageSquare } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router";
 import { useDarkMode } from "../context/DarkModeContext";
+import { notificationApi } from "../api/notificationApi";
+
+function urlB64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export default function MyPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isDark: darkMode, toggleDark: setDarkModeToggle } = useDarkMode();
-  const [pushNoti, setPushNoti] = useState(true);
+  const [pushNoti, setPushNoti] = useState(false); // Default false
+
+  useEffect(() => {
+    // Check initial subscription status
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          if (sub) {
+            setPushNoti(true);
+          }
+        });
+      });
+    }
+  }, []);
+
+  const handlePushNotiToggle = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('푸시 알림을 지원하지 않는 브라우저입니다.');
+      return;
+    }
+
+    try {
+      const reg = await navigator.serviceWorker.ready;
+
+      if (!pushNoti) {
+        // Turn ON
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          alert('알림 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.');
+          return;
+        }
+
+        const publicKey = await notificationApi.getVapidPublicKey();
+        const subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToUint8Array(publicKey)
+        });
+
+        // Backend 에 구독 정보 저장
+        // @ts-ignore
+        await notificationApi.subscribePush(subscription);
+        setPushNoti(true);
+        alert('푸시 알림이 설정되었습니다.');
+      } else {
+        // Turn OFF
+        const subscription = await reg.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+          await notificationApi.unsubscribePush(subscription.endpoint);
+        }
+        setPushNoti(false);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('푸시 설정 중 오류가 발생했습니다.');
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -80,23 +152,17 @@ export default function MyPage() {
                   { label: "사용자 이름", value: user?.name, icon: User },
                   { label: "학부/전공", value: user?.department || "미입력", icon: Building2 },
                   { label: "가입 이메일", value: user?.email, icon: Mail },
-                  { label: "Microsoft 365 연동", value: user?.isUnivVerified ? "✅ 연동 완료" : "⚠️ 미연동 (여기를 눌러 인증)", icon: Shield, isMsAuth: true },
                 ].map((item, idx) => (
                   <div key={idx} 
-                    onClick={() => {
-                        if (item.isMsAuth && !user?.isUnivVerified) {
-                           window.location.href = `http://localhost:8080/api/users/ms-login?token=${localStorage.getItem('access_token')}`;
-                        }
-                    }}
-                    className={`flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 transition-all group ${item.isMsAuth && !user?.isUnivVerified ? 'cursor-pointer hover:bg-[#11B886]/10 hover:border-[#11B886]/30 hover:shadow-[0_4px_20px_rgba(17,184,134,0.2)]' : 'cursor-default hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}
+                    className="flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 transition-all group cursor-default hover:bg-white/50 dark:bg-[#222E54] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
                   >
                     <div className="flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 transition-all ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547] group-hover:text-[#11B886]' : 'text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#11B886]'}`}>
+                      <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#12182B] flex items-center justify-center border border-gray-200 dark:border-white/5 transition-all text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#11B886]">
                         <item.icon className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="text-[11px] font-black text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest mb-1">{item.label}</p>
-                        <p className={`text-[15px] font-black ${item.isMsAuth && user?.isUnivVerified ? 'text-[#27D7A1]' : item.isMsAuth ? 'text-[#FFB547]' : 'text-[#1A2340] dark:text-white'}`}>{item.value}</p>
+                        <p className="text-[15px] font-black text-[#1A2340] dark:text-white">{item.value}</p>
                       </div>
                     </div>
                   </div>
@@ -123,7 +189,7 @@ export default function MyPage() {
                       </div>
                     </div>
                     <button 
-                      onClick={() => setPushNoti(!pushNoti)}
+                      onClick={handlePushNotiToggle}
                       className={`w-14 h-7 rounded-full p-1.5 transition-all duration-300 border border-gray-300 dark:border-white/10 ${pushNoti ? 'bg-[#11B886] shadow-[0_0_15px_rgba(17,184,134,0.4)]' : 'bg-white dark:bg-[#12182B]'}`}
                     >
                       <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${pushNoti ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
