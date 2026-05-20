@@ -32,6 +32,11 @@ services:
       - MS_REDIRECT_URI=${MS_REDIRECT_URI}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - KT_CLOUD_ENDPOINT=${KT_CLOUD_ENDPOINT}
+      - KT_CLOUD_ACCESS_KEY=${KT_CLOUD_ACCESS_KEY}
+      - KT_CLOUD_SECRET_KEY=${KT_CLOUD_SECRET_KEY}
+      - KT_CLOUD_BUCKET=${KT_CLOUD_BUCKET}
+      - KT_CLOUD_REGION=${KT_CLOUD_REGION}
     volumes:
       - ./teampl-back:/app
       - /app/node_modules
