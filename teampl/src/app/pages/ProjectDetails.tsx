@@ -14,6 +14,8 @@ import Tasks from "./Tasks";
 import Calendar from "./Calendar";
 import Chat from "./Chat";
 import Drive from "./Drive";
+import VotePage from "./Vote";
+import Overview from "./Overview";
 import MemberTasks from "./MemberTasks";
 import { useChat } from "../context/ChatContext";
 
@@ -26,7 +28,7 @@ export default function ProjectDetails() {
   const { onlineUsers, socket, activeChatKey } = useChat();
 
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'tasks';
+  const activeTab = searchParams.get('tab') || 'overview';
 
   const [realProject, setRealProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -288,6 +290,7 @@ export default function ProjectDetails() {
         {/* Tab Navigation Menu */}
         <div className="px-4 md:px-8 flex gap-6 overflow-x-auto no-scrollbar pb-0.5">
           {[
+            { id: 'overview', label: '개요', icon: LayoutDashboard },
             { id: 'tasks', label: '과제 관리', icon: CheckSquare },
             { id: 'calendar', label: '일정', icon: CalendarIcon },
             { id: 'chat', label: '채팅', icon: MessageSquare },
@@ -313,11 +316,12 @@ export default function ProjectDetails() {
 
       {/* ===== Tab Content ===== */}
       <div className="px-4 md:px-8">
+        {activeTab === 'overview' && <Overview projectId={numProjectId} project={project} members={displayMembers} />}
         {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
         {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
         {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
         {activeTab === 'drive' && <Drive projectId={numProjectId} />}
-        {activeTab === 'vote' && <div className="text-center py-20 text-gray-500">투표 기능은 준비중입니다.</div>}
+        {activeTab === 'vote' && <VotePage projectId={numProjectId} />}
         {activeTab === 'members' && <div className="text-center py-20 text-gray-500">팀원 관리 기능은 준비중입니다.</div>}
       </div>
 

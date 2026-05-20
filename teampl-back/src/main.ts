@@ -14,6 +14,7 @@ import aiRouter from './modules/ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
+import votesRouter from './modules/votes/votes.controller';
 import { ChatService } from './modules/chat/chat.service';
 import { setIo } from './socket';
 
@@ -63,6 +64,7 @@ app.use('/api/projects/:projectId/tasks', tasksRouter);
 app.use('/api/projects/:projectId/schedules', schedulesRouter);
 app.use('/api/projects/:projectId/ai', aiRouter);
 app.use('/api/projects/:projectId/drive', driveRouter);
+app.use('/api/projects/:projectId/votes', votesRouter);
 
 // Socket.io 통신 처리
 const onlineUsers = new Set<string>();
