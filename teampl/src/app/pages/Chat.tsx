@@ -352,7 +352,6 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
   useEffect(() => {
     setActiveChatKey(chatKey);
-<<<<<<< HEAD
     if (chatKey) {
       clearUnread(chatKey);
       if (chatMode === "INDIVIDUAL" && selectedMember) {
