@@ -16,6 +16,8 @@ interface ChatContextType {
   onlineUsers: string[];
   socket: Socket | null;
   activeChatKey: string | null;
+  notificationCount: number;
+  clearNotifications: () => void;
   incrementUnread: (key: string, amount?: number) => void;
   clearUnread: (key: string) => void;
   setMessages: (key: string, msgs: Message[]) => void;
@@ -36,6 +38,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const activeChatKeyRef = useRef<string | null>(null);
   const projectMembersRef = useRef<any[]>([]);
@@ -115,9 +118,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [socket]);
 
+  // 실시간 알림 수신 (currentUserEmail 변경 시 리스너 재등록)
+  useEffect(() => {
+    if (!socket || !currentUserEmail) return;
+    const onNotification = () => {
+      setNotificationCount(prev => prev + 1);
+    };
+    const eventName = `notification:${currentUserEmail}`;
+    socket.on(eventName, onNotification);
+    return () => { socket.off(eventName, onNotification); };
+  }, [socket, currentUserEmail]);
+
   const totalUnreadCount = useMemo(() => {
     return Object.values(unreadCounts).reduce((acc, curr) => acc + curr, 0);
   }, [unreadCounts]);
+
+  const clearNotifications = useCallback(() => {
+    setNotificationCount(0);
+  }, []);
 
   const incrementUnread = useCallback((key: string, amount: number = 1) => {
     setUnreadCounts(prev => ({ ...prev, [key]: (prev[key] || 0) + amount }));
@@ -168,8 +186,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <ChatContext.Provider value={{ 
+    <ChatContext.Provider value={{
       unreadCounts, totalUnreadCount, messagesStore, onlineUsers, socket, activeChatKey,
+      notificationCount, clearNotifications,
       incrementUnread, clearUnread, setMessages, addMessage, setActiveChatKey, initProjectChat,
       simulateNoti
     }}>

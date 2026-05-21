@@ -1,5 +1,6 @@
 import { prisma } from '../../prisma';
 import webpush from 'web-push';
+import { getIo } from '../../socket';
 
 const PUBLIC_VAPID_KEY = process.env.VAPID_PUBLIC_KEY || 'BAOx6TgJVwefwaj42jgCoFmYQNLjZJkW-JtoICpVZIuBA-5A-I33HzO3hmur04kdsTBd2Xpy21_5W5LSE3LumT4';
 const PRIVATE_VAPID_KEY = process.env.VAPID_PRIVATE_KEY || 'N0ZsqhqQ4WlPvLiX845l05dskGXztZ7X73gTwPFGBKU';
@@ -56,6 +57,14 @@ export const NotificationsService = {
     } catch (err) {
       console.error("Error fetching subscriptions:", err);
     }
+
+    // 소켓으로 실시간 알림 전송
+    try {
+      const io = getIo();
+      if (io) {
+        io.emit(`notification:${data.userEmail}`, notification);
+      }
+    } catch (_) {}
 
     return notification;
   },

@@ -6,11 +6,12 @@ interface TaskCreateModalProps {
   projectId: number;
   assigneeEmail: string;
   assigneeName: string;
+  initialStatus?: string;
   onClose: () => void;
   onCreate: () => void;
 }
 
-export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName, onClose, onCreate }: TaskCreateModalProps) {
+export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName, initialStatus = "TODO", onClose, onCreate }: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -28,7 +29,7 @@ export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName
       await taskApi.createTask(projectId, {
         title,
         description,
-        status: "TODO",
+        status: initialStatus,
         priority: "medium", // Default priority since removed from UI
         difficulty: 3,      // Default difficulty since removed from UI
         deadline: deadline || "마감일 없음",

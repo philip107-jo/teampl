@@ -24,7 +24,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { totalUnreadCount } = useChat();
+  const { totalUnreadCount, notificationCount, clearNotifications } = useChat();
   const { projectId } = useParams();
   const element = useOutlet();
 
@@ -56,10 +56,24 @@ export default function Layout() {
     fetchNotifications();
     const intervalId = setInterval(() => {
       fetchAlerts();
-      fetchNotifications();
-    }, 5000);
+    }, 10000); // 10초로 늘림 (알림은 실시간 소켓으로 처리)
     return () => clearInterval(intervalId);
   }, [user]);
+
+  // 소켓 실시간 알림 이벤트 발생 시 알림 목록 갱신
+  useEffect(() => {
+    if (notificationCount > 0) {
+      const fetchNotifications = async () => {
+        try {
+          const notis = await notificationApi.getNotifications();
+          const unread = notis.filter(n => !n.isRead).length;
+          setUnreadNotificationsCount(unread);
+        } catch (error) {}
+      };
+      fetchNotifications();
+      clearNotifications(); // 컨텍스트의 카운트 초기화 (DB 동기화 완료)
+    }
+  }, [notificationCount, clearNotifications]);
 
   const handleAckAlert = async (projectId: number) => {
     try {

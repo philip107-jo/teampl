@@ -18,6 +18,7 @@ import VotePage from "./Vote";
 import Overview from "./Overview";
 import MemberTasks from "./MemberTasks";
 import { useChat } from "../context/ChatContext";
+import MembersTab from "../components/MembersTab";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
@@ -322,7 +323,7 @@ export default function ProjectDetails() {
         {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
         {activeTab === 'drive' && <Drive projectId={numProjectId} />}
         {activeTab === 'vote' && <VotePage projectId={numProjectId} />}
-        {activeTab === 'members' && <div className="text-center py-20 text-gray-500">팀원 관리 기능은 준비중입니다.</div>}
+        {activeTab === 'members' && <MembersTab projectId={numProjectId} members={displayMembers} />}
       </div>
 
       {/* Settings Modal */}
