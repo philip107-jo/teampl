@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { driveApi, DriveFolder, DriveFile } from "../api/driveApi";
+import FilePreviewModal from "../components/FilePreviewModal";
 
 interface DriveProps {
   projectId?: number;
@@ -75,6 +76,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
 
   // 탐색 및 드래그앤드롭 상태
   const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
@@ -342,7 +344,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
       )}
 
       <div className="space-y-6">
-        {/* 폴더 내부인 경우 상단에 '미분류로 이동' 점선 박스 노출 (시안과 100% 매칭) */}
+        {/* 폴더 내부인 경우 상단에 '미분류로 이동' 점선 박스 노출 */}
         {currentFolderId !== null && (
           <div 
             onDragOver={(e) => {
@@ -443,7 +445,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
 
         {/* 2. 파일 목록 영역 */}
         <div className="space-y-4">
-          {/* 루트 경로인 경우에만 '미분류 파일' 섹션 헤더 노출 (시안과 일치) */}
+          {/* 루트 경로인 경우에만 '미분류 파일' 섹션 헤더 노출 */}
           {currentFolderId === null && (
             <div className="flex items-center gap-2 mt-4">
               <h2 className="text-[16px] font-bold text-[#1A2340] dark:text-white">
@@ -476,11 +478,12 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     onDragEnd={() => {
                       setDraggingFileId(null);
                     }}
+                    onClick={() => setPreviewFile(file)}
                     className={`bg-white dark:bg-[#12182B] rounded-2xl p-6 border border-gray-100 dark:border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all group flex flex-col justify-between min-h-[140px] relative ${
                       isCurrentFileDragging 
                         ? "opacity-35 scale-95 border-dashed border-[#11B886] bg-[#11B886]/5" 
                         : "hover:border-gray-200 dark:hover:border-white/10 hover:shadow-md"
-                    } cursor-grab active:cursor-grabbing`}
+                    } cursor-pointer`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-3 min-w-0">
@@ -565,6 +568,13 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
       </div>
 
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
+
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }

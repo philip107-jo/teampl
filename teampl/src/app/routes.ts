@@ -10,8 +10,13 @@ import Notifications from "./pages/Notifications";
 import EditProfile from "./pages/EditProfile";
 import Calendar from "./pages/Calendar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import JoinProject from "./pages/JoinProject";
 
 export const router = createBrowserRouter([
+  {
+    path: "/join",
+    Component: JoinProject,
+  },
   {
     path: "/login",
     Component: Login,

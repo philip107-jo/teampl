@@ -1,95 +1,90 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import { 
-  ChevronLeft, Trophy, Calendar as CalendarIcon, 
-  PlayCircle, CheckCircle2, ArrowRight, Plus, 
-  TrendingUp, User, Trash2, CheckCheck, Sparkles
+import { useParams } from "react-router";
+import {
+  Plus, Sparkles, Trash2, User, CalendarIcon,
+  Circle, ArrowRight, Eye, CheckCircle2, GripVertical, CheckCheck
 } from "lucide-react";
-import { socket, joinProjectChannel } from "../socket";
-import { Task } from "../types";
+import { Task, TaskStatus } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
 import { useAuth } from "../context/AuthContext";
+import { socket, joinProjectChannel } from "../socket";
 import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
+import TaskColumn from "../components/TaskColumn";
 
 interface TasksProps {
   projectId?: number;
 }
 
+const COLUMNS: { status: TaskStatus; label: string; color: string; bg: string; dot: string }[] = [
+  { status: "TODO",        label: "할 일",   color: "text-gray-500",    bg: "bg-gray-50 dark:bg-white/5",              dot: "bg-gray-400" },
+  { status: "IN_PROGRESS", label: "진행 중", color: "text-blue-500",    bg: "bg-blue-50 dark:bg-blue-500/10",          dot: "bg-blue-500" },
+  { status: "IN_REVIEW",   label: "검토 중", color: "text-purple-500",  bg: "bg-purple-50 dark:bg-purple-500/10",      dot: "bg-purple-500" },
+  { status: "DONE",        label: "완료",    color: "text-[#11B886]",   bg: "bg-[#11B886]/5 dark:bg-[#11B886]/10",    dot: "bg-[#11B886]" },
+];
+
+const PRIORITY_CONFIG: Record<string, { label: string; cls: string }> = {
+  high:   { label: "긴급", cls: "text-red-500 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20" },
+  medium: { label: "보통", cls: "text-amber-500 bg-amber-55 dark:bg-amber-550/10 border-amber-200 dark:border-amber-550/20" },
+  low:    { label: "여유", cls: "text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20" },
+};
+
+const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
+  TODO: "IN_PROGRESS",
+  IN_PROGRESS: "IN_REVIEW",
+  IN_REVIEW: "DONE",
+  DONE: "TODO",
+};
+
 export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const params = useParams();
   const numProjectId = propProjectId || Number(params.projectId);
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
-  const [projectStats, setProjectStats] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [createModalAssignee, setCreateModalAssignee] = useState<{email: string, name: string} | null>(null);
+  const [createStatus, setCreateStatus] = useState<TaskStatus | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"workflow" | "kanban">("workflow");
 
   const currentUserMember = members.find(m => m.email === user?.email);
-  const isLeader = currentUserMember?.role === 'LEADER';
+  const isLeader = currentUserMember?.role === "LEADER";
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (!numProjectId) return;
-        const tasksData = await taskApi.getTasks(numProjectId);
-        setTasks(tasksData);
-
-        const projects = await projectApi.getProjects();
-        const p = projects.find(proj => String(proj.id) === String(numProjectId));
-        if (p && p.membersList && p.membersList.length > 0) {
-          setMembers(p.membersList);
-        } else {
-          setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#11B886]", email: user?.email }]);
-        }
-
-        const statsData = await projectApi.getProjectStats(numProjectId);
-        setProjectStats(statsData);
-      } catch(err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-    
-    // 실시간 업데이트 구독
-    joinProjectChannel(numProjectId);
-    const onTaskUpdated = () => {
-      console.log("실시간 태스크 업데이트! 보드 리로드...");
-      fetchData();
-    };
-    socket.on('taskUpdated', onTaskUpdated);
-
-    return () => {
-      socket.off('taskUpdated', onTaskUpdated);
-    };
-  }, [numProjectId, user]);
-
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "text-[#FF4D4D] bg-[#FF4D4D]/10 border-[#FF4D4D]/20 shadow-[0_0_15px_rgba(255,77,77,0.1)]";
-      case "medium": return "text-[#FFA500] bg-[#FFA500]/10 border-[#FFA500]/20 shadow-[0_0_15px_rgba(255,165,0,0.1)]";
-      case "low": return "text-[#4D94FF] bg-[#4D94FF]/10 border-[#4D94FF]/20 shadow-[0_0_15px_rgba(77,148,255,0.1)]";
-      default: return "text-[#7D879C]/80 dark:text-white/40 bg-white/50 dark:bg-white/5 border-gray-300 dark:border-white/10";
+  const fetchData = async () => {
+    if (!numProjectId) return;
+    try {
+      const [tasksData, projects] = await Promise.all([
+        taskApi.getTasks(numProjectId),
+        projectApi.getProjects(),
+      ]);
+      setTasks(tasksData);
+      const p = projects.find(proj => String(proj.id) === String(numProjectId));
+      setMembers(p?.membersList?.length ? p.membersList : [{ email: user?.email, name: user?.name }]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high": return "긴급";
-      case "medium": return "보통";
-      case "low": return "여유";
-      default: return priority.toUpperCase();
+  useEffect(() => {
+    fetchData();
+    joinProjectChannel(numProjectId);
+    const onUpdate = () => fetchData();
+    socket.on("taskUpdated", onUpdate);
+    return () => { socket.off("taskUpdated", onUpdate); };
+  }, [numProjectId]);
+
+  const updateStatus = async (taskId: string, newStatus: TaskStatus) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+    try {
+      await taskApi.updateTaskStatus(numProjectId, taskId, newStatus);
+    } catch {
+      fetchData(); // 실패 시 원복
     }
   };
 
@@ -124,22 +119,57 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
     return 1;
   };
 
+  const deleteTask = async (taskId: string) => {
+    if (!confirm("이 과제를 삭제하시겠습니까?")) return;
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    await taskApi.deleteTask(numProjectId, taskId);
+  };
+
+  const getMemberName = (email: string) => {
+    const m = members.find(m => m.email === email);
+    return m?.name || email.split("@")[0];
+  };
+
   return (
-    <div className="pt-2 pb-32">
+    <div className="pt-2 pb-8 h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white">과제 관리</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white">과제 관리</h2>
+          <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode("workflow")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "workflow"
+                  ? "bg-white dark:bg-[#12182B] text-[#11B886] shadow-sm font-black"
+                  : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              단계별 워크플로우
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "kanban"
+                  ? "bg-white dark:bg-[#12182B] text-[#11B886] shadow-sm font-black"
+                  : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              칸반 보드
+            </button>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setIsAiModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#7C6CFF] hover:bg-[#6A5BDB] text-white rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(124,108,255,0.4)]"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#7C6CFF] hover:bg-[#6A5BDB] text-white rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(124,108,255,0.3)]"
           >
             <Sparkles className="w-4 h-4" />
             AI 업무 분할
           </button>
-          <button 
-            onClick={() => setCreateModalAssignee({ email: user?.email || '', name: user?.name || '' })}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-full text-sm font-bold transition-all border-none"
+          <button
+            onClick={() => setCreateStatus("TODO")}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-full text-sm font-bold transition-all"
           >
             <Plus className="w-4 h-4" />
             과제 추가
@@ -149,150 +179,183 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-[#11B886]/20 border-t-[#11B886] rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-4 border-[#11B886]/20 border-t-[#11B886] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="space-y-8">
-          {DEFAULT_STAGES.map(stage => {
-            const stageTasks = tasks.filter(t => getTaskStageId(t) === stage.id);
-            return (
-              <div key={stage.id} className="space-y-3 bg-[#F8FAFC] dark:bg-white/5 rounded-2xl p-5 border border-slate-100 dark:border-white/5">
-                {/* Stage Header */}
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-white/5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#11B886]" />
-                    {stage.title}
-                  </h3>
-                  <span className="text-xs font-semibold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-100 dark:border-white/5">
-                    {stageTasks.length}개 과제
-                  </span>
-                </div>
-                
-                {/* Stage Tasks list */}
-                <div className="space-y-3">
-                  {stageTasks.length > 0 ? (
-                    stageTasks.map(task => {
-                      let statusColor = "text-gray-500 bg-gray-100 dark:bg-white/5";
-                      let statusLabel = "할 일";
-                      if (task.status === "DONE") {
-                        statusColor = "text-[#11B886] bg-[#11B886]/10";
-                        statusLabel = "완료";
-                      } else if (task.status === "IN_PROGRESS") {
-                        statusColor = "text-amber-600 bg-amber-50 dark:bg-amber-500/10";
-                        statusLabel = "진행 중";
-                      }
+        viewMode === "workflow" ? (
+          <div className="space-y-8">
+            {DEFAULT_STAGES.map(stage => {
+              const stageTasks = tasks.filter(t => getTaskStageId(t) === stage.id);
+              return (
+                <div key={stage.id} className="space-y-3 bg-[#F8FAFC] dark:bg-white/5 rounded-2xl p-5 border border-slate-100 dark:border-white/5">
+                  {/* Stage Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-white/5">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#11B886]" />
+                      {stage.title}
+                    </h3>
+                    <span className="text-xs font-semibold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-100 dark:border-white/5">
+                      {stageTasks.length}개 과제
+                    </span>
+                  </div>
+                  
+                  {/* Stage Tasks list */}
+                  <div className="space-y-3">
+                    {stageTasks.length > 0 ? (
+                      stageTasks.map(task => {
+                        let statusColor = "text-gray-500 bg-gray-100 dark:bg-white/5";
+                        let statusLabel = "할 일";
+                        if (task.status === "DONE") {
+                          statusColor = "text-[#11B886] bg-[#11B886]/10";
+                          statusLabel = "완료";
+                        } else if (task.status === "IN_PROGRESS") {
+                          statusColor = "text-amber-600 bg-amber-50 dark:bg-amber-500/10";
+                          statusLabel = "진행 중";
+                        } else if (task.status === "IN_REVIEW") {
+                          statusColor = "text-purple-600 bg-purple-50 dark:bg-purple-500/10";
+                          statusLabel = "검토 중";
+                        }
 
-                      const assignee = members.find(m => task.assignees.includes(m.email))?.name || task.assignees[0]?.split('@')[0] || "미지정";
+                        const assignee = members.find(m => task.assignees.includes(m.email))?.name || task.assignees[0]?.split('@')[0] || "미지정";
 
-                      return (
-                        <div 
-                          key={task.id} 
-                          className="bg-white dark:bg-[#12182B] rounded-[14px] px-6 py-5 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-row items-center justify-between gap-4"
-                          onClick={() => setSelectedTask(task)}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1.5">
-                              <h3 className="text-[15px] font-bold text-gray-900 dark:text-white">{task.title}</h3>
-                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${statusColor}`}>
-                                {statusLabel}
-                              </span>
-                            </div>
-                            <p className="text-[13px] text-gray-500 dark:text-white/40 mb-3">{task.description || "설명 없음"}</p>
-                            
-                            <div className="flex items-center gap-4 text-[12px] text-gray-400 font-medium">
-                              <div className="flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5" />
-                                담당: {assignee}
+                        return (
+                          <div 
+                            key={task.id} 
+                            className="bg-white dark:bg-[#12182B] rounded-[14px] px-6 py-5 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-row items-center justify-between gap-4"
+                            onClick={() => setSelectedTask(task)}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-1.5">
+                                <h3 className="text-[15px] font-bold text-gray-900 dark:text-white">{task.title}</h3>
+                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${statusColor}`}>
+                                  {statusLabel}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-1.5">
-                                <CalendarIcon className="w-3.5 h-3.5" />
-                                마감: {task.deadline}
+                              <p className="text-[13px] text-gray-500 dark:text-white/40 mb-3">{task.description || "설명 없음"}</p>
+                              
+                              <div className="flex items-center gap-4 text-[12px] text-gray-400 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5" />
+                                  담당: {assignee}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarIcon className="w-3.5 h-3.5" />
+                                  마감: {task.deadline}
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Right side Actions */}
-                          <div className="flex items-center gap-3">
-                            <button 
-                              onClick={async (e) => { 
-                                e.stopPropagation(); 
-                                let nextStatus = "IN_PROGRESS";
-                                if (task.status === "TODO") nextStatus = "IN_PROGRESS";
-                                else if (task.status === "IN_PROGRESS") nextStatus = "DONE";
-                                else if (task.status === "DONE") nextStatus = "TODO";
-                                
-                                // Optimistic update
-                                setTasks(tasks.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
-                                
-                                try {
-                                  await taskApi.updateTaskStatus(numProjectId, task.id, nextStatus as any);
-                                } catch (error) {
-                                  console.error("Failed to update status", error);
-                                  // Revert on failure
-                                  setTasks(tasks.map(t => t.id === task.id ? { ...t, status: task.status } : t));
-                                }
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-[#11B886] transition-colors"
-                              title="상태 변경"
-                            >
-                              <CheckCheck className="w-4 h-4" />
-                            </button>
-                            {isLeader && (
+                            {/* Right side Actions */}
+                            <div className="flex items-center gap-3">
                               <button 
                                 onClick={async (e) => { 
                                   e.stopPropagation(); 
-                                  if (confirm('이 과제를 삭제하시겠습니까?')) {
-                                    await taskApi.deleteTask(numProjectId, task.id);
-                                    setTasks(tasks.filter(t => t.id !== task.id));
+                                  let nextStatus = "IN_PROGRESS";
+                                  if (task.status === "TODO") nextStatus = "IN_PROGRESS";
+                                  else if (task.status === "IN_PROGRESS") nextStatus = "IN_REVIEW";
+                                  else if (task.status === "IN_REVIEW") nextStatus = "DONE";
+                                  else if (task.status === "DONE") nextStatus = "TODO";
+                                  
+                                  // Optimistic update
+                                  setTasks(tasks.map(t => t.id === task.id ? { ...t, status: nextStatus as TaskStatus } : t));
+                                  
+                                  try {
+                                    await taskApi.updateTaskStatus(numProjectId, task.id, nextStatus as any);
+                                  } catch (error) {
+                                    console.error("Failed to update status", error);
+                                    // Revert on failure
+                                    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: task.status } : t));
                                   }
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-[#11B886] transition-colors"
+                                title="상태 변경"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <CheckCheck className="w-4 h-4" />
                               </button>
-                            )}
+                              {isLeader && (
+                                <button 
+                                  onClick={async (e) => { 
+                                    e.stopPropagation(); 
+                                    if (confirm('이 과제를 삭제하시겠습니까?')) {
+                                      await taskApi.deleteTask(numProjectId, task.id);
+                                      setTasks(tasks.filter(t => t.id !== task.id));
+                                    }
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-gray-400 text-xs py-3 pl-4 italic">이 단계에 등록된 과제가 없습니다.</p>
-                  )}
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-400 text-xs py-3 pl-4 italic">이 단계에 등록된 과제가 없습니다.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* 4컬럼 칸반 보드 */
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+            {COLUMNS.map(col => {
+              const colTasks = tasks.filter(t => t.status === col.status).map(t => ({
+                ...t,
+                assignees: t.assignees?.map(email => getMemberName(email)) || []
+              }));
+
+              return (
+                <TaskColumn
+                  key={col.status}
+                  col={col}
+                  colTasks={colTasks}
+                  isLeader={isLeader}
+                  priorityConfig={PRIORITY_CONFIG}
+                  nextStatus={NEXT_STATUS}
+                  columnsConfig={COLUMNS}
+                  updateStatus={updateStatus}
+                  deleteTask={deleteTask}
+                  setSelectedTask={setSelectedTask}
+                  setCreateStatus={setCreateStatus}
+                />
+              );
+            })}
+          </div>
+        )
       )}
 
+      {/* 모달들 */}
       {selectedTask && (
-        <TaskDetailModal 
-          projectId={numProjectId} 
-          task={selectedTask} 
+        <TaskDetailModal
+          projectId={numProjectId}
+          task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdate={async () => {
-             const tasksData = await taskApi.getTasks(numProjectId);
-             setTasks(tasksData);
-             const updatedTask = tasksData.find(t => t.id === selectedTask.id);
-             if (updatedTask) setSelectedTask(updatedTask);
+            const data = await taskApi.getTasks(numProjectId);
+            setTasks(data);
+            const updated = data.find(t => t.id === selectedTask.id);
+            if (updated) setSelectedTask(updated);
           }}
         />
       )}
 
-      {createModalAssignee && (
+      {createStatus && (
         <TaskCreateModal
           projectId={numProjectId}
-          assigneeEmail={createModalAssignee.email}
-          assigneeName={createModalAssignee.name}
-          onClose={() => setCreateModalAssignee(null)}
+          assigneeEmail={user?.email || ""}
+          assigneeName={user?.name || ""}
+          initialStatus={createStatus}
+          onClose={() => setCreateStatus(null)}
           onCreate={async () => {
-            const tasksData = await taskApi.getTasks(numProjectId);
-            setTasks(tasksData);
+            const data = await taskApi.getTasks(numProjectId);
+            setTasks(data);
           }}
         />
       )}
 
-      {/* AI Task Split Modal */}
       {numProjectId && (
         <AiTaskSplitModal
           projectId={numProjectId}
@@ -300,7 +363,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
           onClose={() => setIsAiModalOpen(false)}
           onSuccess={() => {
             setIsAiModalOpen(false);
-            // Re-fetch tasks after successful batch creation
             taskApi.getTasks(numProjectId).then(setTasks);
           }}
         />

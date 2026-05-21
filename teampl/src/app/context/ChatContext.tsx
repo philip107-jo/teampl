@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from "socket.io-client";
 
-interface Message {
+import { chatApi } from '../api/chatApi';
+
+export interface Message {
   id: string;
   sender: string;
   content: string;
   time: string;
   isMe: boolean;
+  createdAt?: string;
 }
 
 interface ChatContextType {
@@ -16,12 +19,16 @@ interface ChatContextType {
   onlineUsers: string[];
   socket: Socket | null;
   activeChatKey: string | null;
+  notificationCount: number;
+  readStates: Record<string, number>;
+  clearNotifications: () => void;
   incrementUnread: (key: string, amount?: number) => void;
   clearUnread: (key: string) => void;
   setMessages: (key: string, msgs: Message[]) => void;
   addMessage: (key: string, msg: Message) => void;
   setActiveChatKey: (key: string | null) => void;
   initProjectChat: (projectId: number, userEmail: string, members: any[]) => void;
+  updateReadState: (roomKey: string, msgId: number) => Promise<void>;
   simulateNoti: (keys: string[]) => void;
 }
 
@@ -36,18 +43,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [readStates, setReadStates] = useState<Record<string, number>>({});
 
   const activeChatKeyRef = useRef<string | null>(null);
   const projectMembersRef = useRef<any[]>([]);
   const currentProjectIdRef = useRef<number | null>(null);
   const currentUserEmailRef = useRef<string | null>(null);
+  const readStatesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     activeChatKeyRef.current = activeChatKey;
     projectMembersRef.current = projectMembers;
     currentProjectIdRef.current = currentProjectId;
     currentUserEmailRef.current = currentUserEmail;
-  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail]);
+    readStatesRef.current = readStates;
+  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail, readStates]);
 
   // 전역 소켓 초기화 (한 번만 실행)
   useEffect(() => {
@@ -89,21 +100,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
 
       // 3. 알림 업데이트 (현재 보고 있지 않은 방이고, 내가 보낸 게 아닐 때)
-      // (서버에서 받은 거라 isMe 체크 불필요할 수도 있지만 안전을 위해)
-      setUnreadCounts(prev => {
-        if (msgRoom !== activeChatKeyRef.current) {
-           let notificationKey = msgRoom;
-           if (!mProjectId && !m.room && senderEmail) {
-              const senderMember = projectMembersRef.current.find(pm => pm.email === senderEmail);
-              if (senderMember && currentProjectIdRef.current) {
-                 const idKey = `user-${currentProjectIdRef.current}-${senderMember.id}`;
-                 return { ...prev, [idKey]: (prev[idKey] || 0) + 1, [msgRoom]: (prev[msgRoom] || 0) + 1 };
-              }
-           }
-           return { ...prev, [msgRoom]: (prev[msgRoom] || 0) + 1 };
-        }
-        return prev;
-      });
+      if (msgRoom !== activeChatKeyRef.current && senderEmail !== currentUserEmailRef.current) {
+        setUnreadCounts(prev => {
+          const isUnread = Number(formatted.id) > (readStatesRef.current[msgRoom] || 0);
+          if (!isUnread) return prev;
+
+          let notificationKey = msgRoom;
+          if (!mProjectId && !m.room && senderEmail) {
+             const senderMember = projectMembersRef.current.find(pm => pm.email === senderEmail);
+             if (senderMember && currentProjectIdRef.current) {
+                const idKey = `user-${currentProjectIdRef.current}-${senderMember.id}`;
+                return { ...prev, [idKey]: (prev[idKey] || 0) + 1, [msgRoom]: (prev[msgRoom] || 0) + 1 };
+             }
+          }
+          return { ...prev, [msgRoom]: (prev[msgRoom] || 0) + 1 };
+        });
+      }
     };
 
     socket.on('onlineUsers', onOnlineUsers);
@@ -115,9 +127,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [socket]);
 
+  // 실시간 알림 수신 (currentUserEmail 변경 시 리스너 재등록)
+  useEffect(() => {
+    if (!socket || !currentUserEmail) return;
+    const onNotification = () => {
+      setNotificationCount(prev => prev + 1);
+    };
+    const eventName = `notification:${currentUserEmail}`;
+    socket.on(eventName, onNotification);
+    return () => { socket.off(eventName, onNotification); };
+  }, [socket, currentUserEmail]);
+
   const totalUnreadCount = useMemo(() => {
     return Object.values(unreadCounts).reduce((acc, curr) => acc + curr, 0);
   }, [unreadCounts]);
+
+  const clearNotifications = useCallback(() => {
+    setNotificationCount(0);
+  }, []);
 
   const incrementUnread = useCallback((key: string, amount: number = 1) => {
     setUnreadCounts(prev => ({ ...prev, [key]: (prev[key] || 0) + amount }));
@@ -132,6 +159,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setMessages = useCallback((key: string, msgs: Message[]) => {
     setMessagesStore(prev => ({ ...prev, [key]: msgs }));
+    
+    // 정확도 100% 읽음 카운트 동기화
+    setUnreadCounts(prev => {
+      const lastReadId = readStatesRef.current[key] || 0;
+      const exactUnread = msgs.filter(m => !m.isMe && Number(m.id) > lastReadId).length;
+      return { ...prev, [key]: exactUnread };
+    });
   }, []);
 
   const addMessage = useCallback((key: string, msg: Message) => {
@@ -141,12 +175,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   }, []);
 
-  const initProjectChat = useCallback((projectId: number, userEmail: string, members: any[]) => {
+  const initProjectChat = useCallback(async (projectId: number, userEmail: string, members: any[]) => {
     if (!socket) return;
     setCurrentUserEmail(userEmail);
     setCurrentProjectId(projectId);
     setProjectMembers(members);
     
+    // 초기 읽음 상태 동기화
+    try {
+      const states = await chatApi.getReadStates();
+      const readMap: Record<string, number> = {};
+      states.forEach(s => readMap[s.roomKey] = s.lastReadMsgId);
+      setReadStates(readMap);
+    } catch (e) {
+      console.error(e);
+    }
+
     socket.emit('userConnected', userEmail);
     socket.emit('joinRoom', `team-${projectId}`);
     members.forEach(m => {
@@ -156,6 +200,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
   }, [socket]);
+
+  const updateReadState = useCallback(async (roomKey: string, msgId: number) => {
+    setReadStates(prev => {
+      if ((prev[roomKey] || 0) >= msgId) return prev;
+      return { ...prev, [roomKey]: msgId };
+    });
+    // DB 업데이트
+    chatApi.updateLastRead(roomKey, msgId).catch(console.error);
+    clearUnread(roomKey); // UI 초기화
+  }, [clearUnread]);
 
   const simulateNoti = useCallback((keys: string[]) => {
     const randomKey = keys[Math.floor(Math.random() * keys.length)];
@@ -168,10 +222,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <ChatContext.Provider value={{ 
+    <ChatContext.Provider value={{
       unreadCounts, totalUnreadCount, messagesStore, onlineUsers, socket, activeChatKey,
+      notificationCount, readStates, clearNotifications,
       incrementUnread, clearUnread, setMessages, addMessage, setActiveChatKey, initProjectChat,
-      simulateNoti
+      updateReadState, simulateNoti
     }}>
       {children}
     </ChatContext.Provider>

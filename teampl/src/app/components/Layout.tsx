@@ -24,7 +24,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { totalUnreadCount } = useChat();
+  const { totalUnreadCount, notificationCount, clearNotifications } = useChat();
   const { projectId } = useParams();
   const element = useOutlet();
 
@@ -56,10 +56,24 @@ export default function Layout() {
     fetchNotifications();
     const intervalId = setInterval(() => {
       fetchAlerts();
-      fetchNotifications();
-    }, 5000);
+    }, 10000); // 10초로 늘림 (알림은 실시간 소켓으로 처리)
     return () => clearInterval(intervalId);
   }, [user]);
+
+  // 소켓 실시간 알림 이벤트 발생 시 알림 목록 갱신
+  useEffect(() => {
+    if (notificationCount > 0) {
+      const fetchNotifications = async () => {
+        try {
+          const notis = await notificationApi.getNotifications();
+          const unread = notis.filter(n => !n.isRead).length;
+          setUnreadNotificationsCount(unread);
+        } catch (error) {}
+      };
+      fetchNotifications();
+      clearNotifications(); // 컨텍스트의 카운트 초기화 (DB 동기화 완료)
+    }
+  }, [notificationCount, clearNotifications]);
 
   const handleAckAlert = async (projectId: number) => {
     try {
@@ -156,9 +170,18 @@ export default function Layout() {
                 </button>
               </div>
               
-              <div className="text-right ml-2 border-l border-gray-200 dark:border-white/10 pl-4">
-                <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
-                <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
+              <div className="flex items-center gap-3 border-l border-gray-200 dark:border-white/10 pl-4 ml-2">
+                <div className="text-right">
+                  <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
+                  <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
+                </div>
+                <div className="w-10 h-10 rounded-[14px] overflow-hidden bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white font-bold shadow-sm cursor-pointer" onClick={() => navigate('/mypage')}>
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name?.[0] || 'U'
+                  )}
+                </div>
               </div>
             </div>
           </div>

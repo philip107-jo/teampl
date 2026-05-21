@@ -10,6 +10,11 @@ export interface ChatMessage {
   sender?: { name: string, department: string | null };
 }
 
+export interface ChatReadState {
+  roomKey: string;
+  lastReadMsgId: number;
+}
+
 export const chatApi = {
   getProjectMessages: async (projectId: number): Promise<ChatMessage[]> => {
     const response = await client.get(`/chat/project/${projectId}`);
@@ -19,5 +24,23 @@ export const chatApi = {
   getDirectMessages: async (targetEmail: string): Promise<ChatMessage[]> => {
     const response = await client.get(`/chat/direct/${targetEmail}`);
     return response.data;
+  },
+
+  uploadFile: async (file: File): Promise<{ url: string; name: string; type: string; size: number }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post('/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  getReadStates: async (): Promise<ChatReadState[]> => {
+    const response = await client.get('/chat/reads');
+    return response.data;
+  },
+
+  updateLastRead: async (roomKey: string, lastReadMsgId: number): Promise<void> => {
+    await client.post('/chat/reads', { roomKey, lastReadMsgId });
   }
 };

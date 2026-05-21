@@ -3,8 +3,11 @@ import { UsersService } from './users.service';
 import { z } from 'zod';
 import { validate } from '../../middlewares/validate.middleware';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { uploadToKTCloud } from '../drive/ktcloud.storage';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -40,5 +43,23 @@ router.put('/me', authMiddleware, validate(UpdateProfileSchema), async (req: Req
 });
 
 
+// POST /api/users/avatar - 프로필 이미지 업로드
+router.post('/avatar', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    if (!req.file) return res.status(400).json({ message: '파일이 없습니다.' });
+    
+    const ext = req.file.originalname.split('.').pop() || 'png';
+    const key = `avatar/${userId}-${Date.now()}.${ext}`;
+    const url = await uploadToKTCloud(key, req.file.buffer, req.file.mimetype);
+    
+    // DB 업데이트
+    const updated = await UsersService.updateProfile(userId, { avatarUrl: url });
+    const { password: _, ...userWithoutPassword } = updated;
+    res.json(userWithoutPassword);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});
 
 export default router;

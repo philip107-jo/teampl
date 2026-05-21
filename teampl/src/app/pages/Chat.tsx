@@ -280,12 +280,16 @@ interface ChatProps {
 export default function Chat({ projectId, projectMembers = [], projectData }: ChatProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const [chatMode, setChatMode] = useState<"TEAM" | "INDIVIDUAL">("TEAM");
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [mentionQuery, setMentionQuery] = useState<{ active: boolean, query: string, index: number } | null>(null);
+  const [initialLastRead, setInitialLastRead] = useState<number>(0);
 
   // 투표 기능용 추가 상태
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -301,7 +305,24 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   });
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
 
-  const { socket, messagesStore, setMessages, addMessage, setActiveChatKey, initProjectChat, onlineUsers, unreadCounts, clearUnread } = useChat();
+  const { 
+    socket, 
+    messagesStore, 
+    setMessages, 
+    addMessage, 
+    setActiveChatKey, 
+    initProjectChat, 
+    onlineUsers, 
+    unreadCounts, 
+    clearUnread,
+    readStates, 
+    updateReadState 
+  } = useChat();
+
+  // 타이핑 인디케이터 상태
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
   const loadVotesList = useCallback(async () => {
     if (!projectId) return;
@@ -331,14 +352,19 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
   useEffect(() => {
     setActiveChatKey(chatKey);
+<<<<<<< HEAD
     if (chatKey) {
       clearUnread(chatKey);
       if (chatMode === "INDIVIDUAL" && selectedMember) {
         clearUnread(`user-${projectId}-${selectedMember.id}`);
       }
     }
+    setInitialLastRead(readStates[chatKey] || 0);
+    // 채팅방 바뀌면 타이핑 상태 초기화
+    setTypingUsers([]);
+    isTypingRef.current = false;
     return () => setActiveChatKey(null);
-  }, [chatKey, chatMode, selectedMember, projectId, setActiveChatKey, clearUnread]);
+  }, [chatKey, chatMode, selectedMember, projectId, setActiveChatKey, clearUnread, readStates]);
 
   useEffect(() => {
     if (!socket || !projectId || !chatKey) return;
@@ -373,7 +399,53 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messagesStore, chatKey]);
+    
+    // 현재 방의 최신 메시지 읽음 처리 (0.5초 딜레이로 "여기까지 읽으셨습니다" 선을 볼 수 있게 함)
+    if (chatKey && currentMessages.length > 0) {
+      const maxId = Math.max(...currentMessages.map(m => Number(m.id)));
+      if (maxId > (readStates[chatKey] || 0)) {
+        const timer = setTimeout(() => {
+          updateReadState(chatKey, maxId);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messagesStore, chatKey, typingUsers, currentMessages, readStates, updateReadState]);
+
+  // userTyping 소켓 이벤트 수신
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const onUserTyping = (data: { room: string; email: string; isTyping: boolean }) => {
+      if (data.room !== chatKey) return;
+      if (data.email === user.email) return; // 내 타이핑은 제외
+
+      setTypingUsers(prev =>
+        data.isTyping
+          ? prev.includes(data.email) ? prev : [...prev, data.email]
+          : prev.filter(e => e !== data.email)
+      );
+    };
+
+    socket.on('userTyping', onUserTyping);
+    return () => { socket.off('userTyping', onUserTyping); };
+  }, [socket, user, chatKey]);
+
+  // 타이핑 emit 핸들러 (debounce 1.5초)
+  const emitTyping = useCallback(() => {
+    if (!socket || !user || !chatKey) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit('typing', { room: chatKey, email: user.email, isTyping: true });
+    }
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      socket.emit('typing', { room: chatKey, email: user.email, isTyping: false });
+    }, 1500);
+  }, [socket, user, chatKey]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !projectId || !socket || !user) return;
@@ -386,7 +458,49 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
     });
 
+    // 메시지 전송 시 타이핑 상태 즉시 해제
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      socket.emit('typing', { room: chatKey, email: user.email, isTyping: false });
+    }
+
     setInputText("");
+    setMentionQuery(null);
+  };
+
+  const handleMentionSelect = (name: string) => {
+    if (!mentionQuery) return;
+    const before = inputText.slice(0, mentionQuery.index - mentionQuery.query.length - 1);
+    const after = inputText.slice(mentionQuery.index);
+    setInputText(`${before}@${name} ${after}`);
+    setMentionQuery(null);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !socket || !user || !chatKey) return;
+    setIsUploading(true);
+    try {
+      const uploaded = await chatApi.uploadFile(file);
+      // 파일 URL을 특수 형식으로 메시지 전송
+      const isImage = uploaded.type.startsWith('image/');
+      const content = isImage
+        ? `[IMAGE]${uploaded.url}[/IMAGE]`
+        : `[FILE]${uploaded.url}|${uploaded.name}[/FILE]`;
+      socket.emit('sendMessage', {
+        room: chatKey,
+        senderEmail: user.email,
+        content,
+        projectId: chatMode === "TEAM" ? projectId : undefined,
+        receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined,
+      });
+    } catch (err) {
+      console.error('파일 업로드 실패', err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // 투표 공유하기
@@ -480,47 +594,88 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                 첫 메시지를 남겨보세요
               </div>
             ) : (
-              currentMessages.map((msg) => {
+              currentMessages.map((msg, idx) => {
                 const isVoteMsg = msg.content.startsWith("[VOTE_REF]:");
                 const voteId = isVoteMsg ? parseInt(msg.content.replace("[VOTE_REF]:", ""), 10) : null;
                 const referencedVote = voteId ? votes.find(v => v.id === voteId) : null;
 
+                const isFirstUnread = !msg.isMe && initialLastRead > 0 && Number(msg.id) > initialLastRead &&
+                  (idx === 0 || Number(currentMessages[idx - 1].id) <= initialLastRead);
+
                 return (
-                  <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3`}>
-                    {!msg.isMe && (
-                      <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
-                        {msg.sender[0]}
+                  <div key={msg.id}>
+                    {isFirstUnread && (
+                      <div className="flex items-center gap-4 my-6">
+                        <div className="h-px flex-1 bg-red-100 dark:bg-red-500/20"></div>
+                        <span className="text-[11px] font-bold text-red-400 bg-red-50 dark:bg-red-500/10 px-3 py-1 rounded-full">여기까지 읽으셨습니다</span>
+                        <div className="h-px flex-1 bg-red-100 dark:bg-red-500/20"></div>
                       </div>
                     )}
-                    <div className={`max-w-[75%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
-                      {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
-                      
-                      {isVoteMsg ? (
-                        referencedVote ? (
-                          <ChatVoteCard 
-                            vote={referencedVote}
-                            userEmail={user?.email || ''}
-                            projectId={projectId}
-                            onVoteCasted={loadVotesList}
-                          />
-                        ) : (
-                          <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
-                            <AlertCircle className="w-3.5 h-3.5" />
-                            존재하지 않거나 삭제된 투표입니다
-                          </div>
-                        )
-                      ) : (
-                        <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
-                          ${msg.isMe 
-                            ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm" 
-                            : "bg-gray-100 text-gray-900 rounded-2xl rounded-tl-sm"
-                          }`}
-                        >
-                          {msg.content}
+                    <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3 mt-4`}>
+                      {!msg.isMe && (
+                        <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
+                          {msg.sender[0]}
                         </div>
                       )}
-                      
-                      <span className="text-[10px] text-gray-400 mt-1 mx-1">{msg.time}</span>
+                      <div className={`max-w-[70%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
+                        {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
+
+                        {isVoteMsg ? (
+                          referencedVote ? (
+                            <ChatVoteCard 
+                              vote={referencedVote}
+                              userEmail={user?.email || ''}
+                              projectId={projectId}
+                              onVoteCasted={loadVotesList}
+                            />
+                          ) : (
+                            <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              존재하지 않거나 삭제된 투표입니다
+                            </div>
+                          )
+                        ) : msg.content.startsWith('[IMAGE]') ? (
+                          <a href={msg.content.slice(7, -8)} target="_blank" rel="noreferrer">
+                            <img
+                              src={msg.content.slice(7, -8)}
+                              alt="첨부 이미지"
+                              className="max-w-[240px] rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        ) : msg.content.startsWith('[FILE]') ? (
+                          (() => {
+                            const inner = msg.content.slice(6, -7);
+                            const [url, name] = inner.split('|');
+                            return (
+                              <a
+                                href={url}
+                                download={name}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-bold transition-colors
+                                  ${msg.isMe
+                                    ? "bg-[#11B886] text-white border-[#11B886] hover:bg-[#0EA271]"
+                                    : "bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-200"
+                                  }`}
+                              >
+                                <span className="text-lg">📎</span>
+                                <span className="truncate max-w-[160px]">{name}</span>
+                              </a>
+                            );
+                          })()
+                        ) : (
+                          <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
+                            ${msg.isMe
+                              ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm"
+                              : "bg-gray-100 text-gray-900 rounded-2xl rounded-tl-sm"
+                            }`}
+                          >
+                            {msg.content}
+                          </div>
+                        )}
+
+                        <span className="text-[10px] text-gray-400 mt-1 mx-1">{msg.time}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -528,11 +683,33 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
             )}
           </div>
 
+          {/* 타이핑 인디케이터 */}
+          {typingUsers.length > 0 && (
+            <div className="flex items-center gap-2 px-6 pb-3">
+              <div className="w-8 h-8 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-xs font-bold shrink-0">
+                {(() => {
+                  const member = projectMembers.find(m => m.email === typingUsers[0]);
+                  return member?.name?.[0] || '?';
+                })()}
+              </div>
+              <div className="flex items-center gap-1 bg-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span className="text-[11px] text-gray-400">
+                {typingUsers.length === 1
+                  ? `${projectMembers.find(m => m.email === typingUsers[0])?.name || typingUsers[0].split('@')[0]}님이 입력 중...`
+                  : `${typingUsers.length}명이 입력 중...`}
+              </span>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-4 bg-white border-t border-gray-100 relative">
             {/* 투표 관련 드롭다운/메뉴 */}
             {isVoteMenuOpen && (
-              <div className="absolute bottom-18 left-4 w-72 bg-white dark:bg-[#132038] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="absolute bottom-20 left-4 w-72 bg-white dark:bg-[#132038] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 dark:border-white/5">
                   <h4 className="text-[12px] font-bold text-gray-900 dark:text-white">팀 투표 올리기</h4>
                   <button onClick={() => setIsVoteMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -571,40 +748,93 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               </div>
             )}
 
-            <div className="flex items-center gap-3 p-1 pl-2 rounded-xl border border-gray-200 focus-within:border-[#11B886] transition-colors bg-white">
+            <div className="flex items-center gap-2 p-1 pl-2 rounded-xl border border-gray-200 focus-within:border-[#11B886] transition-colors bg-white">
+              {/* 파일 첨부 버튼 */}
+              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
+                title="파일 첨부"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+              </button>
+
               {/* 투표 공유/생성 버튼 */}
               <button 
                 onClick={handleOpenVoteMenu}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
-                  isVoteMenuOpen ? "bg-[#11B886]/10 text-[#11B886]" : "bg-gray-50 text-gray-400 hover:text-[#11B886]"
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
+                  isVoteMenuOpen ? "bg-[#11B886]/10 text-[#11B886]" : "bg-gray-50 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10"
                 }`}
                 title="투표 공유 또는 만들기"
               >
-                <BarChart3 className="w-5 h-5" />
+                <BarChart3 className="w-4 h-4" />
               </button>
-
               <input
                 type="text"
-                placeholder="메시지를 입력하세요..."
+                placeholder="메시지를 입력하세요... (@로 팀원 멘션)"
                 className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-400 py-2.5"
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => {
+                  const text = e.target.value;
+                  setInputText(text);
+                  emitTyping();
+                  
+                  if (chatMode === "TEAM") {
+                    const cursorPos = e.target.selectionStart || 0;
+                    const match = text.slice(0, cursorPos).match(/@(\S*)$/);
+                    if (match) {
+                      setMentionQuery({ active: true, query: match[1], index: cursorPos });
+                    } else {
+                      setMentionQuery(null);
+                    }
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    handleSend();
+                    if (mentionQuery?.active) {
+                      const matched = projectMembers.filter(m => m.name.toLowerCase().includes(mentionQuery.query.toLowerCase()) && m.email !== user?.email);
+                      if (matched.length > 0) {
+                        handleMentionSelect(matched[0].name);
+                      } else {
+                        handleSend();
+                      }
+                    } else {
+                      handleSend();
+                    }
                   }
                 }}
               />
-              <button 
-                onClick={handleSend} 
-                disabled={!inputText.trim()} 
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shrink-0
-                  ${inputText.trim() ? "bg-[#11B886] text-white hover:bg-[#0EA271]" : "bg-gray-100 text-gray-400"}`}
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() && !isUploading}
+                className="w-10 h-10 flex items-center justify-center bg-[#11B886] hover:bg-[#0EA271] text-white rounded-xl shadow-[0_4px_12px_rgba(17,184,134,0.3)] transition-all shrink-0 disabled:opacity-50 disabled:shadow-none"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
             </div>
+            
+            {/* 멘션 팝업 */}
+            {mentionQuery?.active && chatMode === "TEAM" && (
+              <div className="absolute bottom-[72px] left-14 bg-white shadow-xl rounded-xl border border-gray-100 p-2 w-56 z-50">
+                <p className="text-[10px] text-gray-400 font-bold mb-1 ml-2">멘션할 팀원 선택</p>
+                {projectMembers.filter(m => m.name.toLowerCase().includes(mentionQuery.query.toLowerCase()) && m.email !== user?.email).map(member => (
+                  <button
+                    key={member.email}
+                    onClick={() => handleMentionSelect(member.name)}
+                    className="w-full text-left px-3 py-2 hover:bg-[#11B886]/5 rounded-lg text-sm font-bold flex items-center gap-3 transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[10px] uppercase shrink-0">{member.name[0]}</span>
+                    {member.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

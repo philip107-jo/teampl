@@ -17,6 +17,7 @@ import notificationsRouter from './modules/notifications/notifications.controlle
 import votesRouter from './modules/votes/votes.controller';
 import { ChatService } from './modules/chat/chat.service';
 import { setIo } from './socket';
+import { startCronJobs } from './modules/cron/cron.service';
 
 dotenv.config();
 
@@ -139,4 +140,5 @@ app.use(errorHandler);
 
 httpServer.listen(port, () => {
   console.log(`🚀 Server & Socket.io are running on http://localhost:${port}`);
+  startCronJobs();
 });

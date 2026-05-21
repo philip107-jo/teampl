@@ -1,4 +1,5 @@
 import { prisma } from '../../prisma';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // 소켓 이벤트를 위한 로직 (DB 저장)
 export const ChatService = {
@@ -36,7 +37,7 @@ export const ChatService = {
 
   // 메시지 저장 (소켓에서 호출)
   saveMessage: async (senderEmail: string, content: string, payload: { projectId?: number, receiverEmail?: string }) => {
-    return await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         senderEmail,
         content,
@@ -48,6 +49,53 @@ export const ChatService = {
           select: { name: true, department: true }
         }
       }
+    });
+
+    // 멘션 알림 처리 (프로젝트 채팅방의 경우)
+    if (payload.projectId) {
+      const members = await prisma.projectMember.findMany({
+        where: { projectId: payload.projectId, status: 'ACTIVE' },
+        include: { user: true }
+      });
+      
+      const project = await prisma.project.findUnique({ where: { id: payload.projectId } });
+      const projectName = project ? project.name : '프로젝트';
+
+      for (const member of members) {
+        if (member.userEmail === senderEmail) continue;
+        
+        // 멘션 포함 여부 검사 (@이름)
+        if (content.includes(`@${member.user.name}`)) {
+          await NotificationsService.createNotification({
+            userEmail: member.userEmail,
+            type: 'mention',
+            title: '새로운 멘션',
+            content: `'${projectName}' 채팅방에서 ${message.sender.name}님이 회원님을 멘션했습니다.`,
+            link: `/projects/${payload.projectId}?tab=chat`
+          });
+        }
+      }
+    }
+
+    return message;
+  },
+
+  getReadStates: async (userEmail: string) => {
+    return await prisma.chatRead.findMany({
+      where: { userEmail }
+    });
+  },
+
+  updateLastRead: async (userEmail: string, roomKey: string, lastReadMsgId: number) => {
+    return await prisma.chatRead.upsert({
+      where: {
+        userEmail_roomKey: {
+          userEmail,
+          roomKey
+        }
+      },
+      update: { lastReadMsgId },
+      create: { userEmail, roomKey, lastReadMsgId }
     });
   }
 };
