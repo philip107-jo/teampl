@@ -479,14 +479,16 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                     key={file.id}
                     layout
                     draggable={true}
-                    onDragStart={(e) => {
+                    onDragStart={((e: DragEvent<HTMLDivElement>) => {
                       setDraggingFileId(file.id);
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", file.id.toString());
-                    }}
-                    onDragEnd={() => {
+                      if (e.dataTransfer) {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", file.id.toString());
+                      }
+                    }) as any}
+                    onDragEnd={(() => {
                       setDraggingFileId(null);
-                    }}
+                    }) as any}
                     onClick={() => setPreviewFile(file)}
                     className={`bg-white dark:bg-[#12182B] rounded-2xl p-6 border border-gray-100 dark:border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all group flex flex-col justify-between min-h-[140px] relative ${
                       isCurrentFileDragging 
