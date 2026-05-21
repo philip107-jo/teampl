@@ -10,6 +10,11 @@ export interface ChatMessage {
   sender?: { name: string, department: string | null };
 }
 
+export interface ChatReadState {
+  roomKey: string;
+  lastReadMsgId: number;
+}
+
 export const chatApi = {
   getProjectMessages: async (projectId: number): Promise<ChatMessage[]> => {
     const response = await client.get(`/chat/project/${projectId}`);
@@ -29,4 +34,13 @@ export const chatApi = {
     });
     return response.data;
   },
+
+  getReadStates: async (): Promise<ChatReadState[]> => {
+    const response = await client.get('/chat/reads');
+    return response.data;
+  },
+
+  updateLastRead: async (roomKey: string, lastReadMsgId: number): Promise<void> => {
+    await client.post('/chat/reads', { roomKey, lastReadMsgId });
+  }
 };

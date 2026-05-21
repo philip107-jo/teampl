@@ -15,4 +15,12 @@ export const userApi = {
     const res = await apiClient.put('/users/me', payload);
     return res.data;
   },
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post('/users/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
 };

@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { driveApi, DriveFolder, DriveFile } from "../api/driveApi";
+import FilePreviewModal from "../components/FilePreviewModal";
 
 interface DriveProps {
   projectId?: number;
@@ -45,6 +46,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -345,7 +347,8 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                       layout
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-white dark:bg-[#12182B] rounded-2xl border border-gray-100 dark:border-white/5 hover:shadow-sm transition-all group items-center"
+                      onClick={() => setPreviewFile(file)}
+                      className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-white dark:bg-[#12182B] rounded-2xl border border-gray-100 dark:border-white/5 hover:shadow-sm transition-all group items-center cursor-pointer"
                     >
                       {/* 파일 아이콘 + 이름 */}
                       <div className="col-span-5 flex items-center gap-3">
@@ -392,7 +395,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                           </a>
                           {user?.email === file.uploaderEmail && (
                             <button
-                              onClick={() => handleDeleteFile(file)}
+                              onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
                               className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all"
                               title="삭제"
                             >
@@ -484,6 +487,13 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
       </div>
 
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
+
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }

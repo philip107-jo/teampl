@@ -149,8 +149,10 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [mentionQuery, setMentionQuery] = useState<{ active: boolean, query: string, index: number } | null>(null);
+  const [initialLastRead, setInitialLastRead] = useState<number>(0);
 
-  const { socket, messagesStore, setMessages, addMessage, setActiveChatKey, initProjectChat } = useChat();
+  const { socket, messagesStore, setMessages, addMessage, setActiveChatKey, initProjectChat, readStates, updateReadState } = useChat();
 
   // 타이핑 인디케이터 상태
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -169,11 +171,12 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
   useEffect(() => {
     setActiveChatKey(chatKey);
+    setInitialLastRead(readStates[chatKey] || 0);
     // 채팅방 바뀌면 타이핑 상태 초기화
     setTypingUsers([]);
     isTypingRef.current = false;
     return () => setActiveChatKey(null);
-  }, [chatKey, setActiveChatKey]);
+  }, [chatKey, setActiveChatKey, readStates]);
 
   useEffect(() => {
     if (!socket || !projectId || !chatKey) return;
@@ -208,7 +211,18 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messagesStore, chatKey, typingUsers]);
+    
+    // 현재 방의 최신 메시지 읽음 처리 (0.5초 딜레이로 "여기까지 읽으셨습니다" 선을 볼 수 있게 함)
+    if (chatKey && currentMessages.length > 0) {
+      const maxId = Math.max(...currentMessages.map(m => Number(m.id)));
+      if (maxId > (readStates[chatKey] || 0)) {
+        const timer = setTimeout(() => {
+          updateReadState(chatKey, maxId);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messagesStore, chatKey, typingUsers, currentMessages, readStates, updateReadState]);
 
   // userTyping 소켓 이벤트 수신
   useEffect(() => {
@@ -264,6 +278,15 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     }
 
     setInputText("");
+    setMentionQuery(null);
+  };
+
+  const handleMentionSelect = (name: string) => {
+    if (!mentionQuery) return;
+    const before = inputText.slice(0, mentionQuery.index - mentionQuery.query.length - 1);
+    const after = inputText.slice(mentionQuery.index);
+    setInputText(`${before}@${name} ${after}`);
+    setMentionQuery(null);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,13 +359,25 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                 첫 메시지를 남겨보세요
               </div>
             ) : (
-              currentMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3`}>
-                  {!msg.isMe && (
-                    <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
-                      {msg.sender[0]}
-                    </div>
-                  )}
+              currentMessages.map((msg, idx) => {
+                const isFirstUnread = !msg.isMe && initialLastRead > 0 && Number(msg.id) > initialLastRead &&
+                  (idx === 0 || Number(currentMessages[idx - 1].id) <= initialLastRead);
+
+                return (
+                  <div key={msg.id}>
+                    {isFirstUnread && (
+                      <div className="flex items-center gap-4 my-6">
+                        <div className="h-px flex-1 bg-red-100 dark:bg-red-500/20"></div>
+                        <span className="text-[11px] font-bold text-red-400 bg-red-50 dark:bg-red-500/10 px-3 py-1 rounded-full">여기까지 읽으셨습니다</span>
+                        <div className="h-px flex-1 bg-red-100 dark:bg-red-500/20"></div>
+                      </div>
+                    )}
+                    <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3 mt-4`}>
+                      {!msg.isMe && (
+                        <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
+                          {msg.sender[0]}
+                        </div>
+                      )}
                   <div className={`max-w-[70%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
                     {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
 
@@ -392,7 +427,9 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                     <span className="text-[10px] text-gray-400 mt-1 mx-1">{msg.time}</span>
                   </div>
                 </div>
-              ))
+              </div>
+              );
+            })
             )}
           </div>
 
@@ -437,29 +474,65 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               </button>
               <input
                 type="text"
-                placeholder="메시지를 입력하세요..."
+                placeholder="메시지를 입력하세요... (@로 팀원 멘션)"
                 className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-400 py-2.5"
                 value={inputText}
                 onChange={(e) => {
-                  setInputText(e.target.value);
+                  const text = e.target.value;
+                  setInputText(text);
                   emitTyping();
+                  
+                  if (chatMode === "TEAM") {
+                    const cursorPos = e.target.selectionStart || 0;
+                    const match = text.slice(0, cursorPos).match(/@(\S*)$/);
+                    if (match) {
+                      setMentionQuery({ active: true, query: match[1], index: cursorPos });
+                    } else {
+                      setMentionQuery(null);
+                    }
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    handleSend();
+                    if (mentionQuery?.active) {
+                      const matched = projectMembers.filter(m => m.name.toLowerCase().includes(mentionQuery.query.toLowerCase()) && m.email !== user?.email);
+                      if (matched.length > 0) {
+                        handleMentionSelect(matched[0].name);
+                      } else {
+                        handleSend();
+                      }
+                    } else {
+                      handleSend();
+                    }
                   }
                 }}
               />
               <button
                 onClick={handleSend}
-                disabled={!inputText.trim()}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shrink-0
-                  ${inputText.trim() ? "bg-[#11B886] text-white hover:bg-[#0EA271]" : "bg-gray-100 text-gray-400"}`}
+                disabled={!inputText.trim() && !isUploading}
+                className="w-10 h-10 flex items-center justify-center bg-[#11B886] hover:bg-[#0EA271] text-white rounded-xl shadow-[0_4px_12px_rgba(17,184,134,0.3)] transition-all shrink-0 disabled:opacity-50 disabled:shadow-none"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
             </div>
+            
+            {/* 멘션 팝업 */}
+            {mentionQuery?.active && chatMode === "TEAM" && (
+              <div className="absolute bottom-[72px] left-14 bg-white shadow-xl rounded-xl border border-gray-100 p-2 w-56 z-50">
+                <p className="text-[10px] text-gray-400 font-bold mb-1 ml-2">멘션할 팀원 선택</p>
+                {projectMembers.filter(m => m.name.toLowerCase().includes(mentionQuery.query.toLowerCase()) && m.email !== user?.email).map(member => (
+                  <button
+                    key={member.email}
+                    onClick={() => handleMentionSelect(member.name)}
+                    className="w-full text-left px-3 py-2 hover:bg-[#11B886]/5 rounded-lg text-sm font-bold flex items-center gap-3 transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[10px] uppercase shrink-0">{member.name[0]}</span>
+                    {member.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

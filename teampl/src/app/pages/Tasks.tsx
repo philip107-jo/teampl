@@ -12,6 +12,7 @@ import { socket, joinProjectChannel } from "../socket";
 import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
+import TaskColumn from "../components/TaskColumn";
 
 interface TasksProps {
   projectId?: number;
@@ -48,10 +49,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createStatus, setCreateStatus] = useState<TaskStatus | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-
-  // 드래그 상태
-  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
-  const [dragOverCol, setDragOverCol] = useState<TaskStatus | null>(null);
 
   const currentUserMember = members.find(m => m.email === user?.email);
   const isLeader = currentUserMember?.role === "LEADER";
@@ -96,25 +93,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
     await taskApi.deleteTask(numProjectId, taskId);
   };
 
-  // 드래그 앤 드롭
-  const onDragStart = (e: React.DragEvent, taskId: string) => {
-    setDragTaskId(taskId);
-    e.dataTransfer.effectAllowed = "move";
-  };
-  const onDragOver = (e: React.DragEvent, status: TaskStatus) => {
-    e.preventDefault();
-    setDragOverCol(status);
-  };
-  const onDrop = async (e: React.DragEvent, status: TaskStatus) => {
-    e.preventDefault();
-    if (dragTaskId && dragTaskId !== "") {
-      const task = tasks.find(t => t.id === dragTaskId);
-      if (task && task.status !== status) await updateStatus(dragTaskId, status);
-    }
-    setDragTaskId(null);
-    setDragOverCol(null);
-  };
-
   const getMemberName = (email: string) => {
     const m = members.find(m => m.email === email);
     return m?.name || email.split("@")[0];
@@ -151,123 +129,25 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
         /* 4컬럼 칸반 보드 */
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
           {COLUMNS.map(col => {
-            const colTasks = tasks.filter(t => t.status === col.status);
-            const isOver = dragOverCol === col.status;
+            const colTasks = tasks.filter(t => t.status === col.status).map(t => ({
+              ...t,
+              assignees: t.assignees?.map(email => getMemberName(email)) || []
+            }));
 
             return (
-              <div
+              <TaskColumn
                 key={col.status}
-                onDragOver={e => onDragOver(e, col.status)}
-                onDragLeave={() => setDragOverCol(null)}
-                onDrop={e => onDrop(e, col.status)}
-                className={`flex flex-col rounded-2xl transition-all ${isOver ? "ring-2 ring-[#11B886] ring-offset-2" : ""}`}
-              >
-                {/* 컬럼 헤더 */}
-                <div className={`flex items-center justify-between px-4 py-3 rounded-t-2xl ${col.bg}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`} />
-                    <span className={`text-[13px] font-black uppercase tracking-widest ${col.color}`}>
-                      {col.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${col.bg} ${col.color} border border-current/20`}>
-                      {colTasks.length}
-                    </span>
-                    <button
-                      onClick={() => setCreateStatus(col.status)}
-                      className={`p-1 rounded-lg hover:bg-black/5 transition-colors ${col.color}`}
-                      title="이 열에 과제 추가"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* 태스크 카드 목록 */}
-                <div className={`flex flex-col gap-2 p-2 min-h-[120px] rounded-b-2xl ${col.bg} transition-colors`}>
-                  {colTasks.length === 0 ? (
-                    <div
-                      className="flex-1 flex items-center justify-center py-8 text-[12px] font-bold text-gray-400 dark:text-white/20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl cursor-pointer"
-                      onClick={() => setCreateStatus(col.status)}
-                    >
-                      + 여기에 추가
-                    </div>
-                  ) : (
-                    colTasks.map(task => {
-                      const pCfg = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-                      const assignee = task.assignees?.[0] ? getMemberName(task.assignees[0]) : "미지정";
-                      const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== "DONE";
-
-                      return (
-                        <div
-                          key={task.id}
-                          draggable
-                          onDragStart={e => onDragStart(e, task.id)}
-                          onDragEnd={() => { setDragTaskId(null); setDragOverCol(null); }}
-                          onClick={() => setSelectedTask(task)}
-                          className={`bg-white dark:bg-[#1A2340] rounded-xl p-4 border shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all group select-none
-                            ${dragTaskId === task.id ? "opacity-40 scale-95" : "opacity-100"}
-                            ${isOverdue ? "border-red-200 dark:border-red-500/20" : "border-gray-100 dark:border-white/10"}`}
-                        >
-                          {/* 우선순위 + 드래그 핸들 */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${pCfg.cls}`}>
-                              {pCfg.label}
-                            </span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={e => { e.stopPropagation(); updateStatus(task.id, NEXT_STATUS[task.status]); }}
-                                className="p-1 text-gray-400 hover:text-[#11B886] rounded-lg hover:bg-[#11B886]/10 transition-colors"
-                                title={`→ ${COLUMNS.find(c => c.status === NEXT_STATUS[task.status])?.label}`}
-                              >
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
-                              {isLeader && (
-                                <button
-                                  onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
-                                  className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <GripVertical className="w-3.5 h-3.5 text-gray-300 dark:text-white/20" />
-                            </div>
-                          </div>
-
-                          {/* 제목 */}
-                          <h3 className={`text-[13px] font-bold leading-snug mb-2 ${task.status === "DONE" ? "line-through text-gray-400 dark:text-white/30" : "text-[#1A2340] dark:text-white"}`}>
-                            {task.title}
-                          </h3>
-
-                          {task.description && (
-                            <p className="text-[11px] text-gray-400 dark:text-white/30 mb-3 line-clamp-2 leading-relaxed">
-                              {task.description}
-                            </p>
-                          )}
-
-                          {/* 담당자 + 마감일 */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-5 h-5 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[9px] font-black">
-                                {assignee[0]?.toUpperCase()}
-                              </div>
-                              <span className="text-[11px] text-gray-500 dark:text-white/40 font-medium truncate max-w-[80px]">
-                                {assignee}
-                              </span>
-                            </div>
-                            {task.deadline && (
-                              <span className={`text-[10px] font-bold ${isOverdue ? "text-red-500" : "text-gray-400 dark:text-white/30"}`}>
-                                {task.deadline}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+                col={col}
+                colTasks={colTasks}
+                isLeader={isLeader}
+                priorityConfig={PRIORITY_CONFIG}
+                nextStatus={NEXT_STATUS}
+                columnsConfig={COLUMNS}
+                updateStatus={updateStatus}
+                deleteTask={deleteTask}
+                setSelectedTask={setSelectedTask}
+                setCreateStatus={setCreateStatus}
+              />
             );
           })}
         </div>

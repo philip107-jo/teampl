@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   User, GraduationCap, Building2, ChevronDown,
-  CheckCircle2, ArrowLeft, Loader2, AlertCircle, Save
+  CheckCircle2, ArrowLeft, Loader2, AlertCircle, Save, Camera
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -29,6 +29,23 @@ export default function EditProfile() {
   const [isDeptOpen, setIsDeptOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const updated = await userApi.uploadAvatar(file);
+      updateUser(updated);
+      showToast("프로필 이미지가 변경되었습니다.", "success");
+    } catch (err: any) {
+      showToast("프로필 이미지 업로드에 실패했습니다.", "error");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,8 +94,18 @@ export default function EditProfile() {
 
           {/* Avatar Preview */}
           <div className="flex items-center gap-6 mb-10">
-            <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white text-[32px] font-black shadow-[0_0_30px_rgba(17,184,134,0.4)] flex-shrink-0">
-              {formData.name?.[0] || user?.name?.[0] || "U"}
+            <div className="relative group cursor-pointer">
+              <label htmlFor="avatar-upload" className="w-20 h-20 rounded-[28px] overflow-hidden bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white text-[32px] font-black shadow-[0_0_30px_rgba(17,184,134,0.4)] flex-shrink-0 cursor-pointer block relative">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="profile" className="w-full h-full object-cover" />
+                ) : (
+                  formData.name?.[0] || user?.name?.[0] || "U"
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploadingAvatar ? <Loader2 className="w-6 h-6 animate-spin text-white" /> : <Camera className="w-6 h-6 text-white" />}
+                </div>
+              </label>
+              <input type="file" id="avatar-upload" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={uploadingAvatar} />
             </div>
             <div>
               <h2 className="text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">

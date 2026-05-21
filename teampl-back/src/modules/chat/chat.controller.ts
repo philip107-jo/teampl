@@ -9,6 +9,25 @@ router.use(authMiddleware);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+router.get('/reads', async (req, res) => {
+    try {
+        const reads = await ChatService.getReadStates(req.user!.email);
+        res.json(reads);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/reads', async (req, res) => {
+    try {
+        const { roomKey, lastReadMsgId } = req.body;
+        const read = await ChatService.updateLastRead(req.user!.email, roomKey, lastReadMsgId);
+        res.json(read);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 router.get('/project/:projectId', async (req, res) => {
     const projectId = parseInt(req.params.projectId, 10);
     try {
