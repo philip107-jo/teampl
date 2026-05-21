@@ -10,7 +10,7 @@ export const UsersService = {
   findById: async (id: string) => {
     return await prisma.user.findUnique({ where: { id } });
   },
-  updateProfile: async (id: string, data: { name?: string; studentId?: string; department?: string }) => {
+  updateProfile: async (id: string, data: { name?: string; studentId?: string; department?: string; avatarUrl?: string }) => {
     return await prisma.user.update({
       where: { id },
       data

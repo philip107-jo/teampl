@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { TasksService } from './tasks.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
+import multer from 'multer';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+});
 
 const router = Router({ mergeParams: true }); // mergeParams로 상위 :projectId 접근
 router.use(authMiddleware);
@@ -53,6 +59,73 @@ router.patch('/:id', async (req, res) => {
     try {
         const updatedTask = await TasksService.updateStatus(email, projectId, id, status);
         if (!updatedTask) return res.status(404).json({ message: 'Task not found' });
+        res.json(updatedTask);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:projectId/tasks/:id/submit
+router.post('/:id/submit', upload.array('files', 20), async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+        return res.status(400).json({ message: '산출물 파일이 없습니다.' });
+    }
+
+    try {
+        const updatedTask = await TasksService.submitForReview(email, projectId, id as string, files);
+        res.json(updatedTask);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:projectId/tasks/:id/deliverables (add more files)
+router.post('/:id/deliverables', upload.array('files', 20), async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+        return res.status(400).json({ message: '업로드할 파일이 없습니다.' });
+    }
+
+    try {
+        const updatedTask = await TasksService.addDeliverables(email, projectId, id as string, files);
+        res.json(updatedTask);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// DELETE /api/projects/:projectId/tasks/:id/deliverables/:deliverableId
+router.delete('/:id/deliverables/:deliverableId', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    const deliverableId = parseInt(req.params.deliverableId, 10);
+    
+    try {
+        await TasksService.deleteDeliverable(email, projectId, id, deliverableId);
+        res.status(204).send();
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:projectId/tasks/:id/approve
+router.post('/:id/approve', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    
+    try {
+        const updatedTask = await TasksService.approveTask(email, projectId, id);
         res.json(updatedTask);
     } catch (e: any) {
         res.status(403).json({ message: e.message });

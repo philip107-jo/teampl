@@ -45,5 +45,32 @@ export const taskApi = {
 
   deleteTaskComment: async (projectId: number, taskId: string, commentId: number): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`);
+  },
+
+  submitTaskForReview: async (projectId: number, taskId: string, files: File[]): Promise<Task> => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/submit`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  addDeliverables: async (projectId: number, taskId: string, files: File[]): Promise<Task> => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/deliverables`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  deleteDeliverable: async (projectId: number, taskId: string, deliverableId: number): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/deliverables/${deliverableId}`);
+  },
+
+  approveTask: async (projectId: number, taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/approve`);
+    return response.data;
   }
 };

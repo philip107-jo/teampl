@@ -31,6 +31,21 @@ export type Task = {
   completedAt?: string;
   createdById: string;
   assignees: string[]; // User IDs
+  
+  submitterEmail?: string;
+  deliverables?: TaskDeliverable[];
+  approvals?: { id: number; taskId: string; userEmail: string; createdAt: string }[];
+};
+
+export type TaskDeliverable = {
+  id: number;
+  taskId: string;
+  originalName: string;
+  type: string;
+  size: number;
+  url: string;
+  uploaderEmail: string;
+  createdAt: string;
 };
 
 export type TaskComment = {

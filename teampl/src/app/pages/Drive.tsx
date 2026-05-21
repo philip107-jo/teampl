@@ -77,6 +77,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
 
   // 탐색 및 드래그앤드롭 상태
   const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
@@ -285,7 +286,6 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
           </section>
         </>
       )}
-
       {/* 이미지 시안과 100% 동일한 헤더 영역 */}
       {propProjectId && (
         currentFolderId !== null ? (
@@ -384,6 +384,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayFolders.map(folder => {
               const isOver = dragOverFolderId === folder.id;
+              const isAutoCreated = folder.name.includes('[자동 생성]');
               const Icon = isOver ? FolderOpen : Folder;
               return (
                 <div
@@ -418,9 +419,18 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-[#E8F8F4] dark:bg-[#11B886]/10 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-[#11B886]" />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      isAutoCreated 
+                        ? 'bg-purple-50 dark:bg-purple-500/10' 
+                        : 'bg-[#E8F8F4] dark:bg-[#11B886]/10'
+                    }`}>
+                      <Icon className={`w-6 h-6 ${isAutoCreated ? 'text-purple-500' : 'text-[#11B886]'}`} />
                     </div>
+                    {isAutoCreated && (
+                      <span className="text-[9px] font-black text-purple-500 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest">자동</span>
+                    )}
+                  </div>
+                  <div className="flex items-end justify-between">
                     <span className="bg-[#1A2340] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                       {folder.items}개
                     </span>
@@ -456,7 +466,6 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               </span>
             </div>
           )}
-
           {filteredFiles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFiles.map(file => {
@@ -548,21 +557,39 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               })}
             </div>
           ) : (
-            <div
-              className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-[#11B886]/40 transition-all bg-gray-50/50 dark:bg-white/5"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={async (e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files.length > 0) {
-                  await uploadFiles(e.dataTransfer.files);
-                }
-              }}
-            >
-              <CloudUpload className="w-14 h-14 text-gray-200 dark:text-white/10 mb-4" />
-              <p className="text-[15px] font-black text-gray-400 dark:text-white/30">파일이 없습니다</p>
-              <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">클릭하거나 파일을 드래그하여 업로드하세요</p>
-            </div>
+            (() => {
+              const currentFolder = driveFolders.find(f => f.id === currentFolderId);
+              const isAutoCreated = currentFolder?.name.includes('[자동 생성]');
+              return (
+                <div
+                  className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl transition-all bg-gray-50/50 dark:bg-white/5"
+                  onClick={isAutoCreated ? undefined : () => fileInputRef.current?.click()}
+                  onDragOver={(e) => !isAutoCreated && e.preventDefault()}
+                  onDrop={async (e) => {
+                    if (isAutoCreated) return;
+                    e.preventDefault();
+                    if (e.dataTransfer.files.length > 0) {
+                      await uploadFiles(e.dataTransfer.files);
+                    }
+                  }}
+                  style={{ cursor: isAutoCreated ? 'default' : 'pointer' }}
+                >
+                  {isAutoCreated ? (
+                    <>
+                      <Folder className="w-14 h-14 text-purple-200 dark:text-purple-500/20 mb-4" />
+                      <p className="text-[15px] font-black text-gray-400 dark:text-white/30">승인된 산출물이 없습니다</p>
+                      <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">승인이 완료된 과제 산출물이 자동으로 등록됩니다</p>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUpload className="w-14 h-14 text-gray-200 dark:text-white/10 mb-4" />
+                      <p className="text-[15px] font-black text-gray-400 dark:text-white/30">파일이 없습니다</p>
+                      <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">클릭하거나 파일을 드래그하여 업로드하세요</p>
+                    </>
+                  )}
+                </div>
+              );
+            })()
           )}
         </div>
       </div>

@@ -22,7 +22,8 @@ export const TasksService = {
         await verifyMembership(email, projectId);
         return await prisma.task.findMany({
             where: { projectId },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            include: { approvals: true, deliverables: true }
         });
     },
 
@@ -68,13 +69,13 @@ export const TasksService = {
                 priority = taskData.priority.toLowerCase();
             }
             
-            const t = await (prisma as any).task.create({
+            const t = await prisma.task.create({
                 data: {
                     projectId,
                     title: taskData.title || '새 태스크',
                     description: taskData.description || '',
                     status: 'TODO',
-                    priority: priority,
+                    priority: priority as any,
                     deadline: taskData.deadline || '',
                     difficulty: parseInt(taskData.difficulty) || 3,
                     ownerEmail: email,
@@ -87,9 +88,168 @@ export const TasksService = {
         return createdTasks;
     },
 
+    submitForReview: async (email: string, projectId: number, taskId: string, files: Express.Multer.File[]) => {
+        await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) throw new Error("태스크를 찾을 수 없습니다.");
+        if (files.length === 0) throw new Error("최소 1개 이상의 파일이 필요합니다.");
+        
+        const { uploadToKTCloud } = require('../drive/ktcloud.storage');
+        
+        // 파일 업로드 및 DB 기록
+        for (const file of files) {
+            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+            const safeFileName = originalName.replace(/[^a-zA-Z0-9가-힣.\-_]/g, '_');
+            const key = `projects/${projectId}/tasks/${taskId}/${Date.now()}_${safeFileName}`;
+            const publicUrl = await uploadToKTCloud(key, file.buffer, file.mimetype);
+            
+            await prisma.taskDeliverable.create({
+                data: {
+                    taskId,
+                    name: key,
+                    originalName,
+                    type: file.mimetype,
+                    size: file.size,
+                    url: publicUrl,
+                    uploaderEmail: email
+                }
+            });
+        }
+        
+        // 상태 업데이트
+        await prisma.task.update({
+            where: { id: taskId },
+            data: { status: 'IN_REVIEW', submitterEmail: email }
+        });
+        
+        emitTaskUpdate(projectId);
+        return await prisma.task.findUnique({
+            where: { id: taskId },
+            include: { approvals: true, deliverables: true }
+        });
+    },
+
+    addDeliverables: async (email: string, projectId: number, taskId: string, files: Express.Multer.File[]) => {
+        await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) throw new Error("태스크를 찾을 수 없습니다.");
+        if (task.status !== 'IN_REVIEW') throw new Error("검토 중인 과제에만 파일을 추가할 수 있습니다.");
+        if (task.submitterEmail !== email) throw new Error("제출자만 파일을 추가할 수 있습니다.");
+        
+        const { uploadToKTCloud } = require('../drive/ktcloud.storage');
+        
+        for (const file of files) {
+            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+            const safeFileName = originalName.replace(/[^a-zA-Z0-9가-힣.\-_]/g, '_');
+            const key = `projects/${projectId}/tasks/${taskId}/${Date.now()}_${safeFileName}`;
+            const publicUrl = await uploadToKTCloud(key, file.buffer, file.mimetype);
+            
+            await prisma.taskDeliverable.create({
+                data: {
+                    taskId,
+                    name: key,
+                    originalName,
+                    type: file.mimetype,
+                    size: file.size,
+                    url: publicUrl,
+                    uploaderEmail: email
+                }
+            });
+        }
+        
+        emitTaskUpdate(projectId);
+        return await prisma.task.findUnique({
+            where: { id: taskId },
+            include: { approvals: true, deliverables: true }
+        });
+    },
+
+    deleteDeliverable: async (email: string, projectId: number, taskId: string, deliverableId: number) => {
+        await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) throw new Error("태스크를 찾을 수 없습니다.");
+        if (task.submitterEmail !== email) throw new Error("제출자만 파일을 삭제할 수 있습니다.");
+        
+        const deliverable = await prisma.taskDeliverable.findUnique({ where: { id: deliverableId } });
+        if (!deliverable || deliverable.taskId !== taskId) throw new Error("파일을 찾을 수 없습니다.");
+        
+        const { deleteFromKTCloud } = require('../drive/ktcloud.storage');
+        try { await deleteFromKTCloud(deliverable.name); } catch {}
+        
+        await prisma.taskDeliverable.delete({ where: { id: deliverableId } });
+        
+        emitTaskUpdate(projectId);
+        return { success: true };
+    },
+
+    approveTask: async (email: string, projectId: number, taskId: string) => {
+        await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ 
+            where: { id: taskId },
+            include: { approvals: true, deliverables: true } 
+        });
+        if (!task) throw new Error("태스크를 찾을 수 없습니다.");
+        if (task.status !== 'IN_REVIEW') throw new Error("검토 중인 과제만 승인할 수 있습니다.");
+        if (task.submitterEmail === email) throw new Error("본인이 제출한 산출물은 직접 승인할 수 없습니다.");
+        if ((task.deliverables as any[]).length === 0) throw new Error("제출된 산출물이 없습니다.");
+        
+        const alreadyApproved = task.approvals.find(a => a.userEmail === email);
+        if (alreadyApproved) throw new Error("이미 승인한 과제입니다.");
+        
+        await prisma.taskApproval.create({
+            data: { taskId, userEmail: email }
+        });
+        
+        const totalApprovals = task.approvals.length + 1;
+        
+        if (totalApprovals >= 1) {
+            await prisma.task.update({
+                where: { id: taskId },
+                data: { status: 'DONE', completedAt: new Date() }
+            });
+            
+            let folder = await prisma.driveFolder.findFirst({
+                where: { projectId, name: '[자동 생성] 과제 산출물' }
+            });
+            if (!folder) {
+                folder = await prisma.driveFolder.create({
+                    data: { projectId, name: '[자동 생성] 과제 산출물', theme: 'purple' }
+                });
+            }
+            
+            // 모든 산출물 파일을 자료실에 등록
+            for (const deliverable of task.deliverables as any[]) {
+                await prisma.driveFile.create({
+                    data: {
+                        projectId,
+                        folderId: folder.id,
+                        name: deliverable.name,
+                        originalName: `[${task.title}] ${deliverable.originalName}`,
+                        type: deliverable.type,
+                        size: deliverable.size,
+                        url: deliverable.url,
+                        uploaderEmail: task.submitterEmail!
+                    }
+                });
+            }
+            
+            if (task.submitterEmail) {
+                await NotificationsService.createNotification({
+                    userEmail: task.submitterEmail,
+                    type: 'task',
+                    title: '과제 최종 승인 완료',
+                    content: `'${task.title}' 과제가 팀원들의 승인을 받아 자료실에 자동 업로드 되었습니다.`
+                });
+            }
+        }
+        
+        emitTaskUpdate(projectId);
+        return await prisma.task.findUnique({ where: { id: taskId }, include: { approvals: true, deliverables: true } });
+    },
+
     updateStatus: async (email: string, projectId: number, taskId: string, status: string) => {
         await verifyMembership(email, projectId);
-        const updated = await (prisma as any).task.update({
+        const updated = await prisma.task.update({
             where: { id: taskId },
             data: { 
                 status: status as any,

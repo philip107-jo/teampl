@@ -1,20 +1,37 @@
 import React, { useState } from "react";
-import { X, Calendar as CalendarIcon } from "lucide-react";
+import { X } from "lucide-react";
 import { taskApi } from "../api/taskApi";
 
 interface TaskCreateModalProps {
   projectId: number;
-  assigneeEmail: string;
-  assigneeName: string;
-  initialStatus?: string;
+  members: Array<{ email: string; name: string }>;
+  initialStageId: number;
   onClose: () => void;
   onCreate: () => void;
 }
 
-export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName, initialStatus = "TODO", onClose, onCreate }: TaskCreateModalProps) {
+const DEFAULT_STAGES = [
+  { id: 1, title: '주제 선정' },
+  { id: 2, title: '설문 설계' },
+  { id: 3, title: '데이터 수집' },
+  { id: 4, title: '분석' },
+  { id: 5, title: '발표준비' }
+];
+
+export default function TaskCreateModal({
+  projectId,
+  members,
+  initialStageId,
+  onClose,
+  onCreate
+}: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [selectedStageId, setSelectedStageId] = useState<number>(initialStageId);
+  const [selectedAssigneeEmail, setSelectedAssigneeEmail] = useState<string>(
+    members.length > 0 ? members[0].email : ""
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,18 +40,21 @@ export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName
       alert("태스크 제목을 입력해주세요.");
       return;
     }
-    
+
     setLoading(true);
+    // Prepend the selected stage tag automatically so it maps correct stage heuristics
+    const prefixedTitle = `[${selectedStageId}단계] ${title.trim()}`;
+
     try {
       await taskApi.createTask(projectId, {
-        title,
+        title: prefixedTitle,
         description,
-        status: initialStatus,
-        priority: "medium", // Default priority since removed from UI
-        difficulty: 3,      // Default difficulty since removed from UI
+        status: "TODO",
+        priority: "medium",
+        difficulty: 3,
         deadline: deadline || "마감일 없음",
-        ownerEmail: assigneeEmail,
-        assignees: [assigneeEmail],
+        ownerEmail: selectedAssigneeEmail,
+        assignees: [selectedAssigneeEmail],
       } as any);
       onCreate();
       onClose();
@@ -80,16 +100,36 @@ export default function TaskCreateModal({ projectId, assigneeEmail, assigneeName
             />
           </div>
 
+          {/* Project Stage Dropdown */}
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700">프로젝트 단계</label>
+            <select
+              value={selectedStageId}
+              onChange={(e) => setSelectedStageId(Number(e.target.value))}
+              className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#11B886] transition-colors text-gray-600"
+            >
+              {DEFAULT_STAGES.map(stage => (
+                <option key={stage.id} value={stage.id}>
+                  {stage.id}단계 · {stage.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700">담당자</label>
-              <input 
-                type="text" 
-                readOnly
-                value={assigneeName}
-                placeholder="담당자 이름"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-500 cursor-not-allowed outline-none"
-              />
+              <label className="text-sm font-bold text-gray-700">담당 팀원</label>
+              <select
+                value={selectedAssigneeEmail}
+                onChange={(e) => setSelectedAssigneeEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#11B886] transition-colors text-gray-600"
+              >
+                {members.map(member => (
+                  <option key={member.email} value={member.email}>
+                    {member.name} ({member.email.split('@')[0]})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">마감일</label>
