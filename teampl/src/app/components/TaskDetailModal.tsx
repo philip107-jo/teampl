@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { X, Calendar, MessageSquare, Save, Trash2 } from "lucide-react";
-import { Task, TaskComment } from "../types";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Calendar, MessageSquare, Save, Trash2, Paperclip, Download, CheckCircle2, FileText, FileImage, FileType2, ShieldCheck, Plus, Loader2 } from "lucide-react";
+import { Task, TaskComment, TaskDeliverable } from "../types";
 import { taskApi } from "../api/taskApi";
 import { useAuth } from "../context/AuthContext";
+
+function getDeliverableIcon(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase();
+  if (['jpg','jpeg','png','gif','webp','svg'].includes(ext || '')) return FileImage;
+  if (ext === 'pdf') return FileType2;
+  return FileText;
+}
 
 interface TaskDetailModalProps {
   projectId: number;
@@ -18,6 +25,10 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [addingFiles, setAddingFiles] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchComments();
@@ -68,6 +79,55 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
       alert("댓글 삭제에 실패했습니다.");
     }
   };
+
+  const handleApprove = async () => {
+    if (!window.confirm("이 산출물을 검토하고 승인하시겠습니까?")) return;
+    setApproving(true);
+    try {
+      await taskApi.approveTask(projectId, task.id);
+      onUpdate();
+      onClose();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "승인에 실패했습니다.");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleAddFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const newFiles = Array.from(e.target.files);
+    if (addFileInputRef.current) addFileInputRef.current.value = "";
+    setAddingFiles(true);
+    try {
+      await taskApi.addDeliverables(projectId, task.id, newFiles);
+      onUpdate();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "파일 추가에 실패했습니다.");
+    } finally {
+      setAddingFiles(false);
+    }
+  };
+
+  const handleDeleteDeliverable = async (deliverable: TaskDeliverable) => {
+    if (!window.confirm(`"${deliverable.originalName}" 파일을 삭제하시겠습니까?`)) return;
+    setDeletingId(deliverable.id);
+    try {
+      await taskApi.deleteDeliverable(projectId, task.id, deliverable.id);
+      onUpdate();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const canApprove = task.status === 'IN_REVIEW' &&
+    task.submitterEmail !== user?.email &&
+    !task.approvals?.find(a => a.userEmail === user?.email);
+
+  const alreadyApproved = task.approvals?.find(a => a.userEmail === user?.email);
+  const isSubmitter = task.submitterEmail === user?.email;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -124,6 +184,103 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
               </div>
             )}
           </section>
+
+          {/* Deliverable Section - 검토 중일 때만 표시 */}
+          {task.status === 'IN_REVIEW' && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 text-[14px] font-black text-[#7D879C] uppercase tracking-widest">
+                  <Paperclip className="w-4 h-4" /> 제출된 산출물 ({task.deliverables?.length || 0}개)
+                </h3>
+                {isSubmitter && (
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg text-[11px] font-bold cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors">
+                    {addingFiles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    파일 추가
+                    <input type="file" multiple className="hidden" ref={addFileInputRef} onChange={handleAddFiles} />
+                  </label>
+                )}
+              </div>
+
+              <div className="rounded-2xl border-2 border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/5 overflow-hidden">
+                {/* 파일 목록 */}
+                {task.deliverables && task.deliverables.length > 0 ? (
+                  <div className="divide-y divide-purple-100 dark:divide-purple-500/20">
+                    {task.deliverables.map(deliverable => {
+                      const Icon = getDeliverableIcon(deliverable.originalName);
+                      return (
+                        <div key={deliverable.id} className="flex items-center gap-3 px-4 py-3">
+                          <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <Icon className="w-4 h-4 text-purple-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-bold text-[#1A2340] dark:text-white truncate">{deliverable.originalName}</p>
+                            <p className="text-[10px] text-gray-400">{(deliverable.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                          <a
+                            href={deliverable.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={deliverable.originalName}
+                            className="p-2 text-purple-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded-lg transition-colors"
+                            title="다운로드"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          {isSubmitter && (
+                            <button
+                              onClick={() => handleDeleteDeliverable(deliverable)}
+                              disabled={deletingId === deliverable.id}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                              title="삭제"
+                            >
+                              {deletingId === deliverable.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-5 py-6 text-center text-[12px] text-gray-400">
+                    아직 제출된 파일이 없습니다.
+                  </div>
+                )}
+
+                {/* 승인 상태 + 버튼 영역 */}
+                <div className="border-t border-purple-200 dark:border-purple-500/20 px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-purple-500" />
+                    <span className="text-[12px] font-bold text-purple-600 dark:text-purple-400">
+                      승인 현황: {task.approvals?.length || 0} / 1
+                    </span>
+                    {alreadyApproved && (
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-[#11B886] bg-[#11B886]/10 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" /> 승인 완료
+                      </span>
+                    )}
+                  </div>
+
+                  {canApprove && (
+                    <button
+                      onClick={handleApprove}
+                      disabled={approving || !task.deliverables?.length}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[#11B886] hover:bg-[#0EA271] disabled:opacity-50 text-white rounded-xl text-[13px] font-bold transition-colors shadow-[0_4px_12px_rgba(17,184,134,0.3)]"
+                    >
+                      {approving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      산출물 승인하기
+                    </button>
+                  )}
+
+                  {isSubmitter && (
+                    <span className="text-[11px] font-bold text-gray-400 dark:text-white/30">
+                      본인이 제출한 산출물입니다
+                    </span>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Comments Section */}
           <section>

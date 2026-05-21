@@ -12,6 +12,7 @@ import { socket, joinProjectChannel } from "../socket";
 import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
+import TaskSubmitModal from "../components/TaskSubmitModal";
 import TaskColumn from "../components/TaskColumn";
 
 interface TasksProps {
@@ -47,6 +48,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [submitTask, setSubmitTask] = useState<Task | null>(null);
   const [createStatus, setCreateStatus] = useState<TaskStatus | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
@@ -79,11 +81,32 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
   }, [numProjectId]);
 
   const updateStatus = async (taskId: string, newStatus: TaskStatus) => {
+    if (newStatus === 'DONE') {
+      alert("완료 상태로는 직접 이동할 수 없습니다. 산출물을 제출하고 팀원의 승인을 받아주세요.");
+      return;
+    }
+    if (newStatus === 'IN_REVIEW') {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        setSubmitTask(task);
+      }
+      return;
+    }
+
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     try {
       await taskApi.updateTaskStatus(numProjectId, taskId, newStatus);
     } catch {
       fetchData(); // 실패 시 원복
+    }
+  };
+
+  const approveTask = async (taskId: string) => {
+    try {
+      await taskApi.approveTask(numProjectId, taskId);
+      fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "승인에 실패했습니다.");
     }
   };
 
@@ -140,10 +163,12 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
                 col={col}
                 colTasks={colTasks}
                 isLeader={isLeader}
+                currentUserEmail={user?.email || ""}
                 priorityConfig={PRIORITY_CONFIG}
                 nextStatus={NEXT_STATUS}
                 columnsConfig={COLUMNS}
                 updateStatus={updateStatus}
+                approveTask={approveTask}
                 deleteTask={deleteTask}
                 setSelectedTask={setSelectedTask}
                 setCreateStatus={setCreateStatus}
@@ -190,6 +215,18 @@ export default function Tasks({ projectId: propProjectId }: TasksProps = {}) {
           onSuccess={() => {
             setIsAiModalOpen(false);
             taskApi.getTasks(numProjectId).then(setTasks);
+          }}
+        />
+      )}
+
+      {submitTask && numProjectId && (
+        <TaskSubmitModal
+          projectId={numProjectId}
+          task={submitTask}
+          onClose={() => setSubmitTask(null)}
+          onSuccess={() => {
+            setSubmitTask(null);
+            fetchData();
           }}
         />
       )}

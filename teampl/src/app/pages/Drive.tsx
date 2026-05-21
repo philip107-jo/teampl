@@ -47,6 +47,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +79,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
 
     try {
       for (const file of fileArray) {
-        await driveApi.uploadFile(propProjectId, file);
+        await driveApi.uploadFile(propProjectId, file, selectedFolder?.id);
       }
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2500);
@@ -141,15 +142,19 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     }
   };
 
-  // 검색 필터
-  const filteredFiles = driveFiles.filter(f =>
-    f.originalName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const displayFolders = driveFolders.map(f => ({
     ...f,
     items: driveFiles.filter(file => file.folderId === f.id).length,
   }));
+
+  // 현재 선택된 폴더 기준으로 파일 필터
+  const filesInView = selectedFolder
+    ? driveFiles.filter(f => f.folderId === selectedFolder.id)
+    : driveFiles.filter(f => f.folderId === null || f.folderId === undefined);
+
+  const filteredFiles = filesInView.filter(f =>
+    f.originalName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div
@@ -232,14 +237,18 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-[13px] font-black uppercase tracking-widest">
-              {currentPath.map((p, idx) => (
-                <div key={p.id} className="flex items-center gap-2">
-                  <span className={idx === currentPath.length - 1 ? "text-[#1A2340] dark:text-white" : "text-gray-400 dark:text-white/30"}>
-                    {p.name}
-                  </span>
-                  {idx < currentPath.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-white/20" />}
-                </div>
-              ))}
+              <button
+                onClick={() => setSelectedFolder(null)}
+                className={`transition-colors ${selectedFolder ? 'text-gray-400 dark:text-white/30 hover:text-[#11B886]' : 'text-[#1A2340] dark:text-white'}`}
+              >
+                {propProjectId ? '자료실' : '전체 스페이스'}
+              </button>
+              {selectedFolder && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-white/20" />
+                  <span className="text-[#1A2340] dark:text-white">{selectedFolder.name}</span>
+                </>
+              )}
               {isLoading && <Loader2 className="w-4 h-4 animate-spin text-[#11B886] ml-2" />}
             </div>
 
@@ -291,20 +300,30 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
             )}
           </AnimatePresence>
 
-          {/* 폴더 */}
-          {displayFolders.length > 0 && (
+          {/* 폴더 - 루트에서만 표시 */}
+          {!selectedFolder && displayFolders.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-[11px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest">폴더</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {displayFolders.map(folder => (
-                  <div key={folder.id} className="bg-white dark:bg-[#12182B] rounded-2xl p-5 cursor-pointer hover:shadow-md transition-all group border border-gray-100 dark:border-white/5">
+                  <div
+                    key={folder.id}
+                    onClick={() => setSelectedFolder(folder)}
+                    className="bg-white dark:bg-[#12182B] rounded-2xl p-5 cursor-pointer hover:shadow-md transition-all group border border-gray-100 dark:border-white/5"
+                  >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-                        <Folder className="w-6 h-6 text-amber-500" />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        folder.name.includes('[자동 생성]') 
+                          ? 'bg-purple-50 dark:bg-purple-500/10' 
+                          : 'bg-amber-50 dark:bg-amber-500/10'
+                      }`}>
+                        <Folder className={`w-6 h-6 ${
+                          folder.name.includes('[자동 생성]') ? 'text-purple-500' : 'text-amber-500'
+                        }`} />
                       </div>
-                      <button className="p-1.5 text-gray-300 dark:text-white/20 hover:text-gray-600 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-gray-100 dark:hover:bg-white/5">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      {folder.name.includes('[자동 생성]') && (
+                        <span className="text-[9px] font-black text-purple-500 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest">자동</span>
+                      )}
                     </div>
                     <h3 className="text-[14px] font-black text-[#1A2340] dark:text-white truncate mb-1">{folder.name}</h3>
                     <p className="text-[11px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest">{folder.items}개 파일</p>
@@ -318,7 +337,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-[11px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest">
-                파일 목록 · {filteredFiles.length}개
+                {selectedFolder ? `${selectedFolder.name} 내 파일` : '전체 파일'} · {filteredFiles.length}개
               </h2>
             </div>
 
@@ -419,12 +438,23 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               </div>
             ) : (
               <div
-                className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-[#11B886]/40 transition-all"
-                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl transition-all"
+                onClick={selectedFolder ? undefined : () => fileInputRef.current?.click()}
+                style={{ cursor: selectedFolder ? 'default' : 'pointer' }}
               >
-                <CloudUpload className="w-14 h-14 text-gray-200 dark:text-white/10 mb-4" />
-                <p className="text-[15px] font-black text-gray-400 dark:text-white/30">파일이 없습니다</p>
-                <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">클릭하거나 파일을 드래그하여 업로드하세요</p>
+                {selectedFolder?.name.includes('[자동 생성]') ? (
+                  <>
+                    <Folder className="w-14 h-14 text-purple-200 dark:text-purple-500/20 mb-4" />
+                    <p className="text-[15px] font-black text-gray-400 dark:text-white/30">승인된 산출물이 없습니다</p>
+                    <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">승인이 완료된 과제 산출물이 자동으로 등록됩니다</p>
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload className="w-14 h-14 text-gray-200 dark:text-white/10 mb-4" />
+                    <p className="text-[15px] font-black text-gray-400 dark:text-white/30">파일이 없습니다</p>
+                    <p className="text-[12px] text-gray-400 dark:text-white/20 mt-1">클릭하거나 파일을 드래그하여 업로드하세요</p>
+                  </>
+                )}
               </div>
             )}
           </div>

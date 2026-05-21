@@ -16,17 +16,19 @@ interface TaskColumnProps {
   col: ColumnConfig;
   colTasks: Task[];
   isLeader: boolean;
+  currentUserEmail: string;
   priorityConfig: Record<string, { label: string; cls: string }>;
   nextStatus: Record<TaskStatus, TaskStatus>;
   columnsConfig: ColumnConfig[];
   updateStatus: (taskId: string, status: TaskStatus) => void;
+  approveTask: (taskId: string) => void;
   deleteTask: (taskId: string) => void;
   setSelectedTask: (task: Task) => void;
   setCreateStatus: (status: TaskStatus) => void;
 }
 
 export default function TaskColumn({
-  col, colTasks, isLeader, priorityConfig, nextStatus, columnsConfig, updateStatus, deleteTask, setSelectedTask, setCreateStatus
+  col, colTasks, isLeader, currentUserEmail, priorityConfig, nextStatus, columnsConfig, updateStatus, approveTask, deleteTask, setSelectedTask, setCreateStatus
 }: TaskColumnProps) {
   const [{ isOver }, dropRef] = useDrop(() => ({
     accept: 'TASK',
@@ -87,9 +89,11 @@ export default function TaskColumn({
                 assignee={""} // member name mapping is handled differently or omitted for simplicity here
                 isOverdue={isOverdue}
                 isLeader={isLeader}
+                currentUserEmail={currentUserEmail}
                 nextStatus={nxtStatus}
                 nextStatusLabel={nxtStatusLabel}
                 updateStatus={updateStatus}
+                approveTask={approveTask}
                 deleteTask={deleteTask}
                 setSelectedTask={setSelectedTask}
               />
