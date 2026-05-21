@@ -67,4 +67,18 @@ router.delete('/files/:fileId', async (req: Request<{ projectId: string; fileId:
   }
 });
 
+// PATCH /api/projects/:projectId/drive/files/:fileId/move
+router.patch('/files/:fileId/move', async (req: Request<{ projectId: string; fileId: string }>, res: Response) => {
+  const fileId = parseInt(req.params.fileId, 10);
+  const folderId = req.body.folderId !== undefined && req.body.folderId !== null 
+    ? parseInt(req.body.folderId, 10) 
+    : null;
+  try {
+    const file = await DriveService.moveFile(fileId, folderId);
+    res.json(file);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
 export default router;

@@ -32,6 +32,7 @@ export const TasksService = {
             data: {
                 projectId,
                 title: data.title || '새 태스크',
+                description: data.description || '',
                 status: data.status || 'TODO',
                 priority: data.priority || 'medium',
                 deadline: data.deadline || new Date().toISOString().split('T')[0],
@@ -71,6 +72,7 @@ export const TasksService = {
                 data: {
                     projectId,
                     title: taskData.title || '새 태스크',
+                    description: taskData.description || '',
                     status: 'TODO',
                     priority: priority,
                     deadline: taskData.deadline || '',

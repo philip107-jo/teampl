@@ -85,5 +85,15 @@ export const DriveService = {
 
     await prisma.driveFile.delete({ where: { id: fileId } });
     return true;
+  },
+
+  /**
+   * 파일을 특정 폴더로 이동하거나 폴더 밖(미분류)으로 이동합니다.
+   */
+  moveFile: async (fileId: number, folderId: number | null) => {
+    return await prisma.driveFile.update({
+      where: { id: fileId },
+      data: { folderId }
+    });
   }
 };

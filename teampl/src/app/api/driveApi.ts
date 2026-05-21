@@ -48,5 +48,10 @@ export const driveApi = {
 
   deleteFile: async (projectId: number, fileId: number): Promise<void> => {
     await client.delete(`/projects/${projectId}/drive/files/${fileId}`);
+  },
+
+  moveFile: async (projectId: number, fileId: number, folderId: number | null): Promise<DriveFile> => {
+    const response = await client.patch(`/projects/${projectId}/drive/files/${fileId}/move`, { folderId });
+    return response.data;
   }
 };
