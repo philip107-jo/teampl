@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   User, GraduationCap, Building2, ChevronDown,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import Avatar from "../components/Avatar";
 import { userApi } from "../api/userApi";
 
 const DEPARTMENTS = [
@@ -95,12 +96,13 @@ export default function EditProfile() {
           {/* Avatar Preview */}
           <div className="flex items-center gap-6 mb-10">
             <div className="relative group cursor-pointer">
-              <label htmlFor="avatar-upload" className="w-20 h-20 rounded-[28px] overflow-hidden bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white text-[32px] font-black shadow-[0_0_30px_rgba(17,184,134,0.4)] flex-shrink-0 cursor-pointer block relative">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="profile" className="w-full h-full object-cover" />
-                ) : (
-                  formData.name?.[0] || user?.name?.[0] || "U"
-                )}
+              <label htmlFor="avatar-upload" className="flex-shrink-0 cursor-pointer block relative rounded-[28px] overflow-hidden group shadow-[0_0_30px_rgba(17,184,134,0.4)]">
+                <Avatar 
+                  name={formData.name || user?.name} 
+                  avatarUrl={user?.avatarUrl} 
+                  shape="squircle"
+                  className="w-20 h-20 text-[32px] !rounded-[28px]"
+                />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   {uploadingAvatar ? <Loader2 className="w-6 h-6 animate-spin text-white" /> : <Camera className="w-6 h-6 text-white" />}
                 </div>

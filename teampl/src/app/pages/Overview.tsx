@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { taskApi } from '../api/taskApi';
 import { useAuth } from '../context/AuthContext';
-import { useChat } from '../context/ChatContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../api/client';
 import { socket, joinProjectChannel } from '../socket';
@@ -112,7 +111,6 @@ export default function Overview({ projectId, project, members }: OverviewProps)
     // Subscribe to real-time updates for perfect page synchronization
     joinProjectChannel(projectId);
     const onTaskUpdated = () => {
-      console.log("Realtime Task update in Overview timeline...");
       loadTasks();
     };
     socket.on('taskUpdated', onTaskUpdated);

@@ -2,14 +2,13 @@ import { prisma } from '../../prisma';
 import webpush from 'web-push';
 import { getIo } from '../../socket';
 
-const PUBLIC_VAPID_KEY = process.env.VAPID_PUBLIC_KEY || 'BAOx6TgJVwefwaj42jgCoFmYQNLjZJkW-JtoICpVZIuBA-5A-I33HzO3hmur04kdsTBd2Xpy21_5W5LSE3LumT4';
-const PRIVATE_VAPID_KEY = process.env.VAPID_PRIVATE_KEY || 'N0ZsqhqQ4WlPvLiX845l05dskGXztZ7X73gTwPFGBKU';
+import { config } from '../../lib/config';
 
 // Setup web-push
 webpush.setVapidDetails(
-  'mailto:test@teampl.com',
-  PUBLIC_VAPID_KEY,
-  PRIVATE_VAPID_KEY
+  config.vapid.subject,
+  config.vapid.publicKey,
+  config.vapid.privateKey
 );
 
 export const NotificationsService = {

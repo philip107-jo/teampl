@@ -16,7 +16,6 @@ import Chat from "./Chat";
 import Drive from "./Drive";
 import VotePage from "./Vote";
 import Overview from "./Overview";
-import MemberTasks from "./MemberTasks";
 import { useChat } from "../context/ChatContext";
 import MembersTab from "../components/MembersTab";
 

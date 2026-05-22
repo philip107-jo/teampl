@@ -1,10 +1,12 @@
 import { prisma } from '../../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
+import { verifyMembership } from '../projects/membership';
 
 // 소켓 이벤트를 위한 로직 (DB 저장)
 export const ChatService = {
   // 프로젝트 채팅 메시지 로드
-  getProjectMessages: async (projectId: number) => {
+  getProjectMessages: async (email: string, projectId: number) => {
+    await verifyMembership(email, projectId);
     return await prisma.message.findMany({
       where: { projectId, receiverEmail: null },
       orderBy: { createdAt: 'asc' },
@@ -61,19 +63,23 @@ export const ChatService = {
       const project = await prisma.project.findUnique({ where: { id: payload.projectId } });
       const projectName = project ? project.name : '프로젝트';
 
+      const notificationPromises: Promise<any>[] = [];
       for (const member of members) {
         if (member.userEmail === senderEmail) continue;
         
         // 멘션 포함 여부 검사 (@이름)
         if (content.includes(`@${member.user.name}`)) {
-          await NotificationsService.createNotification({
+          notificationPromises.push(NotificationsService.createNotification({
             userEmail: member.userEmail,
             type: 'mention',
             title: '새로운 멘션',
             content: `'${projectName}' 채팅방에서 ${message.sender.name}님이 회원님을 멘션했습니다.`,
             link: `/projects/${payload.projectId}?tab=chat`
-          });
+          }));
         }
+      }
+      if (notificationPromises.length > 0) {
+        await Promise.all(notificationPromises);
       }
     }
 

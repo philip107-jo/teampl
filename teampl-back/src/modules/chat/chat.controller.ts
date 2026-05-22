@@ -30,8 +30,9 @@ router.post('/reads', async (req, res) => {
 
 router.get('/project/:projectId', async (req, res) => {
     const projectId = parseInt(req.params.projectId, 10);
+    const email = req.user!.email;
     try {
-        const messages = await ChatService.getProjectMessages(projectId);
+        const messages = await ChatService.getProjectMessages(email, projectId);
         res.json(messages);
     } catch (e: any) {
         res.status(500).json({ message: e.message });

@@ -1,17 +1,6 @@
 import { prisma } from '../../prisma';
 
-async function verifyMembership(email: string, projectId: number) {
-    const member = await prisma.projectMember.findUnique({
-        where: {
-            userEmail_projectId: { userEmail: email, projectId },
-            status: 'ACTIVE'
-        }
-    });
-    if (!member) {
-        throw new Error('이 프로젝트에 접근 권한이 없습니다.');
-    }
-    return member;
-}
+import { verifyMembership } from '../projects/membership';
 
 export const SchedulesService = {
     // --- Project Specific Schedules ---

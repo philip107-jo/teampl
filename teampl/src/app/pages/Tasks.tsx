@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 import { 
-  ChevronLeft, Trophy, Calendar as CalendarIcon, 
-  PlayCircle, CheckCircle2, ArrowRight, Plus, 
-  TrendingUp, User, Trash2, CheckCheck, Sparkles,
-  Award, Paperclip, Check
+  ChevronLeft, Trophy, PlayCircle, Plus, 
+  TrendingUp, CheckCheck, Sparkles,
+  Award, Paperclip, Check, Trash2, Calendar as CalendarIcon
 } from "lucide-react";
 import { socket, joinProjectChannel } from "../socket";
 import { Task, TaskStatus } from "../types";
@@ -15,6 +14,7 @@ import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
 import TaskSubmitModal from "../components/TaskSubmitModal";
+import { getMemberName } from "../utils/members";
 
 interface TasksProps {
   projectId?: number;
@@ -191,10 +191,6 @@ export default function Tasks({ projectId: propProjectId }: TasksProps) {
     }
   };
 
-  const getMemberName = (email: string) => {
-    const m = members.find(m => m.email === email);
-    return m?.name || email.split("@")[0];
-  };
 
   return (
     <div className="pt-2 pb-32">
@@ -367,7 +363,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps) {
                                   <span>마감: {task.deadline ? task.deadline.slice(5) : "없음"}</span>
                                 </div>
                                 <span className="text-[11px] font-bold text-gray-500 dark:text-white/50 truncate">
-                                  담당: {task.assignees?.map(email => getMemberName(email)).join(', ') || "미지정"}
+                                  담당: {task.assignees?.map(email => getMemberName(email, members)).join(', ') || "미지정"}
                                 </span>
                               </div>
 

@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import { UsersService } from '../users/users.service';
 import { ConflictError, UnauthorizedError } from '../../common/errors';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+import { config } from '../../lib/config';
+const JWT_SECRET = config.jwt.secret;
 
 export const AuthService = {
     register: async (email: string, password: string, name?: string) => {

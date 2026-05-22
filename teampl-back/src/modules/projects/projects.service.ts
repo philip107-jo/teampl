@@ -1,5 +1,6 @@
 import { prisma } from '../../prisma';
 import OpenAI from 'openai';
+import { verifyMembership } from './membership';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -177,6 +178,15 @@ export const ProjectsService = {
                     where: { id: project.id },
                     data: { members: project.members + 1 }
                 });
+            } else if (existing.status === 'KICKED') {
+                await prisma.projectMember.update({
+                    where: { userEmail_projectId: { userEmail: email, projectId: project.id } },
+                    data: { status: 'ACTIVE', kickReason: null }
+                });
+                return await prisma.project.update({
+                    where: { id: project.id },
+                    data: { members: project.members + 1 }
+                });
             }
             return project; // 이미 가입된 경우 기존 정보 반환
         }
@@ -325,7 +335,8 @@ export const ProjectsService = {
         });
     },
 
-    getStats: async (projectId: number) => {
+    getStats: async (email: string, projectId: number) => {
+        await verifyMembership(email, projectId);
         const members = await prisma.projectMember.findMany({
             where: { projectId, status: 'ACTIVE' },
             include: { user: true }
@@ -427,7 +438,7 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
 
         const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

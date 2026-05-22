@@ -18,7 +18,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
 import { notificationApi, Notification } from "../api/notificationApi";
-import { useChat } from "../context/ChatContext";
+import { useChat } from '../context/ChatContext';
+import Avatar from './Avatar';
 
 export default function Layout() {
   const location = useLocation();
@@ -54,10 +55,6 @@ export default function Layout() {
 
     fetchAlerts();
     fetchNotifications();
-    const intervalId = setInterval(() => {
-      fetchAlerts();
-    }, 10000); // 10초로 늘림 (알림은 실시간 소켓으로 처리)
-    return () => clearInterval(intervalId);
   }, [user]);
 
   // 소켓 실시간 알림 이벤트 발생 시 알림 목록 갱신
@@ -175,13 +172,13 @@ export default function Layout() {
                   <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
                   <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
                 </div>
-                <div className="w-10 h-10 rounded-[14px] overflow-hidden bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-white font-bold shadow-sm cursor-pointer" onClick={() => navigate('/mypage')}>
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    user?.name?.[0] || 'U'
-                  )}
-                </div>
+                <Avatar 
+                  name={user?.name} 
+                  avatarUrl={user?.avatarUrl} 
+                  shape="squircle"
+                  className="cursor-pointer shadow-sm"
+                  onClick={() => navigate('/mypage')}
+                />
               </div>
             </div>
           </div>
