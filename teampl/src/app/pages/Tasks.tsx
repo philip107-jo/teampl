@@ -54,23 +54,7 @@ const DEFAULT_STAGES = [
   }
 ];
 
-const getTaskStageId = (task: any) => {
-  const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
-  
-  if (text.includes('[1단계]') || text.includes('1단계') || text.includes('[stage1]')) return 1;
-  if (text.includes('[2단계]') || text.includes('2단계') || text.includes('[stage2]')) return 2;
-  if (text.includes('[3단계]') || text.includes('3단계') || text.includes('[stage3]')) return 3;
-  if (text.includes('[4단계]') || text.includes('4단계') || text.includes('[stage4]')) return 4;
-  if (text.includes('[5단계]') || text.includes('5단계') || text.includes('[stage5]')) return 5;
-  
-  for (let i = DEFAULT_STAGES.length - 1; i >= 0; i--) {
-    const stage = DEFAULT_STAGES[i];
-    if (stage.keywords.some(k => text.includes(k))) {
-      return stage.id;
-    }
-  }
-  return 1;
-};
+// Move getTaskStageId inside component or accept activeStages as param.
 
 export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksProps) {
   const { projectId: routeProjectId } = useParams();
@@ -83,6 +67,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
+  const [activeStages, setActiveStages] = useState<any[]>(DEFAULT_STAGES);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createModalConfig, setCreateModalConfig] = useState<{ stageId: number } | null>(null);
@@ -104,6 +89,11 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
         setMembers(p.membersList);
       } else {
         setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#11B886]", email: user?.email }]);
+      }
+      if (p && p.customStages && p.customStages.length > 0) {
+        setActiveStages(p.customStages);
+      } else {
+        setActiveStages(DEFAULT_STAGES);
       }
 
 
@@ -130,23 +120,41 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
     };
   }, [numProjectId, fetchData]);
 
+  const getTaskStageId = useCallback((task: any) => {
+    const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
+    
+    // Explicit stage tags check: e.g. [1단계]
+    const match = text.match(/\[(?:stage:?)?(\d+)단계?\]/i) || text.match(/\[stage(\d+)\]/i);
+    if (match) return parseInt(match[1], 10);
+    
+    // Reverse keyword scanning for intelligent automated categorization
+    for (let i = activeStages.length - 1; i >= 0; i--) {
+      const stage = activeStages[i];
+      if (stage.keywords && stage.keywords.some((k: string) => text.includes(k.toLowerCase()))) {
+        return stage.id;
+      }
+    }
+    return activeStages.length > 0 ? activeStages[0].id : 1; // Default fallback
+  }, [activeStages]);
+
   const stageGroupedTasks = useMemo(() => {
-    const map: { [stageId: number]: Task[] } = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    const map: { [stageId: number]: Task[] } = {};
+    activeStages.forEach(s => map[s.id] = []);
     
     tasks.forEach(task => {
       const stageId = getTaskStageId(task);
       if (map[stageId]) {
         map[stageId].push(task);
       } else {
-        map[1].push(task);
+        if(activeStages.length > 0) map[activeStages[0].id].push(task);
       }
     });
 
-    return DEFAULT_STAGES.map(stage => ({
+    return activeStages.map(stage => ({
       stage,
       tasks: map[stage.id] || []
     }));
-  }, [tasks]);
+  }, [tasks, activeStages, getTaskStageId]);
 
   const updateStatus = async (taskId: string, newStatus: TaskStatus) => {
     if (newStatus === 'DONE') {
@@ -207,15 +215,6 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
         </div>
         
         <div className="flex items-center gap-3">
-          {!isReadOnly && numProjectId && (
-            <button
-              onClick={() => setIsAiModalOpen(true)}
-              className="flex items-center gap-1.5 px-4.5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all active:scale-95"
-            >
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              AI 과제 생성
-            </button>
-          )}
           {!isReadOnly && (
             <button 
               onClick={() => setCreateModalConfig({ stageId: 1 })}

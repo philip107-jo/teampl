@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../api/client';
 import { socket, joinProjectChannel } from '../socket';
+import AiTaskSplitModal from '../components/AiTaskSplitModal';
 
 interface OverviewProps {
   projectId: number;
@@ -81,10 +82,8 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
 
   // AI Modal states
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [aiTopic, setAiTopic] = useState(project.name || '');
-  const [aiDesc, setAiDesc] = useState(project.description || '');
-  const [aiTeamSize, setAiTeamSize] = useState(members.length || 4);
-  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  const activeStages: Stage[] = (project.customStages && project.customStages.length > 0) ? project.customStages : DEFAULT_STAGES;
 
   // Quick task input states (one for each column)
   const [newTodoTitle, setNewTodoTitle] = useState('');
@@ -125,22 +124,19 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
   const getTaskStageId = useCallback((task: any) => {
     const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
     
-    // Explicit stage tags check
-    if (text.includes('[1단계]') || text.includes('1단계') || text.includes('[stage1]')) return 1;
-    if (text.includes('[2단계]') || text.includes('2단계') || text.includes('[stage2]')) return 2;
-    if (text.includes('[3단계]') || text.includes('3단계') || text.includes('[stage3]')) return 3;
-    if (text.includes('[4단계]') || text.includes('4단계') || text.includes('[stage4]')) return 4;
-    if (text.includes('[5단계]') || text.includes('5단계') || text.includes('[stage5]')) return 5;
+    // Explicit stage tags check: e.g. [1단계]
+    const match = text.match(/\[(?:stage:?)?(\d+)단계?\]/i) || text.match(/\[stage(\d+)\]/i);
+    if (match) return parseInt(match[1], 10);
     
     // Reverse keyword scanning for intelligent automated categorization
-    for (let i = DEFAULT_STAGES.length - 1; i >= 0; i--) {
-      const stage = DEFAULT_STAGES[i];
-      if (stage.keywords.some(k => text.includes(k))) {
+    for (let i = activeStages.length - 1; i >= 0; i--) {
+      const stage = activeStages[i];
+      if (stage.keywords && stage.keywords.some(k => text.includes(k.toLowerCase()))) {
         return stage.id;
       }
     }
-    return 1; // Default fallback to Stage 1 (Topic Selection)
-  }, []);
+    return activeStages.length > 0 ? activeStages[0].id : 1; // Default fallback
+  }, [activeStages]);
 
   // Compute tasks & progress for each stage
   const getStageStats = useCallback((stageId: number) => {
@@ -242,60 +238,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
     }
   };
 
-  // AI Recommendation Trigger
-  const handleGenerateAiTasks = async () => {
-    if (!aiTopic.trim()) {
-      showToast('프로젝트 주제를 입력해주세요.', 'error');
-      return;
-    }
-
-    setIsAiGenerating(true);
-    try {
-      // Call backend AI recommendation endpoint
-      const response = await apiClient.post(`/projects/${projectId}/ai/split-tasks`, {
-        teamSize: Number(aiTeamSize),
-        topic: aiTopic.trim(),
-        description: aiDesc.trim()
-      });
-
-      const aiTasks = response.data;
-      if (Array.isArray(aiTasks) && aiTasks.length > 0) {
-        // Automatically inject stage tags based on keyword distribution to make batch loading perfectly categorized
-        const tasksToCreate = aiTasks.map((t: any) => {
-          const text = t.title.toLowerCase();
-          let stageId = 1;
-          for (let i = DEFAULT_STAGES.length - 1; i >= 0; i--) {
-            if (DEFAULT_STAGES[i].keywords.some(k => text.includes(k))) {
-              stageId = DEFAULT_STAGES[i].id;
-              break;
-            }
-          }
-          return {
-            title: t.title,
-            description: `[${stageId}단계] AI 생성 과제`,
-            status: 'TODO' as const,
-            priority: (t.priority || 'medium') as any,
-            difficulty: t.difficulty || 3,
-            deadline: project.deadline || '',
-            assignees: []
-          };
-        });
-
-        // Batch save to backend
-        await taskApi.batchCreateTasks(projectId, tasksToCreate);
-        showToast('✨ AI가 설계한 단계별 과제들이 생성되었습니다!', 'success');
-        setIsAiModalOpen(false);
-        loadTasks();
-      } else {
-        throw new Error('AI가 과제를 생성하지 못했습니다.');
-      }
-    } catch (e: any) {
-      console.error(e);
-      showToast(e.response?.data?.message || e.message || 'AI 작업 생성 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsAiGenerating(false);
-    }
-  };
+  // AI Recommendation Trigger is handled by AiTaskSplitModal now
 
   if (isLoading) {
     return (
@@ -306,7 +249,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
   }
 
   // Active Stage Detail View
-  const selectedStage = DEFAULT_STAGES.find(s => s.id === selectedStageId);
+  const selectedStage = activeStages.find(s => s.id === selectedStageId);
   const selectedStageStats = selectedStageId ? getStageStats(selectedStageId) : null;
   const stageTasks = selectedStageStats?.tasks || [];
   const stageProgress = selectedStageStats?.progress || 0;
@@ -343,14 +286,14 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                   className="bg-[#131C35] hover:bg-[#131C35]/90 transition text-white px-5 py-2.5 rounded-xl text-[13px] font-bold active:scale-95 flex items-center gap-2 shadow-sm"
                 >
                   <Sparkles className="w-4 h-4 text-white" />
-                  AI로 단계 추천
+                  AI 자동 기획
                 </button>
               )}
             </div>
 
             {/* Vertical Timeline Nodes: Perfectly aligned side-by-side flex layout */}
             <div className="space-y-0 mt-6 relative">
-              {DEFAULT_STAGES.map((stage, idx) => {
+              {activeStages.map((stage, idx) => {
                 const stats = getStageStats(stage.id);
                 const unlocked = isStageUnlocked(stage.id);
                 const isCompleted = stats.hasTasks && stats.progress === 100;
@@ -368,7 +311,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                     {/* Left node status line & circle column */}
                     <div className="flex flex-col items-center shrink-0 w-12 relative">
                       {/* Segment connector line */}
-                      {idx !== DEFAULT_STAGES.length - 1 && (
+                      {idx !== activeStages.length - 1 && (
                         <div className="absolute top-8 bottom-[-45px] w-[1.5px] bg-slate-200 dark:bg-white/10" />
                       )}
 
@@ -656,85 +599,17 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
       {/* ============================================================== */}
       {/* AI RECOMMENDATION INPUT MODAL                                  */}
       {/* ============================================================== */}
-      {isAiModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white dark:bg-[#132038] w-full max-w-lg rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-gray-200 dark:border-white/10 overflow-hidden"
-          >
-            <div className="p-6 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-[#0E1527]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                  <Brain className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#1A2340] dark:text-white tracking-tight">AI로 단계 추천</h3>
-                  <p className="text-xs text-gray-400 font-bold">프로젝트 맞춤형 작업 로드맵 일괄 생성</p>
-                </div>
-              </div>
-              <button
-                onClick={() => !isAiGenerating && setIsAiModalOpen(false)}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl transition-all"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {isAiGenerating ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-                  <div className="animate-spin w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full" />
-                  <p className="text-sm font-bold text-[#1A2340] dark:text-white">AI가 프로젝트 단계를 정밀 분석하는 중입니다...</p>
-                  <p className="text-xs text-gray-400">대략 5~10초 소요됩니다. 조금만 기다려주세요!</p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black uppercase text-gray-400 tracking-wider">주제/과목명</label>
-                    <input
-                      type="text"
-                      value={aiTopic}
-                      onChange={(e) => setAiTopic(e.target.value)}
-                      placeholder="예: 마케팅 조사 프로젝트"
-                      className="w-full bg-gray-50 dark:bg-[#0E1527] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-emerald-500 font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black uppercase text-gray-400 tracking-wider">세부 요구사항 (선택)</label>
-                    <textarea
-                      value={aiDesc}
-                      onChange={(e) => setAiDesc(e.target.value)}
-                      placeholder="프로젝트 가이드라인이나 세부 주제, 원하는 분배 방식을 기입하면 더 완벽한 과제가 생성됩니다."
-                      className="w-full h-24 bg-gray-50 dark:bg-[#0E1527] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-emerald-500 font-medium resize-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black uppercase text-gray-400 tracking-wider">팀원 수</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={aiTeamSize}
-                        onChange={(e) => setAiTeamSize(Number(e.target.value))}
-                        className="w-full bg-gray-50 dark:bg-[#0E1527] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-emerald-500 font-bold"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleGenerateAiTasks}
-                    className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 transition text-white rounded-xl text-sm font-black shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <Zap className="w-4 h-4" />
-                    추천 과제 일괄 생성
-                  </button>
-                </>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <AiTaskSplitModal
+        projectId={projectId}
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onSuccess={() => {
+          setIsAiModalOpen(false);
+          showToast('✨ AI가 맞춤형 단계를 구성하고 과제를 일괄 생성했습니다!', 'success');
+          loadTasks();
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

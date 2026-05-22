@@ -407,34 +407,73 @@ export const ProjectsService = {
     },
 
 
-    generateTasksWithAi: async (teamSize: number, topic: string, description: string) => {
+    generateTasksWithAi: async (projectId: number, teamSize: number, topic: string, description: string) => {
         if (!process.env.OPENAI_API_KEY) {
             throw new Error("OpenAI API key is not configured.");
         }
+
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+                projectMembers: {
+                    where: { status: 'ACTIVE' },
+                    include: { user: { select: { email: true, name: true } } }
+                }
+            }
+        });
+
+        if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
+
+        const existingTasks = await (prisma as any).task.findMany({
+            where: { projectId },
+            select: { title: true, status: true }
+        });
+
+        const memberListStr = project.projectMembers.map(pm => `${pm.user.name} (${pm.user.email})`).join(', ');
+        const existingTasksStr = existingTasks.map((t: any) => `- ${t.title} (${t.status})`).join('\n');
         
         const systemPrompt = `
 You are an expert project manager assistant. Your job is to break down the user's project into HIGH-LEVEL, essential milestones.
 DO NOT create overly detailed or numerous micro-tasks.
 
 Project Details:
-- Team Size: ${teamSize} members
 - Topic/Type: ${topic}
+- Team Size: ${teamSize} members
+- Project Deadline: ${project.deadline || 'Not set'}
+- Active Members: ${memberListStr || 'No members yet'}
+
+Current Existing Tasks (Do not duplicate these):
+${existingTasksStr || 'No tasks yet'}
 
 Instructions:
-1. Create roughly 1 to 3 core tasks per team member. For a team of ${teamSize}, generate around ${Math.max(3, teamSize * 1)} to ${teamSize * 3} tasks in total.
-2. The tasks should be major milestones or roles (e.g., "자료조사 및 개요 작성", "메인 화면 UI 구현", "발표 스크립트 작성").
-3. For each task, assign:
-- "id": a unique short random string (e.g., "sk-123").
-- "title": a clear, concise task name IN KOREAN (한국어).
-- "priority": one of "low", "medium", "high".
-- "deadline": an empty string "".
-- "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
+1. First, define 3 to 5 logical "Stages" (milestones or phases) appropriate for this specific type of project.
+   - For example, a software project might have stages: ["기획 및 설계", "프론트엔드 개발", "백엔드 개발", "테스트 및 QA"].
+   - A research project might have stages: ["주제 선정 및 자료조사", "설문 설계", "데이터 수집", "통계 분석", "결과 보고서 작성"].
+2. Next, create roughly 1 to 3 core tasks per team member. For a team of ${teamSize}, generate around ${Math.max(3, teamSize * 1)} to ${teamSize * 3} tasks in total.
+3. For each stage, assign:
+   - "id": an integer starting from 1.
+   - "title": a clear, concise stage name IN KOREAN.
+   - "description": a brief explanation of what happens in this stage.
+4. For each task, assign:
+   - "id": a unique short random string (e.g., "sk-123").
+   - "title": a clear, concise task name IN KOREAN.
+   - "priority": one of "low", "medium", "high".
+   - "deadline": A realistic deadline date in YYYY-MM-DD format based on the project deadline. If project deadline is not set, leave it as an empty string "".
+   - "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
+   - "assignees": An array containing the email address of the most suitable member from the Active Members list, or an empty array if unsure.
+   - "stageId": the integer ID of the stage this task belongs to.
 
-You must respond ONLY with a valid JSON array of objects. Never include markdown formatting like \`\`\`json. Example:
-[
-  { "id": "t-1", "title": "주제 관련 문헌 자료 조사 및 요약", "priority": "high", "deadline": "", "difficulty": 3 },
-  { "id": "t-2", "title": "PPT 템플릿 디자인 및 레이아웃 초안 제작", "priority": "medium", "deadline": "", "difficulty": 2 }
-]
+You must respond ONLY with a valid JSON object containing "stages" and "tasks" arrays. Never include markdown formatting like \`\`\`json. Example:
+{
+  "stages": [
+    { "id": 1, "title": "기획 및 설계", "description": "요구사항 정의 및 와이어프레임 작성" },
+    { "id": 2, "title": "프론트엔드 개발", "description": "UI 컴포넌트 개발" }
+  ],
+  "tasks": [
+    { "id": "t-1", "title": "요구사항 정의서 작성", "priority": "high", "deadline": "2024-05-15", "difficulty": 3, "assignees": ["user1@example.com"], "stageId": 1 },
+    { "id": "t-2", "title": "메인 화면 UI 구현", "priority": "medium", "deadline": "", "difficulty": 4, "assignees": [], "stageId": 2 }
+  ]
+}
 `;
 
         const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
@@ -449,12 +488,12 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
             temperature: 0.7,
         });
 
-        const content = response.choices[0]?.message?.content || "[]";
+        const content = response.choices[0]?.message?.content || "{}";
         try {
             // Some robust parsing in case GPT returns markdown blocks
             const jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
-            const tasks = JSON.parse(jsonStr);
-            return tasks;
+            const result = JSON.parse(jsonStr);
+            return result;
         } catch (e) {
             console.error("Failed to parse AI output:", content);
             throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
@@ -471,6 +510,20 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
         const updated = await prisma.project.update({
             where: { id: projectId },
             data: { status }
+        });
+        return updated;
+    },
+
+    updateStages: async (email: string, projectId: number, stages: any) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+
+        if (!member) throw new Error("권한이 없습니다.");
+
+        const updated = await prisma.project.update({
+            where: { id: projectId },
+            data: { customStages: stages }
         });
         return updated;
     },

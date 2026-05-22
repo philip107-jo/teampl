@@ -20,6 +20,7 @@ export interface Project {
     userRole?: string;
     userStatus?: string;
     kickReason?: string;
+    customStages?: any[];
 }
 
 export const projectApi = {
@@ -97,6 +98,11 @@ export const projectApi = {
 
     getProjectStats: async (projectId: number): Promise<any[]> => {
         const response = await apiClient.get(`/projects/${projectId}/stats`);
+        return response.data;
+    },
+
+    updateProjectStages: async (projectId: number, stages: any[]): Promise<Project> => {
+        const response = await apiClient.patch(`/projects/${projectId}/stages`, { stages });
         return response.data;
     }
 };

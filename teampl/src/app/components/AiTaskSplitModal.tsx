@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { X, Sparkles, Loader2, Users, FileText, LayoutList, Check, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { aiApi, AiTaskSuggestion } from "../api/aiApi";
+import { aiApi, AiTaskSuggestion, Stage } from "../api/aiApi";
 import { taskApi } from "../api/taskApi";
+import { projectApi } from "../api/projectApi";
 
 interface AiTaskSplitModalProps {
   projectId: number;
@@ -20,6 +21,7 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
   const [error, setError] = useState("");
 
   const [suggestions, setSuggestions] = useState<AiTaskSuggestion[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   if (!isOpen) return null;
@@ -30,10 +32,6 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
       setError("주제를 입력해주세요.");
       return;
     }
-    if (!description.trim()) {
-      setError("상세 설명을 입력해주세요.");
-      return;
-    }
 
     setError("");
     setLoading(true);
@@ -42,13 +40,14 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
       // 1. Request AI to split tasks
       const results = await aiApi.splitTasks(projectId, teamSize, topic, description);
       
-      if (!results || results.length === 0) {
+      if (!results || !results.tasks || results.tasks.length === 0) {
         throw new Error("AI가 태스크를 분할하지 못했습니다.");
       }
 
-      setSuggestions(results);
+      setStages(results.stages || []);
+      setSuggestions(results.tasks);
       // By default, select all suggestions
-      setSelectedIds(new Set(results.map(r => r.id)));
+      setSelectedIds(new Set(results.tasks.map(r => r.id)));
       setStep(2); // Move to Step 2
     } catch (err: any) {
       console.error(err);
@@ -86,15 +85,26 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
     setLoading(true);
 
     try {
+      if (stages.length > 0) {
+        await projectApi.updateProjectStages(projectId, stages);
+      }
+
       const selectedTasks = suggestions.filter(s => selectedIds.has(s.id));
       
-      const newTasks = selectedTasks.map(s => ({
-        projectId,
-        title: s.title,
-        status: "TODO" as const,
-        priority: s.priority,
-        deadline: s.deadline || new Date().toISOString().split('T')[0],
-      }));
+      const newTasks = selectedTasks.map(s => {
+        const stage = stages.find(st => st.id === s.stageId);
+        const stagePrefix = stage ? `[${stage.id}단계] ` : '';
+        return {
+          projectId,
+          title: s.title,
+          description: `${stagePrefix}AI 생성 과제`,
+          status: "TODO" as const,
+          priority: s.priority,
+          deadline: s.deadline || undefined, // undefined로 전달 (오늘 날짜 강제 대입 제거)
+          difficulty: s.difficulty, // difficulty 추가
+          assignees: s.assignees || [], // 담당자 추가
+        };
+      });
 
       // Batch create tasks
       await taskApi.batchCreateTasks(projectId, newTasks);
@@ -230,6 +240,23 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
             </form>
           ) : (
             <div className="space-y-4">
+              <div className="flex flex-col gap-2 mb-4 p-4 bg-[#7C6CFF]/5 border border-[#7C6CFF]/20 rounded-2xl">
+                <div className="text-sm font-black text-[#1A2340] dark:text-white flex items-center gap-2">
+                  <LayoutList className="w-4 h-4 text-[#7C6CFF]" />
+                  AI가 제안한 맞춤 단계
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {stages.map(st => (
+                    <span key={st.id} className="text-[12px] font-bold px-2.5 py-1 bg-white dark:bg-white/10 text-[#7D879C] dark:text-white/80 rounded-lg shadow-sm">
+                      {st.id}. {st.title}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] text-[#7D879C]/80 dark:text-white/40 mt-1">
+                  * 저장 시 위 단계들이 프로젝트 개요 타임라인에 적용됩니다.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-bold text-[#7D879C] dark:text-white/60">
                   총 {suggestions.length}개의 추천 업무
@@ -268,11 +295,19 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
                           </span>
                           {getPriorityBadge(suggestion.priority)}
                         </div>
-                        {suggestion.deadline && (
-                          <div className="text-xs font-bold text-[#7D879C]/80 dark:text-white/40">
-                            마감: {suggestion.deadline}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3 mt-1">
+                          {suggestion.deadline && (
+                            <div className="text-xs font-bold text-[#7D879C]/80 dark:text-white/40">
+                              마감: {suggestion.deadline}
+                            </div>
+                          )}
+                          {suggestion.assignees && suggestion.assignees.length > 0 && (
+                            <div className="text-xs font-bold text-[#11B886]/80 flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              담당자 추천
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

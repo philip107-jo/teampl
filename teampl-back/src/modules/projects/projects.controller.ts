@@ -174,9 +174,19 @@ router.get('/:id/stats', async (req, res) => {
 // POST /api/projects/:id/ai/split-tasks
 router.post('/:id/ai/split-tasks', async (req, res) => {
     try {
+        const email = req.user!.email;
+        const id = parseInt(req.params.id, 10);
         const { teamSize, topic, description } = req.body;
+
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId: id } }
+        });
+        if (!member) {
+            return res.status(403).json({ message: "권한이 없습니다." });
+        }
+
         if (!teamSize || !topic) return res.status(400).json({ message: "팀 인원 수와 주제를 입력해주세요." });
-        const suggestions = await ProjectsService.generateTasksWithAi(teamSize, topic, description || "");
+        const suggestions = await ProjectsService.generateTasksWithAi(id, teamSize, topic, description || "");
         res.json(suggestions);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
@@ -190,6 +200,19 @@ router.patch('/:id/status', async (req, res) => {
     const { status } = req.body;
     try {
         const updatedProject = await ProjectsService.updateStatus(email, id, status);
+        res.json(updatedProject);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// PATCH /api/projects/:id/stages
+router.patch('/:id/stages', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const { stages } = req.body;
+    try {
+        const updatedProject = await ProjectsService.updateStages(email, id, stages);
         res.json(updatedProject);
     } catch (e: any) {
         res.status(403).json({ message: e.message });

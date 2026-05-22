@@ -64,6 +64,7 @@ model Project {
   icon        String?  @default("Database")
   inviteCode  String?  @unique
   status      String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  customStages Json?
   createdAt   DateTime @default(now())
 
   projectMembers ProjectMember[]
