@@ -92,6 +92,13 @@ export const ChatService = {
     });
   },
 
+  getRoomReadStates: async (roomKey: string) => {
+    return await prisma.chatRead.findMany({
+      where: { roomKey },
+      select: { userEmail: true, lastReadMsgId: true }
+    });
+  },
+
   updateLastRead: async (userEmail: string, roomKey: string, lastReadMsgId: number) => {
     return await prisma.chatRead.upsert({
       where: {

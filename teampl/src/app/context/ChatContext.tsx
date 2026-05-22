@@ -22,6 +22,7 @@ interface ChatContextType {
   activeChatKey: string | null;
   notificationCount: number;
   readStates: Record<string, number>;
+  roomReadStates: Record<string, Record<string, number>>; // roomKey -> userEmail -> lastReadMsgId
   clearNotifications: () => void;
   incrementUnread: (key: string, amount?: number) => void;
   clearUnread: (key: string) => void;
@@ -46,12 +47,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [readStates, setReadStates] = useState<Record<string, number>>({});
+  const [roomReadStates, setRoomReadStates] = useState<Record<string, Record<string, number>>>({});
 
   const activeChatKeyRef = useRef<string | null>(null);
   const projectMembersRef = useRef<any[]>([]);
   const currentProjectIdRef = useRef<number | null>(null);
   const currentUserEmailRef = useRef<string | null>(null);
   const readStatesRef = useRef<Record<string, number>>({});
+  const roomReadStatesRef = useRef<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     activeChatKeyRef.current = activeChatKey;
@@ -59,7 +62,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentProjectIdRef.current = currentProjectId;
     currentUserEmailRef.current = currentUserEmail;
     readStatesRef.current = readStates;
-  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail, readStates]);
+    roomReadStatesRef.current = roomReadStates;
+  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail, readStates, roomReadStates]);
+
+  // 방에 입장할 때마다 전체 멤버의 읽음 상태 로드
+  useEffect(() => {
+    if (activeChatKey) {
+      chatApi.getRoomReadStates(activeChatKey).then(data => {
+        const roomMap: Record<string, number> = {};
+        data.forEach(r => {
+          if (r.userEmail) {
+            roomMap[r.userEmail] = r.lastReadMsgId;
+          }
+        });
+        setRoomReadStates(prev => ({
+          ...prev,
+          [activeChatKey]: roomMap
+        }));
+      }).catch(console.error);
+    }
+  }, [activeChatKey]);
 
 
   // 소켓 이벤트 리스너 분리
@@ -111,12 +133,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const onReadStateUpdated = (data: { userEmail: string; roomKey: string; lastReadMsgId: number }) => {
+      setRoomReadStates(prev => {
+        const roomData = prev[data.roomKey] || {};
+        return {
+          ...prev,
+          [data.roomKey]: {
+            ...roomData,
+            [data.userEmail]: data.lastReadMsgId
+          }
+        };
+      });
+    };
+
     socket.on('onlineUsers', onOnlineUsers);
     socket.on('newMessage', onNewMessage);
+    socket.on('readStateUpdated', onReadStateUpdated);
 
     return () => {
       socket.off('onlineUsers', onOnlineUsers);
       socket.off('newMessage', onNewMessage);
+      socket.off('readStateUpdated', onReadStateUpdated);
     };
   }, [socket]);
 
@@ -217,7 +254,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <ChatContext.Provider value={{
       unreadCounts, totalUnreadCount, messagesStore, onlineUsers, socket, activeChatKey,
-      notificationCount, readStates, clearNotifications,
+      notificationCount, readStates, roomReadStates, clearNotifications,
       incrementUnread, clearUnread, setMessages, addMessage, setActiveChatKey, initProjectChat,
       updateReadState, simulateNoti
     }}>

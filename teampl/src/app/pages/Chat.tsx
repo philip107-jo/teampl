@@ -316,6 +316,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     unreadCounts, 
     clearUnread,
     readStates, 
+    roomReadStates,
     updateReadState 
   } = useChat();
 
@@ -562,10 +563,10 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex items-center justify-between mb-4 px-1">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             {chatMode === "TEAM" ? "팀 채팅" : (
               <>
-                <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 hover:text-gray-900 mr-1">
+                <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mr-1">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 {selectedMember?.name}님과의 대화
@@ -585,7 +586,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           </button>
         </div>
 
-        <div className="flex-1 bg-white border border-gray-100 rounded-[20px] shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 bg-white dark:bg-[#132038] border border-gray-100 dark:border-white/5 rounded-[20px] shadow-sm flex flex-col overflow-hidden">
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
             {currentMessages.length === 0 ? (
@@ -600,6 +601,25 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
                 const isFirstUnread = !msg.isMe && initialLastRead > 0 && Number(msg.id) > initialLastRead &&
                   (idx === 0 || Number(currentMessages[idx - 1].id) <= initialLastRead);
+
+                const currentRoomReads = chatKey && roomReadStates[chatKey] ? roomReadStates[chatKey] : {};
+                const totalMembersCount = chatMode === "TEAM" ? projectMembers.length : 2;
+                let readCount = 0;
+                if (chatMode === "TEAM") {
+                  projectMembers.forEach(m => {
+                    if (m.email === user?.email) {
+                      readCount++;
+                    } else if ((currentRoomReads[m.email] || 0) >= Number(msg.id)) {
+                      readCount++;
+                    }
+                  });
+                } else {
+                  readCount = 1; // Me
+                  if (selectedMember && (currentRoomReads[selectedMember.email] || 0) >= Number(msg.id)) {
+                    readCount++;
+                  }
+                }
+                const unreadCount = Math.max(0, totalMembersCount - readCount);
 
                 return (
                   <div key={msg.id}>
@@ -619,61 +639,70 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                       <div className={`max-w-[70%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
                         {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
 
-                        {isVoteMsg ? (
-                          referencedVote ? (
-                            <ChatVoteCard 
-                              vote={referencedVote}
-                              userEmail={user?.email || ''}
-                              projectId={projectId}
-                              onVoteCasted={loadVotesList}
-                            />
-                          ) : (
-                            <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              존재하지 않거나 삭제된 투표입니다
-                            </div>
-                          )
-                        ) : msg.content.startsWith('[IMAGE]') ? (
-                          <a href={msg.content.slice(7, -8)} target="_blank" rel="noreferrer">
-                            <img
-                              src={msg.content.slice(7, -8)}
-                              alt="첨부 이미지"
-                              className="max-w-[240px] rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
-                            />
-                          </a>
-                        ) : msg.content.startsWith('[FILE]') ? (
-                          (() => {
-                            const inner = msg.content.slice(6, -7);
-                            const [url, name] = inner.split('|');
-                            return (
-                              <a
-                                href={url}
-                                download={name}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-bold transition-colors
-                                  ${msg.isMe
-                                    ? "bg-[#11B886] text-white border-[#11B886] hover:bg-[#0EA271]"
-                                    : "bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-200"
-                                  }`}
-                              >
-                                <span className="text-lg">📎</span>
-                                <span className="truncate max-w-[160px]">{name}</span>
+                        <div className={`flex items-end gap-1.5 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                          <div className="flex flex-col gap-1">
+                            {isVoteMsg ? (
+                              referencedVote ? (
+                                <ChatVoteCard 
+                                  vote={referencedVote}
+                                  userEmail={user?.email || ''}
+                                  projectId={projectId}
+                                  onVoteCasted={loadVotesList}
+                                />
+                              ) : (
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-[#1A2340] text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  존재하지 않거나 삭제된 투표입니다
+                                </div>
+                              )
+                            ) : msg.content.startsWith('[IMAGE]') ? (
+                              <a href={msg.content.slice(7, -8)} target="_blank" rel="noreferrer">
+                                <img
+                                  src={msg.content.slice(7, -8)}
+                                  alt="첨부 이미지"
+                                  className="max-w-[240px] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                />
                               </a>
-                            );
-                          })()
-                        ) : (
-                          <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
-                            ${msg.isMe
-                              ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm"
-                              : "bg-gray-100 text-gray-900 rounded-2xl rounded-tl-sm"
-                            }`}
-                          >
-                            {msg.content}
+                            ) : msg.content.startsWith('[FILE]') ? (
+                              (() => {
+                                const inner = msg.content.slice(6, -7);
+                                const [url, name] = inner.split('|');
+                                return (
+                                  <a
+                                    href={url}
+                                    download={name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-bold transition-colors
+                                      ${msg.isMe
+                                        ? "bg-[#11B886] text-white border-[#11B886] hover:bg-[#0EA271]"
+                                        : "bg-gray-100 dark:bg-[#1A2340] text-gray-900 dark:text-white border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/5"
+                                      }`}
+                                  >
+                                    <span className="text-lg">📎</span>
+                                    <span className="truncate max-w-[160px]">{name}</span>
+                                  </a>
+                                );
+                              })()
+                            ) : (
+                              <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
+                                ${msg.isMe
+                                  ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm shadow-sm"
+                                  : "bg-gray-100 dark:bg-[#1A2340] text-gray-900 dark:text-white rounded-2xl rounded-tl-sm shadow-sm"
+                                }`}
+                              >
+                                {msg.content}
+                              </div>
+                            )}
                           </div>
-                        )}
-
-                        <span className="text-[10px] text-gray-400 mt-1 mx-1">{msg.time}</span>
+                          
+                          <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"} pb-1`}>
+                            {unreadCount > 0 && (
+                              <span className="text-[10px] font-bold text-yellow-500 mb-0.5">{unreadCount}</span>
+                            )}
+                            <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -705,21 +734,21 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           )}
 
           {/* Input */}
-          <div className="p-4 bg-white border-t border-gray-100 relative">
+          <div className="p-4 bg-white dark:bg-[#132038] border-t border-gray-100 dark:border-white/5 relative">
             {/* 투표 관련 드롭다운/메뉴 */}
             {isVoteMenuOpen && (
-              <div className="absolute bottom-20 left-4 w-72 bg-white dark:bg-[#132038] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="absolute bottom-20 left-4 w-72 bg-white dark:bg-[#1A2340] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 dark:border-white/5">
                   <h4 className="text-[12px] font-bold text-gray-900 dark:text-white">팀 투표 올리기</h4>
-                  <button onClick={() => setIsVoteMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setIsVoteMenuOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white/80">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 
                 <div className="space-y-2 mb-4">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">진행중인 투표 공유</p>
+                  <p className="text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-widest">진행중인 투표 공유</p>
                   {votes.filter(v => !v.isExpired).length === 0 ? (
-                    <p className="text-[11px] text-gray-400 italic py-1">공유할 활성 투표가 없습니다.</p>
+                    <p className="text-[11px] text-gray-400 dark:text-white/40 italic py-1">공유할 활성 투표가 없습니다.</p>
                   ) : (
                     <div className="max-h-32 overflow-y-auto space-y-1">
                       {votes.filter(v => !v.isExpired).map(v => (
@@ -747,13 +776,13 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               </div>
             )}
 
-            <div className="flex items-center gap-2 p-1 pl-2 rounded-xl border border-gray-200 focus-within:border-[#11B886] transition-colors bg-white">
+            <div className="flex items-center gap-2 p-1 pl-2 rounded-xl border border-gray-200 dark:border-white/10 focus-within:border-[#11B886] dark:focus-within:border-[#11B886] transition-colors bg-white dark:bg-[#1A2340]">
               {/* 파일 첨부 버튼 */}
               <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
                 title="파일 첨부"
               >
                 {isUploading ? (
@@ -767,7 +796,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               <button 
                 onClick={handleOpenVoteMenu}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
-                  isVoteMenuOpen ? "bg-[#11B886]/10 text-[#11B886]" : "bg-gray-50 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10"
+                  isVoteMenuOpen ? "bg-[#11B886]/10 text-[#11B886]" : "bg-gray-50 dark:bg-white/5 text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10"
                 }`}
                 title="투표 공유 또는 만들기"
               >
@@ -776,7 +805,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               <input
                 type="text"
                 placeholder="메시지를 입력하세요... (@로 팀원 멘션)"
-                className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-400 py-2.5"
+                className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 py-2.5"
                 value={inputText}
                 onChange={(e) => {
                   const text = e.target.value;
@@ -839,13 +868,13 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       </div>
 
       {/* Right Sidebar for Team Members */}
-      <div className={`flex flex-col h-full bg-white border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300 ${
+      <div className={`flex flex-col h-full bg-white dark:bg-[#132038] border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300 ${
         isSidebarOpen 
-          ? "w-64 ml-6 opacity-100 border-gray-100" 
-          : "w-0 ml-0 opacity-0 pointer-events-none border-transparent shadow-none"
+          ? "w-64 ml-6 opacity-100 border-gray-100 dark:border-white/5" 
+          : "w-0 ml-0 opacity-0 pointer-events-none border-transparent dark:border-transparent shadow-none"
       }`}>
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-900">팀원 목록</h3>
+        <div className="p-4 border-b border-gray-100 dark:border-white/5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">팀원 목록</h3>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {projectMembers.map(member => {
@@ -860,19 +889,19 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                   setSelectedMember(member);
                   setIsModalOpen(true);
                 }}
-                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors text-left"
               >
                 <div className="relative shrink-0">
                   <div className="w-10 h-10 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold">
                     {member.name?.[0] || 'U'}
                   </div>
                   {isOnline && (
-                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white" />
+                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white dark:ring-[#132038]" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{member.name}</p>
-                  <p className="text-xs text-gray-505 truncate">{member.role || '팀원'}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{member.name}</p>
+                  <p className="text-xs text-gray-505 dark:text-gray-400 truncate">{member.role || '팀원'}</p>
                 </div>
                 {unreadCount > 0 && (
                   <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 shadow-sm shrink-0">

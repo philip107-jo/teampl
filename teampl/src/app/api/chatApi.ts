@@ -13,6 +13,7 @@ export interface ChatMessage {
 export interface ChatReadState {
   roomKey: string;
   lastReadMsgId: number;
+  userEmail?: string;
 }
 
 export const chatApi = {
@@ -37,6 +38,11 @@ export const chatApi = {
 
   getReadStates: async (): Promise<ChatReadState[]> => {
     const response = await client.get('/chat/reads');
+    return response.data;
+  },
+
+  getRoomReadStates: async (roomKey: string): Promise<ChatReadState[]> => {
+    const response = await client.get(`/chat/reads/room/${roomKey}`);
     return response.data;
   },
 
