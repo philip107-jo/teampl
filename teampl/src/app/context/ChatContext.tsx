@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { socket } from '../socket';
 
 import { chatApi } from '../api/chatApi';
 
@@ -21,6 +22,7 @@ interface ChatContextType {
   activeChatKey: string | null;
   notificationCount: number;
   readStates: Record<string, number>;
+  roomReadStates: Record<string, Record<string, number>>; // roomKey -> userEmail -> lastReadMsgId
   clearNotifications: () => void;
   incrementUnread: (key: string, amount?: number) => void;
   clearUnread: (key: string) => void;
@@ -38,19 +40,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [messagesStore, setMessagesStore] = useState<Record<string, Message[]>>({});
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
+
   const [activeChatKey, setActiveChatKey] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [readStates, setReadStates] = useState<Record<string, number>>({});
+  const [roomReadStates, setRoomReadStates] = useState<Record<string, Record<string, number>>>({});
 
   const activeChatKeyRef = useRef<string | null>(null);
   const projectMembersRef = useRef<any[]>([]);
   const currentProjectIdRef = useRef<number | null>(null);
   const currentUserEmailRef = useRef<string | null>(null);
   const readStatesRef = useRef<Record<string, number>>({});
+  const roomReadStatesRef = useRef<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     activeChatKeyRef.current = activeChatKey;
@@ -58,16 +62,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentProjectIdRef.current = currentProjectId;
     currentUserEmailRef.current = currentUserEmail;
     readStatesRef.current = readStates;
-  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail, readStates]);
+    roomReadStatesRef.current = roomReadStates;
+  }, [activeChatKey, projectMembers, currentProjectId, currentUserEmail, readStates, roomReadStates]);
 
-  // 전역 소켓 초기화 (한 번만 실행)
+  // 방에 입장할 때마다 전체 멤버의 읽음 상태 로드
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080';
-    const newSocket = io(socketUrl);
-    setSocket(newSocket);
+    if (activeChatKey) {
+      chatApi.getRoomReadStates(activeChatKey).then(data => {
+        const roomMap: Record<string, number> = {};
+        data.forEach(r => {
+          if (r.userEmail) {
+            roomMap[r.userEmail] = r.lastReadMsgId;
+          }
+        });
+        setRoomReadStates(prev => ({
+          ...prev,
+          [activeChatKey]: roomMap
+        }));
+      }).catch(console.error);
+    }
+  }, [activeChatKey]);
 
-    return () => { newSocket.disconnect(); };
-  }, []);
 
   // 소켓 이벤트 리스너 분리
   useEffect(() => {
@@ -118,12 +133,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const onReadStateUpdated = (data: { userEmail: string; roomKey: string; lastReadMsgId: number }) => {
+      setRoomReadStates(prev => {
+        const roomData = prev[data.roomKey] || {};
+        return {
+          ...prev,
+          [data.roomKey]: {
+            ...roomData,
+            [data.userEmail]: data.lastReadMsgId
+          }
+        };
+      });
+    };
+
     socket.on('onlineUsers', onOnlineUsers);
     socket.on('newMessage', onNewMessage);
+    socket.on('readStateUpdated', onReadStateUpdated);
 
     return () => {
       socket.off('onlineUsers', onOnlineUsers);
       socket.off('newMessage', onNewMessage);
+      socket.off('readStateUpdated', onReadStateUpdated);
     };
   }, [socket]);
 
@@ -224,7 +254,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <ChatContext.Provider value={{
       unreadCounts, totalUnreadCount, messagesStore, onlineUsers, socket, activeChatKey,
-      notificationCount, readStates, clearNotifications,
+      notificationCount, readStates, roomReadStates, clearNotifications,
       incrementUnread, clearUnread, setMessages, addMessage, setActiveChatKey, initProjectChat,
       updateReadState, simulateNoti
     }}>

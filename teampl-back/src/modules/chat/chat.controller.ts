@@ -3,11 +3,21 @@ import multer from 'multer';
 import { ChatService } from './chat.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 import { uploadToKTCloud } from '../drive/ktcloud.storage';
+import { getIo } from '../../socket';
 
 const router = Router();
 router.use(authMiddleware);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+router.get('/reads/room/:roomKey', async (req, res) => {
+    try {
+        const reads = await ChatService.getRoomReadStates(req.params.roomKey);
+        res.json(reads);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
 
 router.get('/reads', async (req, res) => {
     try {
@@ -22,6 +32,13 @@ router.post('/reads', async (req, res) => {
     try {
         const { roomKey, lastReadMsgId } = req.body;
         const read = await ChatService.updateLastRead(req.user!.email, roomKey, lastReadMsgId);
+        
+        getIo().to(roomKey).emit('readStateUpdated', {
+            userEmail: req.user!.email,
+            roomKey,
+            lastReadMsgId
+        });
+
         res.json(read);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
@@ -30,8 +47,9 @@ router.post('/reads', async (req, res) => {
 
 router.get('/project/:projectId', async (req, res) => {
     const projectId = parseInt(req.params.projectId, 10);
+    const email = req.user!.email;
     try {
-        const messages = await ChatService.getProjectMessages(projectId);
+        const messages = await ChatService.getProjectMessages(email, projectId);
         res.json(messages);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
@@ -62,6 +80,25 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             type: req.file.mimetype,
             size: req.file.size,
         });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/messages/:id/pin', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const { isPinned, roomKey } = req.body; // roomKey to broadcast
+        const message = await ChatService.updatePin(id, isPinned);
+        
+        if (roomKey) {
+            getIo().to(roomKey).emit('messagePinned', {
+                messageId: id,
+                isPinned,
+                roomKey
+            });
+        }
+        res.json(message);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }

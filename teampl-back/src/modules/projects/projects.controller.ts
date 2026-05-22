@@ -1,10 +1,7 @@
 import { Router } from 'express';
 import { ProjectsService } from './projects.service';
 import { authMiddleware } from '../../middlewares/auth.middleware';
-import axios from 'axios';
-import crypto from 'crypto';
 import { prisma } from '../../prisma';
-
 
 interface UserWithMS {
     id: string;
@@ -163,8 +160,16 @@ router.delete('/:id/delete-alert', async (req, res) => {
 
 
 
-// GET /api/projects/:id/stats
-
+router.get('/:id/stats', async (req, res) => {
+    const projectId = parseInt(req.params.id, 10);
+    const email = req.user!.email;
+    try {
+        const stats = await ProjectsService.getStats(email, projectId);
+        res.json(stats);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
 
 // POST /api/projects/:id/ai/split-tasks
 router.post('/:id/ai/split-tasks', async (req, res) => {
@@ -175,6 +180,37 @@ router.post('/:id/ai/split-tasks', async (req, res) => {
         res.json(suggestions);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
+    }
+});
+
+// PATCH /api/projects/:id/status
+router.patch('/:id/status', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const { status } = req.body;
+    try {
+        const updatedProject = await ProjectsService.updateStatus(email, id, status);
+        res.json(updatedProject);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// GET /api/projects/:id/search
+router.get('/:id/search', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const q = req.query.q as string;
+    
+    if (!q) {
+        return res.json({ messages: [], tasks: [], files: [] });
+    }
+    
+    try {
+        const results = await ProjectsService.searchAll(email, id, q);
+        res.json(results);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
     }
 });
 

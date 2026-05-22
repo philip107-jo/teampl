@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError } from '../common/errors';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+import { config } from '../lib/config';
+const JWT_SECRET = config.jwt.secret;
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     try {

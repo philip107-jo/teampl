@@ -1,6 +1,10 @@
 import { io, Socket } from "socket.io-client";
 
-const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8080';
+const apiBase = import.meta.env.VITE_API_BASE_URL;
+const socketUrl = (apiBase && apiBase.startsWith('http'))
+    ? apiBase.replace('/api', '')
+    : window.location.origin;
+
 export const socket: Socket = io(socketUrl, {
     autoConnect: true,
     reconnection: true

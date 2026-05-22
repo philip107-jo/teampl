@@ -1,5 +1,6 @@
 import { prisma } from '../../prisma';
 import OpenAI from 'openai';
+import { verifyMembership } from './membership';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -177,6 +178,15 @@ export const ProjectsService = {
                     where: { id: project.id },
                     data: { members: project.members + 1 }
                 });
+            } else if (existing.status === 'KICKED') {
+                await prisma.projectMember.update({
+                    where: { userEmail_projectId: { userEmail: email, projectId: project.id } },
+                    data: { status: 'ACTIVE', kickReason: null }
+                });
+                return await prisma.project.update({
+                    where: { id: project.id },
+                    data: { members: project.members + 1 }
+                });
             }
             return project; // 이미 가입된 경우 기존 정보 반환
         }
@@ -325,6 +335,76 @@ export const ProjectsService = {
         });
     },
 
+    getStats: async (email: string, projectId: number) => {
+        await verifyMembership(email, projectId);
+        const members = await prisma.projectMember.findMany({
+            where: { projectId, status: 'ACTIVE' },
+            include: { user: true }
+        });
+        
+        const tasks = await (prisma as any).task.findMany({ where: { projectId } });
+        const docs = await (prisma as any).sharedDocument.findMany({ where: { projectId } });
+        const messages = await (prisma as any).message.findMany({ where: { projectId } });
+
+        const rawStats = members.map(m => {
+            const memberEmail = m.userEmail;
+            const memberTasks = tasks.filter((t: any) => t.assignees.includes(memberEmail));
+            
+            let earnedPoints = 0;
+            let completedCount = 0;
+
+            memberTasks.forEach((task: any) => {
+                if (task.status === 'DONE') {
+                    completedCount++;
+                    const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
+                    const basePoints = (task.difficulty || 3) * priorityWeight;
+                    
+                    let timeFactor = 1.0;
+                    if (task.completedAt && task.deadline) {
+                        const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+                        const deadlineDate = task.deadline.replace(/\./g, '-');
+                        if (completedDate <= deadlineDate) timeFactor = 1.2;
+                        else timeFactor = 0.7;
+                    }
+                    // 성공한 태스크에 대해 가중치 점수 부여 (기본 10배수 스케일링)
+                    earnedPoints += (basePoints * timeFactor) * 10;
+                }
+            });
+
+            // 문서 작성 가산점 (문서당 15점)
+            const createdDocs = docs.filter((d: any) => d.creatorEmail === memberEmail);
+            earnedPoints += createdDocs.length * 15;
+
+            // 실제 소통(채팅) 가산점 (메시지당 2점)
+            const memberMessages = messages.filter((msg: any) => msg.senderEmail === memberEmail);
+            earnedPoints += memberMessages.length * 2;
+
+            return {
+                email: memberEmail,
+                earnedPoints,
+                completed: completedCount,
+                total: memberTasks.length,
+                chatCount: memberMessages.length
+            };
+        });
+
+        // 2단계: 전체 팀의 종합 점수를 기준으로 상대적 기여도(%) 계산
+        const teamTotalPoints = rawStats.reduce((sum, s) => sum + s.earnedPoints, 0);
+
+        const stats = rawStats.map(s => {
+            // 아무도 활동이 없으면 모두 0%
+            const score = teamTotalPoints > 0 ? Math.round((s.earnedPoints / teamTotalPoints) * 100) : 0;
+            return {
+                email: s.email,
+                score,
+                completed: s.completed,
+                total: s.total,
+                chatCount: s.chatCount
+            };
+        });
+
+        return stats;
+    },
 
 
     generateTasksWithAi: async (teamSize: number, topic: string, description: string) => {
@@ -359,7 +439,7 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
 
         const userPrompt = description ? `세부 요구사항: ${description}` : `제시된 팀 규모와 주제에 맞게 핵심 업무를 분배해 주세요.`;
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -379,5 +459,58 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
             console.error("Failed to parse AI output:", content);
             throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
         }
+    },
+
+    updateStatus: async (email: string, projectId: number, status: string) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+
+        if (!member) throw new Error("권한이 없습니다.");
+
+        const updated = await prisma.project.update({
+            where: { id: projectId },
+            data: { status }
+        });
+        return updated;
+    },
+
+    searchAll: async (email: string, projectId: number, query: string) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+
+        if (!member) throw new Error("권한이 없습니다.");
+
+        const [messages, tasks, files] = await Promise.all([
+            prisma.message.findMany({
+                where: {
+                    projectId,
+                    content: { contains: query } // PostgreSQL default mode is case-sensitive, but contains searches substrings. To make it case insensitive, we can add mode: 'insensitive'
+                },
+                include: { sender: { select: { name: true } } },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.task.findMany({
+                where: {
+                    projectId,
+                    OR: [
+                        { title: { contains: query } },
+                        { description: { contains: query } }
+                    ]
+                },
+                take: 50
+            }),
+            prisma.driveFile.findMany({
+                where: {
+                    projectId,
+                    name: { contains: query }
+                },
+                take: 50
+            })
+        ]);
+
+        return { messages, tasks, files };
     }
 };

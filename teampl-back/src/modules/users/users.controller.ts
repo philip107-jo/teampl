@@ -9,7 +9,8 @@ import { uploadToKTCloud } from '../drive/ktcloud.storage';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+import { config } from '../../lib/config';
+const JWT_SECRET = config.jwt.secret;
 
 const UpdateProfileSchema = z.object({
   body: z.object({

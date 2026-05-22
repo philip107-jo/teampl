@@ -275,9 +275,10 @@ interface ChatProps {
   projectId?: number;
   projectMembers?: any[];
   projectData?: any;
+  isReadOnly?: boolean;
 }
 
-export default function Chat({ projectId, projectMembers = [], projectData }: ChatProps) {
+export default function Chat({ projectId, projectMembers = [], projectData, isReadOnly }: ChatProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -316,6 +317,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     unreadCounts, 
     clearUnread,
     readStates, 
+    roomReadStates,
     updateReadState 
   } = useChat();
 
@@ -381,6 +383,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           id: String(m.id),
           sender: m.sender?.name || m.senderEmail.split('@')[0],
           content: m.content,
+          isPinned: m.isPinned,
           time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
           isMe: m.senderEmail === user?.email
         }));
@@ -427,12 +430,25 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
     };
 
     socket.on('userTyping', onUserTyping);
-    return () => { socket.off('userTyping', onUserTyping); };
-  }, [socket, user, chatKey]);
+
+    // messagePinned 소켓 이벤트 수신
+    const onMessagePinned = (data: { messageId: number, isPinned: boolean, roomKey: string }) => {
+      if (data.roomKey !== chatKey) return;
+      setMessages(chatKey, (messagesStore[chatKey] || []).map(m => 
+        String(m.id) === String(data.messageId) ? { ...m, isPinned: data.isPinned } : m
+      ));
+    };
+    socket.on('messagePinned', onMessagePinned);
+
+    return () => { 
+      socket.off('userTyping', onUserTyping); 
+      socket.off('messagePinned', onMessagePinned);
+    };
+  }, [socket, user, chatKey, messagesStore, setMessages]);
 
   // 타이핑 emit 핸들러 (debounce 1.5초)
   const emitTyping = useCallback(() => {
-    if (!socket || !user || !chatKey) return;
+    if (!socket || !user || !chatKey || isReadOnly) return;
 
     if (!isTypingRef.current) {
       isTypingRef.current = true;
@@ -444,28 +460,43 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       isTypingRef.current = false;
       socket.emit('typing', { room: chatKey, email: user.email, isTyping: false });
     }, 1500);
-  }, [socket, user, chatKey]);
+  }, [socket, user, chatKey, isReadOnly]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || !projectId || !socket || !user) return;
+    if ((!inputText.trim() && !isUploading) || isReadOnly) return;
+    try {
+      if (isTypingRef.current) {
+        socket?.emit('typing', { room: chatKey, email: user?.email, isTyping: false });
+        isTypingRef.current = false;
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      }
 
-    socket.emit('sendMessage', {
-      room: chatKey,
-      senderEmail: user.email,
-      content: inputText,
-      projectId: chatMode === "TEAM" ? projectId : undefined,
-      receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
-    });
-
-    // 메시지 전송 시 타이핑 상태 즉시 해제
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    if (isTypingRef.current) {
-      isTypingRef.current = false;
-      socket.emit('typing', { room: chatKey, email: user.email, isTyping: false });
+      await chatApi.saveMessage(user!.email, inputText.trim(), {
+        projectId: chatMode === "TEAM" ? projectId : undefined,
+        receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
+      });
+      socket?.emit('sendMessage', {
+        room: chatKey,
+        senderEmail: user!.email,
+        content: inputText.trim(),
+        projectId: chatMode === "TEAM" ? projectId : undefined,
+        receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
+      });
+      setInputText("");
+    } catch (e) {
+      console.error(e);
     }
+  };
 
-    setInputText("");
-    setMentionQuery(null);
+  const handlePinMessage = async (messageId: string, currentPinStatus: boolean) => {
+    try {
+      await chatApi.pinMessage(Number(messageId), !currentPinStatus, chatKey);
+      setMessages(chatKey, currentMessages.map(m => 
+        m.id === messageId ? { ...m, isPinned: !currentPinStatus } : m
+      ));
+    } catch (e: any) {
+      alert("핀 고정 처리 중 오류가 발생했습니다.");
+    }
   };
 
   const handleMentionSelect = (name: string) => {
@@ -478,7 +509,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !socket || !user || !chatKey) return;
+    if (!file || !socket || !user || !chatKey || isReadOnly) return;
     setIsUploading(true);
     try {
       const uploaded = await chatApi.uploadFile(file);
@@ -562,10 +593,10 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex items-center justify-between mb-4 px-1">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             {chatMode === "TEAM" ? "팀 채팅" : (
               <>
-                <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 hover:text-gray-900 mr-1">
+                <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mr-1">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 {selectedMember?.name}님과의 대화
@@ -585,7 +616,25 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           </button>
         </div>
 
-        <div className="flex-1 bg-white border border-gray-100 rounded-[20px] shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 bg-white dark:bg-[#132038] border border-gray-100 dark:border-white/5 rounded-[20px] shadow-sm flex flex-col overflow-hidden relative">
+          
+          {/* Pinned Messages Header */}
+          {currentMessages.filter(m => m.isPinned).length > 0 && (
+            <div className="bg-[#11B886]/5 dark:bg-[#11B886]/10 border-b border-[#11B886]/20 px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#11B886]/20 flex items-center justify-center text-[#11B886] shrink-0">
+                📌
+              </div>
+              <div className="flex-1 overflow-x-auto whitespace-nowrap no-scrollbar pr-4 space-x-4 flex">
+                {currentMessages.filter(m => m.isPinned).map(msg => (
+                  <div key={msg.id} className="inline-flex items-center gap-2 max-w-[300px]">
+                    <span className="text-xs font-bold text-[#1A2340] dark:text-white shrink-0">{msg.sender}</span>
+                    <span className="text-xs text-gray-600 dark:text-white/70 truncate">{msg.content}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
             {currentMessages.length === 0 ? (
@@ -601,6 +650,25 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                 const isFirstUnread = !msg.isMe && initialLastRead > 0 && Number(msg.id) > initialLastRead &&
                   (idx === 0 || Number(currentMessages[idx - 1].id) <= initialLastRead);
 
+                const currentRoomReads = chatKey && roomReadStates[chatKey] ? roomReadStates[chatKey] : {};
+                const totalMembersCount = chatMode === "TEAM" ? projectMembers.length : 2;
+                let readCount = 0;
+                if (chatMode === "TEAM") {
+                  projectMembers.forEach(m => {
+                    if (m.email === user?.email) {
+                      readCount++;
+                    } else if ((currentRoomReads[m.email] || 0) >= Number(msg.id)) {
+                      readCount++;
+                    }
+                  });
+                } else {
+                  readCount = 1; // Me
+                  if (selectedMember && (currentRoomReads[selectedMember.email] || 0) >= Number(msg.id)) {
+                    readCount++;
+                  }
+                }
+                const unreadCount = Math.max(0, totalMembersCount - readCount);
+
                 return (
                   <div key={msg.id}>
                     {isFirstUnread && (
@@ -610,7 +678,7 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                         <div className="h-px flex-1 bg-red-100 dark:bg-red-500/20"></div>
                       </div>
                     )}
-                    <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3 mt-4`}>
+                    <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3 mt-4 group`}>
                       {!msg.isMe && (
                         <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
                           {msg.sender[0]}
@@ -619,62 +687,84 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                       <div className={`max-w-[70%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
                         {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
 
-                        {isVoteMsg ? (
-                          referencedVote ? (
-                            <ChatVoteCard 
-                              vote={referencedVote}
-                              userEmail={user?.email || ''}
-                              projectId={projectId}
-                              onVoteCasted={loadVotesList}
-                            />
-                          ) : (
-                            <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              존재하지 않거나 삭제된 투표입니다
-                            </div>
-                          )
-                        ) : msg.content.startsWith('[IMAGE]') ? (
-                          <a href={msg.content.slice(7, -8)} target="_blank" rel="noreferrer">
-                            <img
-                              src={msg.content.slice(7, -8)}
-                              alt="첨부 이미지"
-                              className="max-w-[240px] rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
-                            />
-                          </a>
-                        ) : msg.content.startsWith('[FILE]') ? (
-                          (() => {
-                            const inner = msg.content.slice(6, -7);
-                            const [url, name] = inner.split('|');
-                            return (
-                              <a
-                                href={url}
-                                download={name}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-bold transition-colors
-                                  ${msg.isMe
-                                    ? "bg-[#11B886] text-white border-[#11B886] hover:bg-[#0EA271]"
-                                    : "bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-200"
-                                  }`}
-                              >
-                                <span className="text-lg">📎</span>
-                                <span className="truncate max-w-[160px]">{name}</span>
+                        <div className={`flex items-end gap-1.5 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                          <div className="flex flex-col gap-1">
+                            {isVoteMsg ? (
+                              referencedVote ? (
+                                <ChatVoteCard 
+                                  vote={referencedVote}
+                                  userEmail={user?.email || ''}
+                                  projectId={projectId}
+                                  onVoteCasted={loadVotesList}
+                                />
+                              ) : (
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-[#1A2340] text-gray-400 text-[12px] font-bold rounded-2xl border border-gray-200 dark:border-white/10 italic flex items-center gap-1.5 mt-1">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  존재하지 않거나 삭제된 투표입니다
+                                </div>
+                              )
+                            ) : msg.content.startsWith('[IMAGE]') ? (
+                              <a href={msg.content.slice(7, -8)} target="_blank" rel="noreferrer">
+                                <img
+                                  src={msg.content.slice(7, -8)}
+                                  alt="첨부 이미지"
+                                  className="max-w-[240px] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                />
                               </a>
-                            );
-                          })()
-                        ) : (
-                          <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
-                            ${msg.isMe
-                              ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm"
-                              : "bg-gray-100 text-gray-900 rounded-2xl rounded-tl-sm"
-                            }`}
-                          >
-                            {msg.content}
+                            ) : msg.content.startsWith('[FILE]') ? (
+                              (() => {
+                                const inner = msg.content.slice(6, -7);
+                                const [url, name] = inner.split('|');
+                                return (
+                                  <a
+                                    href={url}
+                                    download={name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-bold transition-colors
+                                      ${msg.isMe
+                                        ? "bg-[#11B886] text-white border-[#11B886] hover:bg-[#0EA271]"
+                                        : "bg-gray-100 dark:bg-[#1A2340] text-gray-900 dark:text-white border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/5"
+                                      }`}
+                                  >
+                                    <span className="text-lg">📎</span>
+                                    <span className="truncate max-w-[160px]">{name}</span>
+                                  </a>
+                                );
+                              })()
+                            ) : (
+                              <div className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words
+                                ${msg.isMe
+                                  ? "bg-[#11B886] text-white rounded-2xl rounded-tr-sm shadow-sm"
+                                  : "bg-gray-100 dark:bg-[#1A2340] text-gray-900 dark:text-white rounded-2xl rounded-tl-sm shadow-sm"
+                                }`}
+                              >
+                                {msg.content}
+                              </div>
+                            )}
                           </div>
-                        )}
-
-                        <span className="text-[10px] text-gray-400 mt-1 mx-1">{msg.time}</span>
+                          
+                          <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"} pb-1`}>
+                            {unreadCount > 0 && (
+                              <span className="text-[10px] font-bold text-yellow-500 mb-0.5">{unreadCount}</span>
+                            )}
+                            <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                          </div>
+                        </div>
                       </div>
+                      
+                      {/* Pin Button */}
+                      {!isReadOnly && (
+                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center ${msg.isMe ? "order-first mr-1" : "ml-1"}`}>
+                          <button 
+                            onClick={() => handlePinMessage(msg.id, !!msg.isPinned)}
+                            className={`text-xs p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 ${msg.isPinned ? 'text-[#11B886] opacity-100' : 'text-gray-400'}`}
+                            title={msg.isPinned ? "고정 해제" : "메시지 고정"}
+                          >
+                            📌
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -705,21 +795,21 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
           )}
 
           {/* Input */}
-          <div className="p-4 bg-white border-t border-gray-100 relative">
+          <div className="p-4 bg-white dark:bg-[#132038] border-t border-gray-100 dark:border-white/5 relative">
             {/* 투표 관련 드롭다운/메뉴 */}
             {isVoteMenuOpen && (
-              <div className="absolute bottom-20 left-4 w-72 bg-white dark:bg-[#132038] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="absolute bottom-20 left-4 w-72 bg-white dark:bg-[#1A2340] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 p-4 z-50 animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 dark:border-white/5">
                   <h4 className="text-[12px] font-bold text-gray-900 dark:text-white">팀 투표 올리기</h4>
-                  <button onClick={() => setIsVoteMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setIsVoteMenuOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white/80">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 
                 <div className="space-y-2 mb-4">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">진행중인 투표 공유</p>
+                  <p className="text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-widest">진행중인 투표 공유</p>
                   {votes.filter(v => !v.isExpired).length === 0 ? (
-                    <p className="text-[11px] text-gray-400 italic py-1">공유할 활성 투표가 없습니다.</p>
+                    <p className="text-[11px] text-gray-400 dark:text-white/40 italic py-1">공유할 활성 투표가 없습니다.</p>
                   ) : (
                     <div className="max-h-32 overflow-y-auto space-y-1">
                       {votes.filter(v => !v.isExpired).map(v => (
@@ -747,37 +837,31 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
               </div>
             )}
 
-            <div className="flex items-center gap-2 p-1 pl-2 rounded-xl border border-gray-200 focus-within:border-[#11B886] transition-colors bg-white">
+            <div className="flex items-center gap-2 p-1 pl-2 rounded-xl border border-gray-200 dark:border-white/10 focus-within:border-[#11B886] dark:focus-within:border-[#11B886] transition-colors bg-white dark:bg-[#1A2340]">
               {/* 파일 첨부 버튼 */}
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" disabled={isReadOnly} />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
-                title="파일 첨부"
+                disabled={isUploading || isReadOnly}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
               >
-                {isUploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
+                <Plus className="w-5 h-5" />
               </button>
 
-              {/* 투표 공유/생성 버튼 */}
-              <button 
+              {/* 투표 메뉴 버튼 */}
+              <button
                 onClick={handleOpenVoteMenu}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 ${
-                  isVoteMenuOpen ? "bg-[#11B886]/10 text-[#11B886]" : "bg-gray-50 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10"
-                }`}
-                title="투표 공유 또는 만들기"
+                disabled={isReadOnly}
+                className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
               >
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="w-5 h-5" />
               </button>
               <input
                 type="text"
                 placeholder="메시지를 입력하세요... (@로 팀원 멘션)"
-                className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-400 py-2.5"
+                className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 py-2.5"
                 value={inputText}
+                disabled={isReadOnly}
                 onChange={(e) => {
                   const text = e.target.value;
                   setInputText(text);
@@ -839,13 +923,13 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
       </div>
 
       {/* Right Sidebar for Team Members */}
-      <div className={`flex flex-col h-full bg-white border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300 ${
+      <div className={`flex flex-col h-full bg-white dark:bg-[#132038] border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300 ${
         isSidebarOpen 
-          ? "w-64 ml-6 opacity-100 border-gray-100" 
-          : "w-0 ml-0 opacity-0 pointer-events-none border-transparent shadow-none"
+          ? "w-64 ml-6 opacity-100 border-gray-100 dark:border-white/5" 
+          : "w-0 ml-0 opacity-0 pointer-events-none border-transparent dark:border-transparent shadow-none"
       }`}>
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-900">팀원 목록</h3>
+        <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">팀원 목록 (1:1 채팅)</h3>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {projectMembers.map(member => {
@@ -860,19 +944,20 @@ export default function Chat({ projectId, projectMembers = [], projectData }: Ch
                   setSelectedMember(member);
                   setIsModalOpen(true);
                 }}
-                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                disabled={isReadOnly}
+                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="relative shrink-0">
                   <div className="w-10 h-10 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold">
                     {member.name?.[0] || 'U'}
                   </div>
                   {isOnline && (
-                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white" />
+                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white dark:ring-[#132038]" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{member.name}</p>
-                  <p className="text-xs text-gray-505 truncate">{member.role || '팀원'}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{member.name}</p>
+                  <p className="text-xs text-gray-505 dark:text-gray-400 truncate">{member.role || '팀원'}</p>
                 </div>
                 {unreadCount > 0 && (
                   <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 shadow-sm shrink-0">

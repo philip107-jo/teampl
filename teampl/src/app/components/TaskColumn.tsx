@@ -86,7 +86,6 @@ export default function TaskColumn({
                 key={task.id}
                 task={task}
                 pCfg={pCfg}
-                assignee={""} // member name mapping is handled differently or omitted for simplicity here
                 isOverdue={isOverdue}
                 isLeader={isLeader}
                 currentUserEmail={currentUserEmail}

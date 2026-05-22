@@ -29,19 +29,20 @@ export const startCronJobs = () => {
         include: { project: true }
       });
 
+      const notificationPromises: Promise<any>[] = [];
+
       for (const task of tasks) {
         const isD1 = task.deadline.startsWith(d1Str);
         const dDayText = isD1 ? 'D-1' : 'D-3';
         
-        // 담당자들에게 알림 전송
         for (const assignee of task.assignees) {
-          await NotificationsService.createNotification({
+          notificationPromises.push(NotificationsService.createNotification({
             userEmail: assignee,
             type: 'alert',
             title: `과제 마감일 임박 (${dDayText})`,
             content: `'${task.title}' 과제 마감이 ${dDayText} 남았습니다.`,
             link: `/projects/${task.projectId}`
-          });
+          }));
         }
       }
 
@@ -56,26 +57,34 @@ export const startCronJobs = () => {
         include: { project: true }
       });
 
+      const projectIds = [...new Set(schedules.map(s => s.projectId).filter(Boolean))] as number[];
+      const allMembers = await prisma.projectMember.findMany({
+          where: { projectId: { in: projectIds }, status: 'ACTIVE' }
+      });
+      const membersByProject = allMembers.reduce((acc: Record<number, string[]>, m) => {
+          if (!acc[m.projectId]) acc[m.projectId] = [];
+          acc[m.projectId].push(m.userEmail);
+          return acc;
+      }, {});
+
       for (const schedule of schedules) {
         if (!schedule.project) continue;
         const isD1 = schedule.date.startsWith(d1Str);
         const dDayText = isD1 ? 'D-1' : 'D-3';
 
-        // 프로젝트의 모든 활성 멤버에게 알림 전송
-        const members = await prisma.projectMember.findMany({
-          where: { projectId: schedule.project.id, status: 'ACTIVE' }
-        });
-
-        for (const member of members) {
-          await NotificationsService.createNotification({
-            userEmail: member.userEmail,
+        const projectEmails = membersByProject[schedule.project.id] || [];
+        for (const email of projectEmails) {
+          notificationPromises.push(NotificationsService.createNotification({
+            userEmail: email,
             type: 'alert',
             title: `일정 임박 (${dDayText})`,
             content: `'${schedule.title}' 일정이 ${dDayText} 남았습니다.`,
             link: `/projects/${schedule.project.id}`
-          });
+          }));
         }
       }
+
+      await Promise.all(notificationPromises);
 
       console.log('[CRON] Deadline checks completed.');
     } catch (e) {

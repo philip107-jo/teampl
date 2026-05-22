@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { authApi } from "../api/authApi";

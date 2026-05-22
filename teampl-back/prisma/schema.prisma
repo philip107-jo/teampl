@@ -63,6 +63,7 @@ model Project {
   color       String?  @default("purple")
   icon        String?  @default("Database")
   inviteCode  String?  @unique
+  status      String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
   createdAt   DateTime @default(now())
 
   projectMembers ProjectMember[]
@@ -178,6 +179,7 @@ model Message {
   senderEmail   String
   receiverEmail String? 
   content       String
+  isPinned      Boolean  @default(false)
   createdAt     DateTime @default(now())
   
   sender        User     @relation("SentMessages", fields: [senderEmail], references: [email], onDelete: Cascade)

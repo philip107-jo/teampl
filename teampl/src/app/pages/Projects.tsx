@@ -11,7 +11,7 @@ export default function Projects() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { isDark } = useDarkMode();
-  const [activeTab, setActiveTab] = useState("전체");
+  const [activeTab, setActiveTab] = useState("진행 중");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -197,10 +197,33 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-6 border-b border-gray-200 dark:border-white/10 mb-8">
+        {["진행 중", "완료됨"].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-4 text-[15px] font-bold transition-all relative ${
+              activeTab === tab 
+                ? "text-[#11B886]" 
+                : "text-gray-400 hover:text-gray-600 dark:hover:text-white/80"
+            }`}
+          >
+            {tab}
+            {activeTab === tab && (
+              <motion.div layoutId="projects-tab" className="absolute bottom-0 left-0 w-full h-[3px] bg-[#11B886] rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Projects List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {projects.filter(p => p.userStatus !== 'KICKED').map((project) => (
+          {projects
+            .filter(p => p.userStatus !== 'KICKED')
+            .filter(p => activeTab === "진행 중" ? (p.status === "ACTIVE" || !p.status) : p.status === "COMPLETED" || p.status === "ARCHIVED")
+            .map((project) => (
             <motion.div
               key={project.id}
               layout
@@ -211,7 +234,11 @@ export default function Projects() {
             >
               <Link
                 to={`/projects/${project.id}`}
-                className="block bg-white dark:bg-[#132038] rounded-2xl p-7 border border-gray-100 dark:border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 h-full flex flex-col relative group"
+                className={`block rounded-2xl p-7 border shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 h-full flex flex-col relative group ${
+                  activeTab === "완료됨" 
+                    ? "bg-gray-50 dark:bg-[#0d1526] border-transparent dark:border-white/5 grayscale-[0.5] opacity-80" 
+                    : "bg-white dark:bg-[#132038] border-gray-100 dark:border-white/5"
+                }`}
               >
                 {/* Project Header: Icon & Actions */}
                 <div className="flex items-start justify-between mb-5">
@@ -222,7 +249,7 @@ export default function Projects() {
                     <FolderOpen className="w-6 h-6" />
                   </div>
                   
-                  {project.userRole === 'LEADER' && (
+                  {project.userRole === 'LEADER' && activeTab !== "완료됨" && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"

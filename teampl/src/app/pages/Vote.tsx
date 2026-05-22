@@ -9,9 +9,10 @@ import { useAuth } from '../context/AuthContext';
 
 interface VoteProps {
   projectId: number;
+  isReadOnly?: boolean;
 }
 
-export default function VotePage({ projectId }: VoteProps) {
+export default function VotePage({ projectId, isReadOnly }: VoteProps) {
   const { user } = useAuth();
   const [votes, setVotes] = useState<Vote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,13 +129,15 @@ export default function VotePage({ projectId }: VoteProps) {
           <h2 className="text-[22px] font-black text-[#1A2340] dark:text-white tracking-tight">팀 투표</h2>
           <p className="text-[13px] text-gray-500 dark:text-white/40 font-medium mt-0.5">팀원들과 안건을 결정하세요</p>
         </div>
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-[#11B886] text-white rounded-2xl text-[13px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(17,184,134,0.35)]"
-        >
-          <Plus className="w-4 h-4" />
-          투표 만들기
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-[#11B886] text-white rounded-2xl text-[13px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(17,184,134,0.35)]"
+          >
+            <Plus className="w-4 h-4" />
+            투표 만들기
+          </button>
+        )}
       </div>
 
       {/* Active Votes */}
@@ -155,6 +158,7 @@ export default function VotePage({ projectId }: VoteProps) {
               onOptionSelect={handleOptionSelect}
               onCastVote={handleCastVote}
               onDelete={handleDeleteVote}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>
@@ -178,6 +182,7 @@ export default function VotePage({ projectId }: VoteProps) {
               onOptionSelect={handleOptionSelect}
               onCastVote={handleCastVote}
               onDelete={handleDeleteVote}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>
@@ -337,9 +342,10 @@ interface VoteCardProps {
   onOptionSelect: (vote: Vote, optionId: number) => void;
   onCastVote: (vote: Vote) => void;
   onDelete: (voteId: number) => void;
+  isReadOnly?: boolean;
 }
 
-function VoteCard({ vote, userEmail, selected, isExpanded, onToggleExpand, onOptionSelect, onCastVote, onDelete }: VoteCardProps) {
+function VoteCard({ vote, userEmail, selected, isExpanded, onToggleExpand, onOptionSelect, onCastVote, onDelete, isReadOnly }: VoteCardProps) {
   const hasVoted = vote.myOptionIds.length > 0;
   const isCreator = vote.creatorEmail === userEmail;
   const hasChanged = JSON.stringify([...selected].sort()) !== JSON.stringify([...vote.myOptionIds].sort());
@@ -382,7 +388,7 @@ function VoteCard({ vote, userEmail, selected, isExpanded, onToggleExpand, onOpt
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isCreator && (
+            {isCreator && !isReadOnly && (
               <button
                 onClick={() => onDelete(vote.id)}
                 className="p-2 text-gray-300 dark:text-white/20 hover:text-red-500 transition-colors"
@@ -439,8 +445,8 @@ function VoteCard({ vote, userEmail, selected, isExpanded, onToggleExpand, onOpt
                   <button
                     key={opt.id}
                     onClick={() => onOptionSelect(vote, opt.id)}
-                    disabled={vote.isExpired}
-                    className={`w-full text-left transition-all group ${vote.isExpired ? 'cursor-default' : 'cursor-pointer'}`}
+                    disabled={vote.isExpired || isReadOnly}
+                    className={`w-full text-left transition-all group ${vote.isExpired || isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
                   >
                     <div className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
                       isSelected
@@ -488,7 +494,7 @@ function VoteCard({ vote, userEmail, selected, isExpanded, onToggleExpand, onOpt
               })}
 
               {/* 투표 버튼 */}
-              {!vote.isExpired && (
+              {!vote.isExpired && !isReadOnly && (
                 <div className="pt-2">
                   {selected.length > 0 && hasChanged ? (
                     <button

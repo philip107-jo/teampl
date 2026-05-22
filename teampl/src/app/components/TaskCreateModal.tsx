@@ -52,7 +52,7 @@ export default function TaskCreateModal({
         status: "TODO",
         priority: "medium",
         difficulty: 3,
-        deadline: deadline || "마감일 없음",
+        deadline: deadline || undefined,
         ownerEmail: selectedAssigneeEmail,
         assignees: [selectedAssigneeEmail],
       } as any);

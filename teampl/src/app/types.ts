@@ -30,7 +30,7 @@ export type Task = {
   deadline?: string;
   completedAt?: string;
   createdById: string;
-  assignees: string[]; // User IDs
+  assignees?: string[]; // User IDs
   
   submitterEmail?: string;
   deliverables?: TaskDeliverable[];

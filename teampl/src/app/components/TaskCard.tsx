@@ -6,7 +6,6 @@ import { Task, TaskStatus } from '../types';
 interface TaskCardProps {
   task: Task;
   pCfg: { label: string; cls: string };
-  assignee: string;
   isOverdue: boolean;
   isLeader: boolean;
   currentUserEmail: string;
@@ -19,7 +18,7 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({
-  task, pCfg, assignee, isOverdue, isLeader, currentUserEmail, nextStatus, nextStatusLabel, updateStatus, approveTask, deleteTask, setSelectedTask
+  task, pCfg, isOverdue, isLeader, currentUserEmail, nextStatus, nextStatusLabel, updateStatus, approveTask, deleteTask, setSelectedTask
 }: TaskCardProps) {
   const [{ isDragging }, dragRef] = useDrag(() => ({
     type: 'TASK',

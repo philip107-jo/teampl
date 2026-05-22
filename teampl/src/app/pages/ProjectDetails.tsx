@@ -5,7 +5,7 @@ import {
   ChevronLeft, Database, Plus, Users, Calendar as CalendarIcon, Clock, 
   CheckCircle2, AlertCircle, FileText, MessageSquare, MoreVertical, LayoutDashboard,
   Settings, UserX, UserCheck, RefreshCw, X, Crown,
-  CheckSquare, FolderOpen, BarChart3
+  CheckSquare, FolderOpen, BarChart3, Search
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
@@ -16,7 +16,6 @@ import Chat from "./Chat";
 import Drive from "./Drive";
 import VotePage from "./Vote";
 import Overview from "./Overview";
-import MemberTasks from "./MemberTasks";
 import { useChat } from "../context/ChatContext";
 import MembersTab from "../components/MembersTab";
 
@@ -46,6 +45,9 @@ export default function ProjectDetails() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const prevUserRoleRef = useRef<string | null>(null);
+
+  // Close search dropdown on click outside
+  // Moved to Layout.tsx
 
   useEffect(() => {
     const fetchProject = () => {
@@ -165,6 +167,8 @@ export default function ProjectDetails() {
     });
   }, [rawMembers]);
 
+  const isReadOnly = project?.status === "COMPLETED" || project?.status === "ARCHIVED";
+
   const handleRegenerateInviteCode = async () => {
     if (!project) return;
     try {
@@ -230,6 +234,18 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleUpdateStatus = async (status: string) => {
+    if (!project) return;
+    try {
+      await projectApi.updateProjectStatus(Number(projectId), status);
+      showToast(status === 'COMPLETED' ? '프로젝트가 완료 처리되었습니다.' : '프로젝트 상태가 변경되었습니다.', 'success');
+      setIsSettingModalOpen(false);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (e: any) {
+      showToast(e.response?.data?.message || e.message, 'error');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-[75vh] items-center justify-center">
@@ -257,8 +273,10 @@ export default function ProjectDetails() {
             </div>
           </div>
           
-          {/* Profile & Settings (Right Side) */}
+          {/* Profile, Search & Settings (Right Side) */}
           <div className="flex items-center gap-3">
+            {/* Search Bar has been moved to global Layout.tsx */}
+
             <div className="hidden xs:flex items-center gap-2 mr-2">
               <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
                 <span className="text-xs font-bold text-gray-600">{user?.name?.[0]}</span>
@@ -287,6 +305,16 @@ export default function ProjectDetails() {
             </div>
           </div>
         </div>
+
+        {/* Read-Only Banner */}
+        {isReadOnly && (
+          <div className="mx-4 md:mx-8 mb-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-center gap-2 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-gray-500 dark:text-white/60" />
+            <span className="text-[13px] font-bold text-gray-700 dark:text-white/80">
+              읽기 전용 상태입니다. (완료 또는 보관된 프로젝트)
+            </span>
+          </div>
+        )}
 
         {/* Tab Navigation Menu */}
         <div className="px-4 md:px-8 flex gap-6 overflow-x-auto no-scrollbar pb-0.5">
@@ -317,13 +345,13 @@ export default function ProjectDetails() {
 
       {/* ===== Tab Content ===== */}
       <div className="px-4 md:px-8">
-        {activeTab === 'overview' && <Overview projectId={numProjectId} project={project} members={displayMembers} />}
-        {activeTab === 'tasks' && <Tasks projectId={numProjectId} />}
-        {activeTab === 'calendar' && <Calendar projectId={numProjectId} />}
-        {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} />}
-        {activeTab === 'drive' && <Drive projectId={numProjectId} />}
-        {activeTab === 'vote' && <VotePage projectId={numProjectId} />}
-        {activeTab === 'members' && <MembersTab projectId={numProjectId} members={displayMembers} />}
+        {activeTab === 'overview' && <Overview projectId={numProjectId} project={project} members={displayMembers} isReadOnly={isReadOnly} />}
+        {activeTab === 'tasks' && <Tasks projectId={numProjectId} isReadOnly={isReadOnly} />}
+        {activeTab === 'calendar' && <Calendar projectId={numProjectId} isReadOnly={isReadOnly} />}
+        {activeTab === 'chat' && <Chat projectId={numProjectId} projectMembers={displayMembers} projectData={project} isReadOnly={isReadOnly} />}
+        {activeTab === 'drive' && <Drive projectId={numProjectId} isReadOnly={isReadOnly} />}
+        {activeTab === 'vote' && <VotePage projectId={numProjectId} isReadOnly={isReadOnly} />}
+        {activeTab === 'members' && <MembersTab projectId={numProjectId} members={displayMembers} isReadOnly={isReadOnly} />}
       </div>
 
       {/* Settings Modal */}
@@ -370,7 +398,14 @@ export default function ProjectDetails() {
                 className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "kick" ? "text-red-500 border-b-2 border-red-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <UserX className="w-4 h-4" />
-                팀원 내보내기
+                팀원 관리
+              </button>
+              <button 
+                onClick={() => { setSettingTab("status"); setSelectedUser(""); }}
+                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "status" ? "text-blue-500 border-b-2 border-blue-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                상태 변경
               </button>
             </div>
 
@@ -532,6 +567,50 @@ export default function ProjectDetails() {
                   >
                     해당 팀원 영구적으로 내보내기
                   </button>
+                </div>
+              )}
+
+              {settingTab === "status" && (
+                <div className="space-y-6">
+                  <p className="text-sm font-bold text-[#7D879C] dark:text-white/60">
+                    프로젝트가 완료되었거나 중단된 경우 상태를 변경하세요. 완료/보관된 프로젝트는 읽기 전용 상태가 됩니다.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => handleUpdateStatus('COMPLETED')}
+                      className="flex flex-col items-center justify-center gap-3 p-6 border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-all group active:scale-95"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-black text-[#1A2340] dark:text-white mb-1">프로젝트 완료</p>
+                        <p className="text-xs text-[#7D879C] dark:text-white/40">업무 종료 및 성과 기록 보존</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => handleUpdateStatus('ARCHIVED')}
+                      className="flex flex-col items-center justify-center gap-3 p-6 border border-gray-200 dark:border-white/10 hover:border-gray-500 dark:hover:border-gray-400 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/5 transition-all group active:scale-95"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <FolderOpen className="w-6 h-6" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-black text-[#1A2340] dark:text-white mb-1">보관함 이동</p>
+                        <p className="text-xs text-[#7D879C] dark:text-white/40">목록에서 숨김 처리</p>
+                      </div>
+                    </button>
+                  </div>
+                  
+                  {project.status !== 'ACTIVE' && (
+                    <button 
+                      onClick={() => handleUpdateStatus('ACTIVE')}
+                      className="w-full py-4 mt-4 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-[#1A2340] dark:text-white font-black rounded-xl transition-colors active:scale-[0.98]"
+                    >
+                      다시 진행 중으로 변경
+                    </button>
+                  )}
                 </div>
               )}
             </div>

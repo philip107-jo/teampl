@@ -1,20 +1,8 @@
 import { prisma } from '../../prisma';
 import { emitTaskUpdate } from '../../socket';
 import { NotificationsService } from '../notifications/notifications.service';
-
-// 해당 프로젝트의 멤버인지 확인하는 헬퍼
-async function verifyMembership(email: string, projectId: number) {
-    const member = await prisma.projectMember.findUnique({
-        where: {
-            userEmail_projectId: { userEmail: email, projectId },
-            status: 'ACTIVE'
-        }
-    });
-    if (!member) {
-        throw new Error('이 프로젝트에 접근 권한이 없습니다.');
-    }
-    return member;
-}
+import { uploadToKTCloud, deleteFromKTCloud } from '../drive/ktcloud.storage';
+import { verifyMembership } from '../projects/membership';
 
 export const TasksService = {
     // 프로젝트 기준으로 모든 태스크 조회
@@ -44,16 +32,15 @@ export const TasksService = {
         
         // 새 업무가 할당된 담당자들에게 알림 생성
         if (data.assignees && data.assignees.length > 0) {
-            for (const assigneeEmail of data.assignees) {
-                if (assigneeEmail !== email) {
-                    await NotificationsService.createNotification({
-                        userEmail: assigneeEmail,
-                        type: 'task',
-                        title: '새로운 업무 할당',
-                        content: `'${task.title}' 업무 담당자로 지정되었습니다.`
-                    });
-                }
-            }
+            const promises = data.assignees
+                .filter((assigneeEmail: string) => assigneeEmail !== email)
+                .map((assigneeEmail: string) => NotificationsService.createNotification({
+                    userEmail: assigneeEmail,
+                    type: 'task',
+                    title: '새로운 업무 할당',
+                    content: `'${task.title}' 업무 담당자로 지정되었습니다.`
+                }));
+            await Promise.all(promises);
         }
         
         emitTaskUpdate(projectId);
@@ -94,7 +81,6 @@ export const TasksService = {
         if (!task) throw new Error("태스크를 찾을 수 없습니다.");
         if (files.length === 0) throw new Error("최소 1개 이상의 파일이 필요합니다.");
         
-        const { uploadToKTCloud } = require('../drive/ktcloud.storage');
         
         // 파일 업로드 및 DB 기록
         for (const file of files) {
@@ -136,25 +122,26 @@ export const TasksService = {
         if (task.status !== 'IN_REVIEW') throw new Error("검토 중인 과제에만 파일을 추가할 수 있습니다.");
         if (task.submitterEmail !== email) throw new Error("제출자만 파일을 추가할 수 있습니다.");
         
-        const { uploadToKTCloud } = require('../drive/ktcloud.storage');
         
-        for (const file of files) {
-            const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-            const safeFileName = originalName.replace(/[^a-zA-Z0-9가-힣.\-_]/g, '_');
-            const key = `projects/${projectId}/tasks/${taskId}/${Date.now()}_${safeFileName}`;
-            const publicUrl = await uploadToKTCloud(key, file.buffer, file.mimetype);
-            
-            await prisma.taskDeliverable.create({
-                data: {
-                    taskId,
-                    name: key,
-                    originalName,
-                    type: file.mimetype,
-                    size: file.size,
-                    url: publicUrl,
-                    uploaderEmail: email
-                }
-            });
+        if (files && files.length > 0) {
+            for (const file of files) {
+                const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+                const safeFileName = originalName.replace(/[^a-zA-Z0-9가-힣.\-_]/g, '_');
+                const key = `projects/${projectId}/tasks/${taskId}/${Date.now()}_${safeFileName}`;
+                const publicUrl = await uploadToKTCloud(key, file.buffer, file.mimetype);
+                
+                await prisma.taskDeliverable.create({
+                    data: {
+                        taskId,
+                        name: key,
+                        originalName,
+                        type: file.mimetype,
+                        size: file.size,
+                        url: publicUrl,
+                        uploaderEmail: email
+                    }
+                });
+            }
         }
         
         emitTaskUpdate(projectId);
@@ -173,8 +160,9 @@ export const TasksService = {
         const deliverable = await prisma.taskDeliverable.findUnique({ where: { id: deliverableId } });
         if (!deliverable || deliverable.taskId !== taskId) throw new Error("파일을 찾을 수 없습니다.");
         
-        const { deleteFromKTCloud } = require('../drive/ktcloud.storage');
-        try { await deleteFromKTCloud(deliverable.name); } catch {}
+        
+        try {
+            await deleteFromKTCloud(deliverable.name); } catch {}
         
         await prisma.taskDeliverable.delete({ where: { id: deliverableId } });
         
@@ -202,7 +190,13 @@ export const TasksService = {
         
         const totalApprovals = task.approvals.length + 1;
         
-        if (totalApprovals >= 1) {
+        const memberCount = await prisma.projectMember.count({
+            where: { projectId, status: 'ACTIVE' }
+        });
+        // 제외: 리더 또는 제출자 본인은 제외할 수 있지만 여기서는 전체 과반수로 심플하게 설정 (리더/제출자 포함)
+        const requiredApprovals = Math.max(1, Math.ceil(memberCount / 2));
+        
+        if (totalApprovals >= requiredApprovals) {
             await prisma.task.update({
                 where: { id: taskId },
                 data: { status: 'DONE', completedAt: new Date() }
@@ -280,16 +274,15 @@ export const TasksService = {
         });
 
         // 새로 추가된 담당자에게 알림 발송
-        for (const assigneeEmail of assignees) {
-            if (assigneeEmail !== email) {
-                await NotificationsService.createNotification({
-                    userEmail: assigneeEmail,
-                    type: 'task',
-                    title: '업무 담당자 변경',
-                    content: `'${updated.title}' 업무 담당자로 지정되었습니다.`
-                });
-            }
-        }
+        const promises = assignees
+            .filter((assigneeEmail: string) => assigneeEmail !== email)
+            .map((assigneeEmail: string) => NotificationsService.createNotification({
+                userEmail: assigneeEmail,
+                type: 'task',
+                title: '업무 담당자 변경',
+                content: `'${updated.title}' 업무 담당자로 지정되었습니다.`
+            }));
+        await Promise.all(promises);
         
         emitTaskUpdate(projectId);
         return updated;
@@ -306,18 +299,16 @@ export const TasksService = {
         }
     },
 
-    deleteByProjectId: async (projectId: number) => {
-        await prisma.task.deleteMany({ where: { projectId } });
-    },
 
     updateDetails: async (email: string, projectId: number, taskId: string, data: { description?: string; title?: string }) => {
         await verifyMembership(email, projectId);
+        const updateData: any = {};
+        if (data.title !== undefined) updateData.title = data.title;
+        if (data.description !== undefined) updateData.description = data.description;
+
         const updated = await prisma.task.update({
             where: { id: taskId },
-            data: {
-                title: data.title,
-                description: data.description,
-            }
+            data: updateData
         });
         emitTaskUpdate(projectId);
         return updated;

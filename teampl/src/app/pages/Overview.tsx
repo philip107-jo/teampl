@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { taskApi } from '../api/taskApi';
 import { useAuth } from '../context/AuthContext';
-import { useChat } from '../context/ChatContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../api/client';
 import { socket, joinProjectChannel } from '../socket';
@@ -17,6 +16,7 @@ interface OverviewProps {
   projectId: number;
   project: any;
   members: any[];
+  isReadOnly?: boolean;
 }
 
 interface Stage {
@@ -67,7 +67,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 const PRIORITY_LABEL: Record<string, string> = { high: '높음', medium: '중간', low: '낮음' };
 
-export default function Overview({ projectId, project, members }: OverviewProps) {
+export default function Overview({ projectId, project, members, isReadOnly }: OverviewProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -112,7 +112,6 @@ export default function Overview({ projectId, project, members }: OverviewProps)
     // Subscribe to real-time updates for perfect page synchronization
     joinProjectChannel(projectId);
     const onTaskUpdated = () => {
-      console.log("Realtime Task update in Overview timeline...");
       loadTasks();
     };
     socket.on('taskUpdated', onTaskUpdated);
@@ -338,13 +337,15 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                 <h2 className="text-[20px] font-bold text-[#1A2340] dark:text-white tracking-tight">프로젝트 단계</h2>
                 <p className="text-sm text-slate-400 dark:text-white/40 mt-1">단계별 과제를 완료하면 다음 단계가 열립니다</p>
               </div>
-              <button
-                onClick={() => setIsAiModalOpen(true)}
-                className="bg-[#131C35] hover:bg-[#131C35]/90 transition text-white px-5 py-2.5 rounded-xl text-[13px] font-bold active:scale-95 flex items-center gap-2 shadow-sm"
-              >
-                <Sparkles className="w-4 h-4 text-white" />
-                AI로 단계 추천
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={() => setIsAiModalOpen(true)}
+                  className="bg-[#131C35] hover:bg-[#131C35]/90 transition text-white px-5 py-2.5 rounded-xl text-[13px] font-bold active:scale-95 flex items-center gap-2 shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4 text-white" />
+                  AI로 단계 추천
+                </button>
+              )}
             </div>
 
             {/* Vertical Timeline Nodes: Perfectly aligned side-by-side flex layout */}
@@ -503,8 +504,8 @@ export default function Overview({ projectId, project, members }: OverviewProps)
               {/* COLUMN 1: 할 일 */}
               <div
                 className="bg-[#F8FAFC] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-slate-100 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'TODO')}
+                onDragOver={(e) => !isReadOnly && e.preventDefault()}
+                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'TODO')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -523,6 +524,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                       <TaskCard
                         key={task.id}
                         task={task}
+                        isReadOnly={isReadOnly}
                         onDragStart={() => setDraggedTaskId(task.id)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
@@ -534,23 +536,25 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                 </div>
 
                 {/* Quick Add Form */}
-                <div className="relative mt-auto">
-                  <input
-                    type="text"
-                    value={newTodoTitle}
-                    onChange={(e) => setNewTodoTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newTodoTitle, 'TODO')}
-                    placeholder="+ 새 과제 추가..."
-                    className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
-                  />
-                </div>
+                {!isReadOnly && (
+                  <div className="relative mt-auto">
+                    <input
+                      type="text"
+                      value={newTodoTitle}
+                      onChange={(e) => setNewTodoTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newTodoTitle, 'TODO')}
+                      placeholder="+ 새 과제 추가..."
+                      className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* COLUMN 2: 진행 중 */}
               <div
                 className="bg-[#FFFDF5] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-amber-100/40 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'IN_PROGRESS')}
+                onDragOver={(e) => !isReadOnly && e.preventDefault()}
+                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'IN_PROGRESS')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -569,6 +573,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                       <TaskCard
                         key={task.id}
                         task={task}
+                        isReadOnly={isReadOnly}
                         onDragStart={() => setDraggedTaskId(task.id)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
@@ -580,23 +585,25 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                 </div>
 
                 {/* Quick Add Form */}
-                <div className="relative mt-auto">
-                  <input
-                    type="text"
-                    value={newInProgressTitle}
-                    onChange={(e) => setNewInProgressTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newInProgressTitle, 'IN_PROGRESS')}
-                    placeholder="+ 새 과제 추가..."
-                    className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-amber-400 transition-all font-semibold placeholder-gray-400 shadow-sm"
-                  />
-                </div>
+                {!isReadOnly && (
+                  <div className="relative mt-auto">
+                    <input
+                      type="text"
+                      value={newInProgressTitle}
+                      onChange={(e) => setNewInProgressTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newInProgressTitle, 'IN_PROGRESS')}
+                      placeholder="+ 새 과제 추가..."
+                      className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-amber-400 transition-all font-semibold placeholder-gray-400 shadow-sm"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* COLUMN 3: 완료 */}
               <div
                 className="bg-[#F4FDF9] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-emerald-100/40 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'DONE')}
+                onDragOver={(e) => !isReadOnly && e.preventDefault()}
+                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'DONE')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -615,6 +622,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                       <TaskCard
                         key={task.id}
                         task={task}
+                        isReadOnly={isReadOnly}
                         onDragStart={() => setDraggedTaskId(task.id)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
@@ -626,16 +634,18 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                 </div>
 
                 {/* Quick Add Form */}
-                <div className="relative mt-auto">
-                  <input
-                    type="text"
-                    value={newDoneTitle}
-                    onChange={(e) => setNewDoneTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newDoneTitle, 'DONE')}
-                    placeholder="+ 새 과제 추가..."
-                    className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
-                  />
-                </div>
+                {!isReadOnly && (
+                  <div className="relative mt-auto">
+                    <input
+                      type="text"
+                      value={newDoneTitle}
+                      onChange={(e) => setNewDoneTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newDoneTitle, 'DONE')}
+                      placeholder="+ 새 과제 추가..."
+                      className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
+                    />
+                  </div>
+                )}
               </div>
 
             </div>
@@ -737,25 +747,28 @@ interface TaskCardProps {
   onDragStart: () => void;
   onDelete: () => void;
   onStatusChange: (status: 'TODO' | 'IN_PROGRESS' | 'DONE') => void;
+  isReadOnly?: boolean;
 }
 
-function TaskCard({ task, onDragStart, onDelete, onStatusChange }: TaskCardProps) {
+function TaskCard({ task, onDragStart, onDelete, onStatusChange, isReadOnly }: TaskCardProps) {
   // Strip stage tag from showing in title for ultra-clean look
   const cleanTitle = task.title.replace(/\[\d+단계\]/g, '').trim();
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      className="bg-white dark:bg-[#12182B] border border-gray-200/60 dark:border-white/5 rounded-2xl p-4 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all select-none group relative"
+      draggable={!isReadOnly}
+      onDragStart={!isReadOnly ? onDragStart : undefined}
+      className={`bg-white dark:bg-[#12182B] border border-gray-200/60 dark:border-white/5 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all select-none group relative ${!isReadOnly ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       {/* Delete button (shows on hover) */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="absolute top-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 rounded-lg"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {!isReadOnly && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="absolute top-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 rounded-lg"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {/* Tags & Meta */}
       <div className="flex items-center gap-2 mb-2">
@@ -783,32 +796,34 @@ function TaskCard({ task, onDragStart, onDelete, onStatusChange }: TaskCardProps
 
       {/* Bottom controls / Status quick click indicators */}
       <div className="flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-3 mt-3">
-        <div className="flex items-center gap-1">
-          {task.status !== 'TODO' && (
-            <button
-              onClick={() => onStatusChange('TODO')}
-              className="text-[10px] font-bold text-gray-400 hover:text-gray-600 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 px-2 py-1 rounded"
-            >
-              대기
-            </button>
-          )}
-          {task.status !== 'IN_PROGRESS' && (
-            <button
-              onClick={() => onStatusChange('IN_PROGRESS')}
-              className="text-[10px] font-bold text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 px-2 py-1 rounded"
-            >
-              진행
-            </button>
-          )}
-          {task.status !== 'DONE' && (
-            <button
-              onClick={() => onStatusChange('DONE')}
-              className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 px-2 py-1 rounded"
-            >
-              완료
-            </button>
-          )}
-        </div>
+        {!isReadOnly ? (
+          <div className="flex items-center gap-1">
+            {task.status !== 'TODO' && (
+              <button
+                onClick={() => onStatusChange('TODO')}
+                className="text-[10px] font-bold text-gray-400 hover:text-gray-600 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 px-2 py-1 rounded"
+              >
+                대기
+              </button>
+            )}
+            {task.status !== 'IN_PROGRESS' && (
+              <button
+                onClick={() => onStatusChange('IN_PROGRESS')}
+                className="text-[10px] font-bold text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 px-2 py-1 rounded"
+              >
+                진행
+              </button>
+            )}
+            {task.status !== 'DONE' && (
+              <button
+                onClick={() => onStatusChange('DONE')}
+                className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 px-2 py-1 rounded"
+              >
+                완료
+              </button>
+            )}
+          </div>
+        ) : <div />}
 
         {/* Date or calendar indicator */}
         {task.deadline && (
