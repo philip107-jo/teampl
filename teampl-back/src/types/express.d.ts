@@ -6,6 +6,9 @@ declare global {
       user?: {
         id: string;
         email: string;
+        name?: string;
+        isUnivVerified?: boolean;
+        msRefreshToken?: string | null;
       };
     }
   }

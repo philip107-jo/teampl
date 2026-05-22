@@ -82,7 +82,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
-  const [projectStats, setProjectStats] = useState<any>(null);
+
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createModalConfig, setCreateModalConfig] = useState<{ stageId: number } | null>(null);
   const [submitTask, setSubmitTask] = useState<Task | null>(null);
@@ -105,8 +105,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps) {
         setMembers([{ id: user?.id || 1, name: user?.name || "나", avatarColor: "bg-[#11B886]", email: user?.email }]);
       }
 
-      const statsData = await projectApi.getProjectStats(numProjectId);
-      setProjectStats(statsData);
+
     } catch(err) {
       console.error(err);
     } finally {
@@ -364,7 +363,7 @@ export default function Tasks({ projectId: propProjectId }: TasksProps) {
                               <div className="flex flex-col gap-1 min-w-0">
                                 <div className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-white/30 font-medium">
                                   <CalendarIcon className="w-3 h-3" />
-                                  <span>마감: {task.deadline ? task.deadline.slice(5) : "없음"}</span>
+                                  <span>마감: {task.deadline && task.deadline !== "마감일 없음" ? task.deadline.slice(5) : "없음"}</span>
                                 </div>
                                 <span className="text-[11px] font-bold text-gray-500 dark:text-white/50 truncate">
                                   담당: {task.assignees?.map(email => getMemberName(email)).join(', ') || "미지정"}

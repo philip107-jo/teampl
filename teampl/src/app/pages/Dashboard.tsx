@@ -18,7 +18,7 @@ export default function Dashboard() {
   
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [projectStats, setProjectStats] = useState<any[]>([]);
+
 
   useEffect(() => {
     const fetchData = () => {
@@ -47,20 +47,15 @@ export default function Dashboard() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // 선택된 프로젝트의 Task 및 Stats를 가져오기
+  // 선택된 프로젝트의 Task를 가져오기
   useEffect(() => {
     if (!selectedProject) { 
       setTasks([]); 
-      setProjectStats([]);
       return; 
     }
-    Promise.all([
-      taskApi.getTasks(selectedProject.id).catch(() => []),
-      projectApi.getProjectStats(selectedProject.id).catch(() => [])
-    ]).then(([fetchedTasks, fetchedStats]) => {
-      setTasks(fetchedTasks);
-      setProjectStats(fetchedStats);
-    });
+    taskApi.getTasks(selectedProject.id)
+      .then(setTasks)
+      .catch(() => setTasks([]));
   }, [selectedProject]);
 
   // Dynamic calculations based on real mock data
@@ -181,8 +176,8 @@ export default function Dashboard() {
 
       <div className="section-head">
         <div className="section-title-wrap">
-          <div className="section-kicker">↗ 팀 기여 분석</div>
-          <div className="section-sub">팀원별 활동 내역과 기여도를 확인하세요</div>
+          <div className="section-kicker">↗ 프로젝트 팀원</div>
+          <div className="section-sub">프로젝트를 함께하는 팀원 목록입니다</div>
         </div>
 
         <button 
@@ -218,27 +213,31 @@ export default function Dashboard() {
         <article className="card analysis-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="analysis-title !mb-0">
-              <span className="analysis-dot"></span> 팀원별 기여도
+              <span className="analysis-dot"></span> 프로젝트 팀원
             </h3>
           </div>
 
-          <div className="contribution-list">
+          <div className="contribution-list space-y-4">
             {displayMembers.map((member: any, idx: number) => {
-              const stats = projectStats.find(s => s.email === member.email) || { score: 0, completed: 0, total: 0 };
-              const memberTasks = stats.total || 0;
-              const percent = stats.score || 0;
-              const colors = ['purple', 'green', 'orange', 'red'];
               return (
-                <div key={member.id} className="member-row">
-                  <div className="member-meta">
-                    <span className="member-name truncate max-w-[80px]">{member.name}</span>
-                    <span className="member-count">{memberTasks}건 / {percent}점</span>
-                    {member.role === 'LEADER' && (
-                      <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)] flex-shrink-0" />
-                    )}
+                <div key={member.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-white/5 last:border-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#11B886]/10 text-[#11B886] flex items-center justify-center font-bold text-sm">
+                      {member.name?.[0] || 'U'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[14px] font-black text-[#1A2340] dark:text-white">{member.name}</span>
+                        {member.role === 'LEADER' && (
+                          <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)]" />
+                        )}
+                      </div>
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/30">{member.email}</p>
+                    </div>
                   </div>
-                  <div className="member-percent">{percent}%</div>
-                  <div className={`bar ${colors[idx % 4]}`}><span style={{ width: `${percent}%` }}></span></div>
+                  <span className="px-2.5 py-1 bg-gray-100 dark:bg-white/5 rounded-lg text-[11px] font-bold text-gray-500 dark:text-white/40">
+                    {member.role === 'LEADER' ? '팀장' : '팀원'}
+                  </span>
                 </div>
               );
             })}

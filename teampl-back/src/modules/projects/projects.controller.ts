@@ -5,19 +5,6 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { prisma } from '../../prisma';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        email: string;
-        name: string;
-        isUnivVerified?: boolean;
-        msRefreshToken?: string | null;
-      };
-    }
-  }
-}
 
 interface UserWithMS {
     id: string;
@@ -177,15 +164,7 @@ router.delete('/:id/delete-alert', async (req, res) => {
 
 
 // GET /api/projects/:id/stats
-router.get('/:id/stats', async (req, res) => {
-    const projectId = parseInt(req.params.id, 10);
-    try {
-        const stats = await ProjectsService.getStats(projectId);
-        res.json(stats);
-    } catch (e: any) {
-        res.status(500).json({ message: e.message });
-    }
-});
+
 
 // POST /api/projects/:id/ai/split-tasks
 router.post('/:id/ai/split-tasks', async (req, res) => {

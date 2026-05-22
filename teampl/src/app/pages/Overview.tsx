@@ -180,7 +180,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
     } else {
       // Lock shake feedback
       setShakingStageId(stageId);
-      showToast('이전 단계를 100% 완료하면 열립니다 🔒', 'warning');
+      showToast('이전 단계를 100% 완료하면 열립니다 🔒', 'info');
       setTimeout(() => setShakingStageId(null), 500);
     }
   };
@@ -539,7 +539,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                     type="text"
                     value={newTodoTitle}
                     onChange={(e) => setNewTodoTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newTodoTitle, 'TODO')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newTodoTitle, 'TODO')}
                     placeholder="+ 새 과제 추가..."
                     className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
                   />
@@ -585,7 +585,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                     type="text"
                     value={newInProgressTitle}
                     onChange={(e) => setNewInProgressTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newInProgressTitle, 'IN_PROGRESS')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newInProgressTitle, 'IN_PROGRESS')}
                     placeholder="+ 새 과제 추가..."
                     className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-amber-400 transition-all font-semibold placeholder-gray-400 shadow-sm"
                   />
@@ -631,7 +631,7 @@ export default function Overview({ projectId, project, members }: OverviewProps)
                     type="text"
                     value={newDoneTitle}
                     onChange={(e) => setNewDoneTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage.id, newDoneTitle, 'DONE')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateTask(selectedStage?.id || 1, newDoneTitle, 'DONE')}
                     placeholder="+ 새 과제 추가..."
                     className="w-full bg-white dark:bg-[#12182B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all font-semibold placeholder-gray-400 shadow-sm"
                   />
