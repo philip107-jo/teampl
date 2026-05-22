@@ -149,11 +149,15 @@ export default function Layout() {
       <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-6 py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
           <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
-                <div className="w-9 h-9 bg-[#11B886] rounded-[10px] flex items-center justify-center text-white font-black shadow-lg shadow-[#11B886]/20">
-                  <Users className="w-5 h-5" />
-                </div>
-                <h1 className="text-lg font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
+              <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
+                <img 
+                  src="https://obj-e-1.ktcloud.com/teampl/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png" 
+                  onError={(e) => { e.currentTarget.src = "/logo.png"; }}
+                  alt="Teampl Logo" 
+                  className="object-contain"
+                  style={{ width: "52px", height: "52px" }}
+                />
+                <h1 className="text-xl font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
               </div>
 
               {/* Desktop Global Navigation */}

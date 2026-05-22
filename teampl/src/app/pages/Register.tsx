@@ -1,6 +1,22 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { UserPlus, Mail, Lock, User as UserIcon, GraduationCap, Building2, ChevronDown, CheckCircle2, ArrowRight, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { 
+  UserPlus, 
+  Mail, 
+  Lock, 
+  User as UserIcon, 
+  GraduationCap, 
+  Building2, 
+  ChevronDown, 
+  CheckCircle2, 
+  ArrowRight, 
+  ArrowLeft,
+  Loader2, 
+  AlertCircle, 
+  Sparkles,
+  Eye,
+  EyeOff
+} from "lucide-react";
 import { authApi } from "../api/authApi";
 import { useToast } from "../context/ToastContext";
 
@@ -13,6 +29,7 @@ const DEPARTMENTS = [
 ];
 
 export default function Register() {
+  const [step, setStep] = useState(1); // 1: 기본정보, 2: 비밀번호
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -22,15 +39,48 @@ export default function Register() {
     department: "",
   });
   const [isDeptOpen, setIsDeptOpen] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const handleNextStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      setError("이름을 입력해주세요.");
+      return;
+    }
+    if (!formData.studentId.trim()) {
+      setError("학번을 입력해주세요.");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setError("이메일을 입력해주세요.");
+      return;
+    }
+    if (!formData.department) {
+      setError("학과를 선택해주세요.");
+      return;
+    }
+    setError("");
+    setStep(2);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.password.length < 4) {
+      setError("비밀번호는 최소 4자 이상이어야 합니다.");
+      return;
+    }
     if (formData.password !== formData.passwordConfirm) {
       setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    if (!agreeTerms) {
+      setError("이용약관 및 개인정보처리방침 동의에 체크해주세요.");
       return;
     }
     setError("");
@@ -52,178 +102,279 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] relative overflow-hidden py-12 px-6">
-      {/* Background Decorative Soft Blobs */}
-      <div className="absolute top-[-5%] right-[-5%] w-[50%] h-[50%] bg-indigo-100/40 rounded-full blur-[100px]"></div>
-      <div className="absolute bottom-[-5%] left-[-5%] w-[50%] h-[50%] bg-blue-50/40 rounded-full blur-[100px]"></div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] py-12 px-6 font-sans relative overflow-hidden">
+      {/* Soft Background Blobs */}
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#11B886]/5 rounded-full blur-[120px]"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#1A2340]/5 rounded-full blur-[120px]"></div>
 
-      <div className="w-full max-w-2xl relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold text-[#1A2340] tracking-tight">계정 생성</h1>
-          <div className="flex items-center justify-center mt-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50/50 border border-indigo-100/50 backdrop-blur-sm shadow-sm">
-              <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
-              <span className="text-[13px] font-bold text-[#7D879C]">
-                더 나은 팀 협업 시스템, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-black tracking-tight">Teampl</span>
+      <div className="w-full max-w-[520px] relative z-10 animate-in fade-in zoom-in-95 duration-500 space-y-8">
+        
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Teampl 회원가입</h1>
+          <p className="text-sm font-semibold text-slate-400">신입생도 쉽게 가입하고 팀플을 시작하세요</p>
+        </div>
+
+        {/* Form Container Card */}
+        <div className="bg-white rounded-[32px] p-8 sm:p-10 border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-8">
+          
+          {/* Step Progress Indicators */}
+          <div className="flex items-center justify-center gap-6 max-w-xs mx-auto">
+            {/* Step 1 indicator */}
+            <div className="flex items-center gap-2">
+              <div 
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all ${
+                  step > 1 
+                    ? "bg-[#11B886] text-white shadow-md shadow-[#11B886]/10" 
+                    : "bg-[#11B886] text-white ring-4 ring-[#11B886]/10"
+                }`}
+              >
+                {step > 1 ? "✓" : "1"}
+              </div>
+              <span className={`text-sm font-bold transition-colors ${step === 1 ? "text-slate-900" : "text-slate-400"}`}>
+                기본정보
+              </span>
+            </div>
+
+            {/* Connecting line */}
+            <div className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${step > 1 ? "bg-[#11B886]" : "bg-slate-100"}`}></div>
+
+            {/* Step 2 indicator */}
+            <div className="flex items-center gap-2">
+              <div 
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all ${
+                  step === 2 
+                    ? "bg-[#11B886] text-white ring-4 ring-[#11B886]/10" 
+                    : "bg-slate-100 text-slate-400"
+                }`}
+              >
+                2
+              </div>
+              <span className={`text-sm font-bold transition-colors ${step === 2 ? "text-slate-900" : "text-slate-400"}`}>
+                비밀번호
               </span>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white/80 backdrop-blur-2xl rounded-[48px] p-10 border border-white shadow-2xl shadow-gray-200/50">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            
-            {error && (
-              <div className="md:col-span-2 bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-red-600 text-sm animate-in slide-in-from-top-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p className="font-medium">{error}</p>
-              </div>
-            )}
-
-            {/* Name */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">이름</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <UserIcon className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
-                </div>
-                <input
-                  type="text"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="홍길동"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
+          {/* Form Action Wrapper */}
+          {error && (
+            <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-red-600 text-sm animate-in slide-in-from-top-2">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="font-semibold">{error}</p>
             </div>
+          )}
 
-            {/* Student ID */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">학번</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <GraduationCap className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
+          {step === 1 ? (
+            /* ================= STEP 1: 기본정보 ================= */
+            <form onSubmit={handleNextStep} className="space-y-5 animate-in fade-in duration-300">
+              
+              {/* Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 ml-1">이름</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <UserIcon className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                    placeholder="홍길동"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
                 </div>
-                <input
-                  type="text"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="20240001"
-                  value={formData.studentId}
-                  onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                />
               </div>
-            </div>
 
-            {/* Email */}
-            <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">이메일 주소</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
+              {/* Email */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 ml-1">이메일 주소</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                    placeholder="name@university.ac.kr"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
-                <input
-                  type="email"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="name@university.ac.kr"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
               </div>
-            </div>
 
-            {/* Department */}
-            <div className="md:col-span-2 space-y-2 relative">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">학과</label>
+              {/* Student ID */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 ml-1">학번</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <GraduationCap className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                    placeholder="20240001"
+                    value={formData.studentId}
+                    onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Department Select */}
+              <div className="space-y-2 relative">
+                <label className="text-sm font-bold text-slate-700 ml-1">학과</label>
+                <button
+                  type="button"
+                  onClick={() => setIsDeptOpen(!isDeptOpen)}
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-left flex items-center justify-between group hover:border-[#11B886] focus:ring-4 focus:ring-[#11B886]/10 focus:bg-white transition-all outline-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-5 h-5 text-slate-400 group-hover:text-[#11B886] transition-colors" />
+                    <span className={`text-sm font-semibold ${formData.department ? "text-slate-900" : "text-slate-400"}`}>
+                      {formData.department || "소속 학과를 선택해주세요"}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isDeptOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isDeptOpen && (
+                  <div className="absolute z-50 mt-2 w-full max-h-56 overflow-y-auto bg-white border border-slate-100 rounded-2xl shadow-xl p-2 animate-in fade-in zoom-in-95 duration-200 scrollbar-hide">
+                    {DEPARTMENTS.map((dept) => (
+                      <button
+                        key={dept}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, department: dept });
+                          setIsDeptOpen(false);
+                          setError("");
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-emerald-50 hover:text-[#11B886] rounded-xl transition-colors flex items-center justify-between group"
+                      >
+                        {dept}
+                        {formData.department === dept && <CheckCircle2 className="w-4.5 h-4.5 text-[#11B886]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Next Button */}
               <button
-                type="button"
-                onClick={() => setIsDeptOpen(!isDeptOpen)}
-                className="w-full px-5 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-left flex items-center justify-between group hover:border-indigo-200 transition-all"
+                type="submit"
+                className="w-full py-4 mt-6 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-bold shadow-lg shadow-[#11B886]/15 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 group cursor-pointer"
               >
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-[#7D879C]/80 group-hover:text-indigo-600 transition-colors" />
-                  <span className={formData.department ? "text-[#1A2340] font-medium" : "text-[#7D879C]/80"}>
-                    {formData.department || "소속 학과를 선택해주세요"}
-                  </span>
-                </div>
-                <ChevronDown className={`w-5 h-5 text-[#7D879C]/80 transition-transform duration-300 ${isDeptOpen ? "rotate-180" : ""}`} />
+                다음 단계로
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
 
-              {isDeptOpen && (
-                <div className="absolute z-50 mt-2 w-full max-h-64 overflow-y-auto bg-white border border-gray-100 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-200 scrollbar-hide">
-                  {DEPARTMENTS.map((dept) => (
-                    <button
-                      key={dept}
-                      type="button"
-                      onClick={() => {
-                        setFormData({ ...formData, department: dept });
-                        setIsDeptOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm text-[#7D879C] hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-colors flex items-center justify-between group"
-                    >
-                      {dept}
-                      {formData.department === dept && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
-                    </button>
-                  ))}
+            </form>
+          ) : (
+            /* ================= STEP 2: 비밀번호 ================= */
+            <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-300">
+              
+              {/* Password */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 ml-1">비밀번호</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                    placeholder="4자 이상 입력"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">비밀번호</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
-                </div>
-                <input
-                  type="password"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
+                <p className="text-[11px] font-semibold text-slate-400 ml-1">4자 이상, 영문+숫자 조합 권장</p>
               </div>
-            </div>
 
-            {/* Password Confirm */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#7D879C] ml-1">비밀번호 확인</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-[#7D879C]/80 group-focus-within:text-indigo-600 transition-colors" />
+              {/* Password Confirm */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 ml-1">비밀번호 확인</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                  </div>
+                  <input
+                    type={showPasswordConfirm ? "text" : "password"}
+                    required
+                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                    placeholder="비밀번호 재입력"
+                    value={formData.passwordConfirm}
+                    onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPasswordConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-                <input
-                  type="password"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-[#1A2340] placeholder:text-[#7D879C]/80 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="••••••••"
-                  value={formData.passwordConfirm}
-                  onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
-                />
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="md:col-span-2 w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 text-[#1A2340] dark:text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "회원가입 완료"}
-              {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
-            </button>
-          </form>
+              {/* Agreement */}
+              <label className="flex items-start gap-2.5 text-xs font-semibold text-slate-500 cursor-pointer select-none leading-normal">
+                <input
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  className="w-4.5 h-4.5 rounded border-slate-300 text-[#11B886] focus:ring-[#11B886] transition-colors mt-0.5"
+                />
+                <span>이용약관과 개인정보처리방침에 동의합니다.</span>
+              </label>
 
-          <p className="text-center mt-10 text-sm text-[#7D879C]">
-            이미 계정이 있으신가요?{" "}
-            <Link to="/login" className="text-indigo-600 font-bold hover:underline transition-all">
-              로그인하기
-            </Link>
-          </p>
+              {/* Control Buttons */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-1/3 py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200/80 rounded-2xl font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4.5 h-4.5" />
+                  이전
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-2/3 py-4 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-bold shadow-lg shadow-[#11B886]/15 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      회원가입 완료
+                      <UserPlus className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+          )}
+
         </div>
+
+        {/* Bottom Navigation */}
+        <p className="text-center text-sm font-semibold text-slate-400">
+          이미 계정이 있으신가요?{" "}
+          <Link to="/login" className="text-[#11B886] font-bold hover:underline transition-colors">
+            로그인 &rarr;
+          </Link>
+        </p>
+
       </div>
     </div>
   );

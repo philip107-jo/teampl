@@ -11,6 +11,7 @@ import EditProfile from "./pages/EditProfile";
 import Calendar from "./pages/Calendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import JoinProject from "./pages/JoinProject";
+import Landing from "./pages/Landing";
 
 export const router = createBrowserRouter([
   {
@@ -27,13 +28,16 @@ export const router = createBrowserRouter([
   },
   {
     path: "/",
+    Component: Landing,
+  },
+  {
+    path: "/",
     Component: ProtectedRoute,
     children: [
       {
         path: "/",
         Component: Layout,
         children: [
-          { index: true, Component: Projects },
           { path: "projects", Component: Projects },
           { path: "projects/:projectId", Component: ProjectDetails },
           { path: "calendar", Component: Calendar },
