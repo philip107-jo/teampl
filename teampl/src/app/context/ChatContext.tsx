@@ -11,6 +11,7 @@ export interface Message {
   time: string;
   isMe: boolean;
   createdAt?: string;
+  isPinned?: boolean;
 }
 
 interface ChatContextType {

@@ -471,10 +471,6 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
         if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       }
 
-      await chatApi.saveMessage(user!.email, inputText.trim(), {
-        projectId: chatMode === "TEAM" ? projectId : undefined,
-        receiverEmail: chatMode === "INDIVIDUAL" ? selectedMember?.email : undefined
-      });
       socket?.emit('sendMessage', {
         room: chatKey,
         senderEmail: user!.email,

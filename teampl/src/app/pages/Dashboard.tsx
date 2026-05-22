@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Bell, BarChart3, CheckCircle2, AlertCircle, Users2, X, Clock, Database, Zap, Target, Crown, Calendar as CalendarIcon, MessageSquare, FolderOpen } from "lucide-react";
 import { useNavigate } from "react-router";
-import { initialMembers } from "../mockData";
 import { Task } from "../types";
 import { taskApi } from "../api/taskApi";
 import { projectApi } from "../api/projectApi";
