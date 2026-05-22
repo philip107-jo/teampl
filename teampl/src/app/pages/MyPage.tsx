@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { User, Mail, Phone, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, TrendingUp, Star, Plus, MessageSquare } from "lucide-react";
+import { User, Mail, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, Eye, EyeOff, X, Lock } from "lucide-react";
+import { authApi } from "../api/authApi";
+import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router";
 import { useDarkMode } from "../context/DarkModeContext";
@@ -24,7 +26,14 @@ export default function MyPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isDark: darkMode, toggleDark: setDarkModeToggle } = useDarkMode();
-  const [pushNoti, setPushNoti] = useState(false); // Default false
+  const { showToast } = useToast();
+  const [pushNoti, setPushNoti] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     // Check initial subscription status
@@ -87,6 +96,33 @@ export default function MyPage() {
     navigate("/login");
   };
 
+  const handleChangePassword = async () => {
+    if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) {
+      showToast('모든 항목을 입력해주세요.', 'error');
+      return;
+    }
+    if (pwForm.newPw.length < 6) {
+      showToast('새 비밀번호는 6자 이상이어야 합니다.', 'error');
+      return;
+    }
+    if (pwForm.newPw !== pwForm.confirm) {
+      showToast('새 비밀번호가 일치하지 않습니다.', 'error');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      await authApi.changePassword(pwForm.current, pwForm.newPw);
+      showToast('비밀번호가 성공적으로 변경되었습니다! 다시 로그인해주세요.', 'success');
+      setIsPasswordModalOpen(false);
+      setPwForm({ current: '', newPw: '', confirm: '' });
+      setTimeout(() => { logout(); navigate('/login'); }, 1500);
+    } catch (e: any) {
+      showToast(e.response?.data?.message || '비밀번호 변경에 실패했습니다.', 'error');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
   return (
     <div className="dashboard pt-4 lg:max-w-6xl lg:mx-auto">
       {/* Header */}
@@ -101,9 +137,9 @@ export default function MyPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-24">
+      <div className="pb-24">
         {/* Main Content */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="space-y-8">
           {/* Profile Card */}
           <div className="card !p-10 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden group transition-all !rounded-[40px] border border-gray-200 dark:border-white/5">
             <div className={`absolute top-0 right-0 w-48 h-48 bg-[#11B886]/10 rounded-bl-full -z-10 opacity-50 blur-3xl group-hover:scale-110 transition-transform duration-700`}></div>
@@ -217,7 +253,9 @@ export default function MyPage() {
 
               {/* Security / Logout */}
               <div className="card !p-6 border border-gray-200 dark:border-white/5 space-y-4">
-                <button className="w-full flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-lg transition-all group">
+                <button
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="w-full flex items-center justify-between p-5 bg-white/40 dark:bg-[#1A2340] rounded-[24px] border border-gray-200 dark:border-white/5 hover:bg-white/50 dark:bg-[#222E54] hover:shadow-lg transition-all group">
                   <div className="flex items-center gap-5 text-[#7D879C] dark:text-white/80 font-black uppercase tracking-widest text-[13px]">
                     <Shield className="w-5 h-5 text-[#7D879C]/80 dark:text-white/40 group-hover:text-[#11B886] transition-colors" />
                     보안 및 비밀번호 변경
@@ -237,69 +275,70 @@ export default function MyPage() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Team Performance Summary */}
-          <div className="card !p-10 border border-gray-200 dark:border-white/5 group hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all">
-            <div className="flex items-center gap-4 mb-10">
-              <div className="schedule-item purple !p-0 !border-none bg-transparent">
-                <div className="schedule-icon" style={{ width: 48, height: 48, borderRadius: 14 }}>
-                  <TrendingUp className="w-6 h-6 text-[#1A2340] dark:text-white" />
+      {/* 비밀번호 변경 모달 */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xl">
+          <div className="bg-white dark:bg-[#132038] rounded-[32px] shadow-2xl border border-gray-200 dark:border-white/10 w-full max-w-md p-8">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#11B886]/10 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-[#11B886]" />
                 </div>
+                <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white">비밀번호 변경</h2>
               </div>
-              <h2 className="text-[18px] font-black text-[#1A2340] dark:text-white tracking-tight uppercase tracking-widest">팀 성과 요약</h2>
+              <button onClick={() => { setIsPasswordModalOpen(false); setPwForm({ current: '', newPw: '', confirm: '' }); }} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-all">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
             </div>
-            <div className="space-y-8">
-              <div className="flex justify-between items-center group/item cursor-default">
-                <div className="space-y-1">
-                  <span className="hero-meta">이번 주 활동률</span>
-                  <div className="w-32 bg-white dark:bg-[#12182B] h-1.5 rounded-full overflow-hidden mt-1.5 border border-gray-200 dark:border-white/5">
-                    <div className="bg-[#23D7A1] h-full rounded-full shadow-[0_0_10px_rgba(35,215,161,0.5)]" style={{ width: '85%' }}></div>
-                  </div>
-                </div>
-                <span className="text-[20px] font-black text-[#23D7A1] drop-shadow-[0_0_8px_rgba(35,215,161,0.4)]">+12.5%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="hero-meta">평균 응답 시간</span>
-                <span className="text-[20px] font-black text-[#1A2340] dark:text-white tracking-tight">2.5 H</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="hero-meta">완료된 마일스톤</span>
-                <span className="text-[20px] font-black text-[#1A2340] dark:text-white tracking-tight">18 / 24</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="hero-meta">팀 만족도</span>
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#FFB547]/10 rounded-xl border border-[#FFB547]/20">
-                  <Star className="w-5 h-5 text-[#FFB547] fill-[#FFB547]" />
-                  <span className="text-[18px] font-black text-[#FFB547] drop-shadow-[0_0_8px_rgba(255,181,71,0.4)]">4.8</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Quick Actions Card */}
-          <div className="card !p-10 border border-[#11B886]/30 bg-gradient-to-br from-[#12182B] to-[#1A2340] text-[#1A2340] dark:text-white space-y-8 relative overflow-hidden group shadow-[0_0_30px_rgba(17,184,134,0.15)]">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#11B886]/20 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
-            <h2 className="text-[18px] font-black tracking-tight uppercase tracking-widest relative z-10 text-[#11B886]">빠른 업무 생산</h2>
-            <div className="space-y-3 relative z-10">
+            {/* 입력 필드 */}
+            <div className="space-y-4">
               {[
-                { label: "새 팀원 초대하기", icon: Plus },
-                { label: "전체 공지 메시지", icon: MessageSquare },
-                { label: "성과 리포트 익스포트", icon: TrendingUp },
-              ].map((action, i) => (
-                <button key={i} className="w-full flex items-center justify-between p-5 bg-white dark:bg-[#12182B]/80 hover:bg-[#11B886]/10 rounded-[20px] transition-all text-left group/btn border border-gray-200 dark:border-white/5 hover:border-[#11B886]/30 active:scale-95 shadow-lg">
-                  <div className="flex items-center gap-4">
-                    <action.icon className="w-5 h-5 text-[#7D879C] dark:text-white/50 group-hover/btn:text-[#11B886] group-hover/btn:scale-110 transition-all" />
-                    <span className="text-[14px] font-black uppercase tracking-widest text-[#7D879C] dark:text-white/80 group-hover/btn:text-[#1A2340] dark:text-white">{action.label}</span>
+                { label: '현재 비밀번호', key: 'current', show: showCurrent, toggle: () => setShowCurrent(v => !v) },
+                { label: '새 비밀번호 (6자 이상)', key: 'newPw', show: showNew, toggle: () => setShowNew(v => !v) },
+                { label: '새 비밀번호 확인', key: 'confirm', show: showConfirm, toggle: () => setShowConfirm(v => !v) },
+              ].map(({ label, key, show, toggle }) => (
+                <div key={key}>
+                  <label className="text-[11px] font-black text-[#7D879C] dark:text-white/40 uppercase tracking-widest mb-2 block">{label}</label>
+                  <div className="relative">
+                    <input
+                      type={show ? 'text' : 'password'}
+                      value={pwForm[key as keyof typeof pwForm]}
+                      onChange={e => setPwForm(prev => ({ ...prev, [key]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
+                      className="w-full px-4 py-3.5 pr-12 bg-gray-50 dark:bg-[#1A2340] border border-gray-200 dark:border-white/10 rounded-2xl text-[14px] font-semibold text-[#1A2340] dark:text-white outline-none focus:border-[#11B886] transition-all placeholder-gray-300 dark:placeholder-white/20"
+                      placeholder={label}
+                    />
+                    <button type="button" onClick={toggle} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#11B886] transition-colors">
+                      {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300 dark:text-white/20 group-hover/btn:text-[#11B886] group-hover/btn:translate-x-1 transition-all" />
-                </button>
+                </div>
               ))}
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => { setIsPasswordModalOpen(false); setPwForm({ current: '', newPw: '', confirm: '' }); }}
+                className="flex-1 py-3.5 rounded-2xl border border-gray-200 dark:border-white/10 text-[14px] font-black text-gray-500 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={pwLoading}
+                className="flex-1 py-3.5 rounded-2xl bg-[#11B886] text-white text-[14px] font-black hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(17,184,134,0.35)] disabled:opacity-50"
+              >
+                {pwLoading ? '변경 중...' : '비밀번호 변경'}
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

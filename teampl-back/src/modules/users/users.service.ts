@@ -17,4 +17,11 @@ export const UsersService = {
     });
   },
 
+  changePassword: async (id: string, hashedPassword: string) => {
+    return await prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword }
+    });
+  },
+
 };

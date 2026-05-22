@@ -8,6 +8,7 @@ interface ToastMessage {
   id: string;
   message: string;
   type: ToastType;
+  shakeKey?: number;
 }
 
 interface ToastContextType {
@@ -20,13 +21,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    // 3.5초 뒤 자동 삭제
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
+    // 같은 메시지가 이미 떠 있으면 shake만 시키고 중복 추가 안 함
+    setToasts((prev) => {
+      const existing = prev.find((t) => t.message === message && t.type === type);
+      if (existing) {
+        return prev.map((t) =>
+          t.id === existing.id ? { ...t, shakeKey: (t.shakeKey ?? 0) + 1 } : t
+        );
+      }
+      const id = Math.random().toString(36).substring(2, 9);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 3500);
+      return [...prev, { id, message, type, shakeKey: 0 }];
+    });
   }, []);
 
   const removeToast = (id: string) => {
@@ -43,7 +51,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <motion.div
               key={toast.id}
               initial={{ opacity: 0, y: -30, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              animate={{
+                opacity: 1, y: 0, scale: 1,
+                x: toast.shakeKey && toast.shakeKey > 0
+                  ? [0, -10, 10, -8, 8, -4, 4, 0]
+                  : 0
+              }}
               exit={{ opacity: 0, y: -20, scale: 0.9 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={`

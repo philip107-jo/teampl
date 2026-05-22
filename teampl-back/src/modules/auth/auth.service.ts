@@ -45,5 +45,23 @@ export const AuthService = {
         
         const { password: _, ...userWithoutPassword } = user;
         return { user: userWithoutPassword, token };
+    },
+
+    changePassword: async (userId: string, currentPassword: string, newPassword: string) => {
+        const user = await UsersService.findById(userId);
+        if (!user) {
+            throw new UnauthorizedError('사용자를 찾을 수 없습니다.');
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            throw new UnauthorizedError('현재 비밀번호가 일치하지 않습니다.');
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        await UsersService.changePassword(userId, hashedPassword);
+
+        return { message: '비밀번호가 성공적으로 변경되었습니다.' };
     }
 }
