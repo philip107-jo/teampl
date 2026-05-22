@@ -110,5 +110,12 @@ export const ChatService = {
       update: { lastReadMsgId },
       create: { userEmail, roomKey, lastReadMsgId }
     });
+  },
+
+  updatePin: async (messageId: number, isPinned: boolean) => {
+    return await prisma.message.update({
+      where: { id: messageId },
+      data: { isPinned }
+    });
   }
 };

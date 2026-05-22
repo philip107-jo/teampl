@@ -85,4 +85,23 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
+router.post('/messages/:id/pin', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const { isPinned, roomKey } = req.body; // roomKey to broadcast
+        const message = await ChatService.updatePin(id, isPinned);
+        
+        if (roomKey) {
+            getIo().to(roomKey).emit('messagePinned', {
+                messageId: id,
+                isPinned,
+                roomKey
+            });
+        }
+        res.json(message);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 export default router;

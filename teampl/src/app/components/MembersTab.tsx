@@ -7,6 +7,7 @@ import { Crown, CheckCircle2, Clock, Circle, Eye, Mail, GraduationCap, TrendingU
 interface MembersTabProps {
   projectId: number;
   members: any[];
+  isReadOnly?: boolean;
 }
 
 export default function MembersTab({ projectId, members }: MembersTabProps) {

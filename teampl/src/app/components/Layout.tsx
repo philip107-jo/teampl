@@ -13,13 +13,15 @@ import {
   LayoutDashboard,
   FolderKanban,
   LogOut,
-  Bell
+  Bell,
+  Search
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
 import { notificationApi, Notification } from "../api/notificationApi";
 import { useChat } from '../context/ChatContext';
 import Avatar from './Avatar';
+import { useRef } from 'react';
 
 export default function Layout() {
   const location = useLocation();
@@ -34,6 +36,37 @@ export default function Layout() {
 
   // Notifications State
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+
+  // Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState({ messages: [], tasks: [], files: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!projectId || !searchQuery.trim()) {
+       setSearchResults({ messages: [], tasks: [], files: [] });
+       return;
+    }
+    const timer = setTimeout(() => {
+      setIsSearching(true);
+      projectApi.searchProject(Number(projectId), searchQuery)
+        .then((res: any) => setSearchResults(res))
+        .finally(() => setIsSearching(false));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, projectId]);
 
   useEffect(() => {
     if (!user) return;
@@ -147,6 +180,70 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Global Project Search Bar - Only show when inside a project */}
+              {projectId && (
+                <div className="relative hidden md:block" ref={searchRef}>
+                  <div className="relative flex items-center">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3" />
+                    <input 
+                      type="text" 
+                      placeholder="통합 검색 (채팅, 업무, 자료)..." 
+                      className="pl-9 pr-4 py-2 w-[240px] bg-gray-100 dark:bg-white/5 border-transparent focus:border-[#11B886] focus:bg-white dark:focus:bg-[#0d1526] rounded-full text-sm outline-none transition-all dark:text-white"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  
+                  {/* Search Results Dropdown */}
+                  {searchQuery.trim() && (
+                    <div className="absolute right-0 top-12 w-[350px] max-h-[400px] overflow-y-auto bg-white dark:bg-[#132038] rounded-xl shadow-xl border border-gray-100 dark:border-white/10 z-50 p-2 text-sm">
+                      {isSearching ? (
+                        <div className="p-4 text-center text-gray-500">검색 중...</div>
+                      ) : (
+                        <>
+                          {searchResults.tasks.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">할 일</h4>
+                              {searchResults.tasks.map((t: any) => (
+                                <div key={t.id} onClick={() => { setSearchQuery(""); navigate(`/projects/${projectId}?tab=tasks`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer">
+                                  <p className="font-bold text-[#1A2340] dark:text-white truncate">{t.title}</p>
+                                  <p className="text-xs text-gray-500 truncate">{t.description}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {searchResults.messages.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">메시지</h4>
+                              {searchResults.messages.map((m: any) => (
+                                <div key={m.id} onClick={() => { setSearchQuery(""); navigate(`/projects/${projectId}?tab=chat`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer">
+                                  <p className="font-bold text-[#1A2340] dark:text-white">{m.sender.name}</p>
+                                  <p className="text-xs text-gray-500 truncate">{m.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {searchResults.files.length > 0 && (
+                            <div>
+                              <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">자료</h4>
+                              {searchResults.files.map((f: any) => (
+                                <div key={f.id} onClick={() => { setSearchQuery(""); navigate(`/projects/${projectId}?tab=drive`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer flex items-center gap-2">
+                                  <FolderOpen className="w-4 h-4 text-gray-400" />
+                                  <p className="font-bold text-[#1A2340] dark:text-white truncate">{f.name}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {searchResults.tasks.length === 0 && searchResults.messages.length === 0 && searchResults.files.length === 0 && (
+                            <div className="p-4 text-center text-gray-500">검색 결과가 없습니다.</div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate('/notifications')}

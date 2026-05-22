@@ -7,9 +7,10 @@ import { scheduleApi } from "../api/scheduleApi";
 
 interface CalendarProps {
   projectId?: number;
+  isReadOnly?: boolean;
 }
 
-export default function Calendar({ projectId: propProjectId }: CalendarProps = {}) {
+export default function Calendar({ projectId: propProjectId, isReadOnly }: CalendarProps = {}) {
   const { user } = useAuth();
   const params = useParams<{ projectId: string }>();
   const numProjectId = propProjectId || Number(params.projectId);
@@ -125,6 +126,7 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
 
   const handleEventClick = (event: any) => {
     if (String(event.id).startsWith('proj-')) return;
+    if (isReadOnly) return;
     
     setEditingEventId(event.id);
     setFormData({
@@ -175,13 +177,15 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
             {numProjectId ? "일정 관리" : "스케줄러"}
           </h1>
         </div>
-        <button 
-          onClick={openAddModal} 
-          className="flex items-center gap-2 px-5 py-3 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-[16px] text-[14px] font-bold shadow-[0_4px_20px_rgba(17,184,134,0.3)] transition-all hover:scale-[1.03] active:scale-95 border border-[#11B886]/20"
-        >
-          <Plus className="w-5 h-5" />
-          일정 추가
-        </button>
+        {!isReadOnly && (
+          <button 
+            onClick={openAddModal} 
+            className="flex items-center gap-2 px-5 py-3 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-[16px] text-[14px] font-bold shadow-[0_4px_20px_rgba(17,184,134,0.3)] transition-all hover:scale-[1.03] active:scale-95 border border-[#11B886]/20"
+          >
+            <Plus className="w-5 h-5" />
+            일정 추가
+          </button>
+        )}
       </div>
 
       {/* Schedule Cards Container */}
@@ -239,7 +243,7 @@ export default function Calendar({ projectId: propProjectId }: CalendarProps = {
                   </div>
 
                   {/* Right Actions */}
-                  {!isProjectDeadline && (
+                  {!isProjectDeadline && !isReadOnly && (
                     <button 
                       onClick={(e) => handleDirectDelete(e, event)}
                       className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"

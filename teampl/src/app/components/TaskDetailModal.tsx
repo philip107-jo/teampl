@@ -16,9 +16,10 @@ interface TaskDetailModalProps {
   task: Task;
   onClose: () => void;
   onUpdate: () => void;
+  isReadOnly?: boolean;
 }
 
-export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: TaskDetailModalProps) {
+export default function TaskDetailModal({ projectId, task, onClose, onUpdate, isReadOnly }: TaskDetailModalProps) {
   const { user } = useAuth();
   const [description, setDescription] = useState(task.description || "");
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -162,12 +163,14 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
           <section>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[14px] font-black text-[#7D879C] uppercase tracking-widest">상세 설명</h3>
-              {!isEditingDesc ? (
-                <button onClick={() => setIsEditingDesc(true)} className="text-[12px] font-bold text-[#11B886] hover:underline">편집</button>
-              ) : (
-                <button onClick={handleSaveDescription} className="flex items-center gap-1 text-[12px] font-bold text-white bg-[#11B886] px-3 py-1 rounded-full hover:bg-[#11B886]/90">
-                  <Save className="w-3 h-3" /> 저장
-                </button>
+              {!isReadOnly && (
+                !isEditingDesc ? (
+                  <button onClick={() => setIsEditingDesc(true)} className="text-[12px] font-bold text-[#11B886] hover:underline">편집</button>
+                ) : (
+                  <button onClick={handleSaveDescription} className="flex items-center gap-1 text-[12px] font-bold text-white bg-[#11B886] px-3 py-1 rounded-full hover:bg-[#11B886]/90">
+                    <Save className="w-3 h-3" /> 저장
+                  </button>
+                )
               )}
             </div>
             
@@ -192,7 +195,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                 <h3 className="flex items-center gap-2 text-[14px] font-black text-[#7D879C] uppercase tracking-widest">
                   <Paperclip className="w-4 h-4" /> 제출된 산출물 ({task.deliverables?.length || 0}개)
                 </h3>
-                {isSubmitter && (
+                {!isReadOnly && isSubmitter && (
                   <label className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg text-[11px] font-bold cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors">
                     {addingFiles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                     파일 추가
@@ -227,7 +230,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                           >
                             <Download className="w-4 h-4" />
                           </a>
-                          {isSubmitter && (
+                          {!isReadOnly && isSubmitter && (
                             <button
                               onClick={() => handleDeleteDeliverable(deliverable)}
                               disabled={deletingId === deliverable.id}
@@ -261,7 +264,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                     )}
                   </div>
 
-                  {canApprove && (
+                  {canApprove && !isReadOnly && (
                     <button
                       onClick={handleApprove}
                       disabled={approving || !task.deliverables?.length}
@@ -309,7 +312,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                         </div>
                         <p className="text-[13px] text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{comment.content}</p>
                       </div>
-                      {comment.userEmail === user?.email && (
+                      {!isReadOnly && comment.userEmail === user?.email && (
                         <button 
                           onClick={() => handleDeleteComment(comment.id)}
                           className="opacity-0 group-hover:opacity-100 p-2 text-red-400 hover:text-red-500 transition-opacity"
@@ -323,22 +326,24 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
               </div>
             )}
 
-            <form onSubmit={handleAddComment} className="relative">
-              <input 
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="댓글을 입력하세요..."
-                className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#11B886] transition-all"
-              />
-              <button 
-                type="submit"
-                disabled={!newComment.trim()}
-                className="absolute right-2 top-2 bottom-2 px-4 bg-[#11B886] hover:bg-[#11B886]/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
-              >
-                등록
-              </button>
-            </form>
+            {!isReadOnly && (
+              <form onSubmit={handleAddComment} className="relative">
+                <input 
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="댓글을 입력하세요..."
+                  className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#11B886] transition-all"
+                />
+                <button 
+                  type="submit"
+                  disabled={!newComment.trim()}
+                  className="absolute right-2 top-2 bottom-2 px-4 bg-[#11B886] hover:bg-[#11B886]/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                >
+                  등록
+                </button>
+              </form>
+            )}
           </section>
         </div>
       </div>

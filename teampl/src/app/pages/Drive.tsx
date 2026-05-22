@@ -14,6 +14,7 @@ import FilePreviewModal from "../components/FilePreviewModal";
 
 interface DriveProps {
   projectId?: number;
+  isReadOnly?: boolean;
 }
 
 function getFileIcon(type: string, name: string = "") {
@@ -64,7 +65,7 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(0)}KB`;
 }
 
-export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
+export default function Drive({ projectId: propProjectId, isReadOnly }: DriveProps = {}) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -180,6 +181,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isReadOnly) return;
     if (e.dataTransfer.types.includes("Files")) {
       setIsDragOver(true);
     }
@@ -195,6 +197,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
+    if (isReadOnly) return;
     if (e.dataTransfer.files.length > 0) {
       uploadFiles(e.dataTransfer.files);
     }
@@ -271,17 +274,19 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                   <p className="text-[12px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mt-0.5">KT Cloud Object Storage</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button onClick={handleCreateFolder} className="flex items-center gap-2 px-5 py-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/70 rounded-2xl text-[13px] font-black hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95">
-                  <Plus className="w-4 h-4" />
-                  폴더 만들기
-                </button>
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-5 py-3 bg-[#11B886] text-white rounded-2xl text-[13px] font-black hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(17,184,134,0.35)]">
-                  <Upload className="w-4 h-4" />
-                  파일 업로드
-                </button>
-              </div>
+              {!isReadOnly && (
+                <div className="flex items-center gap-3">
+                  <button onClick={handleCreateFolder} className="flex items-center gap-2 px-5 py-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/70 rounded-2xl text-[13px] font-black hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95">
+                    <Plus className="w-4 h-4" />
+                    폴더 만들기
+                  </button>
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple disabled={isReadOnly} />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-2 px-5 py-3 bg-[#11B886] text-white rounded-2xl text-[13px] font-black hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(17,184,134,0.35)] disabled:opacity-50">
+                    <Upload className="w-4 h-4" />
+                    파일 업로드
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         </>
@@ -310,13 +315,15 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               </div>
             </div>
             
-            <div className="flex items-center gap-2.5">
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)]">
-                <Upload className="w-4 h-4 text-white" />
-                파일 업로드
-              </button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex items-center gap-2.5">
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple disabled={isReadOnly} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50">
+                  <Upload className="w-4 h-4 text-white" />
+                  파일 업로드
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           // 자료실 루트 화면 헤더 디자인 (폴더 만들기, 파일 업로드 버튼)
@@ -328,24 +335,26 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
               </p>
             </div>
             
-            <div className="flex items-center gap-2.5">
-              <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[13px] font-bold hover:bg-gray-55 transition-all active:scale-95">
-                <Folder className="w-4 h-4 text-gray-400" />
-                폴더 만들기
-              </button>
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)]">
-                <Upload className="w-4 h-4 text-white" />
-                파일 업로드
-              </button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex items-center gap-2.5">
+                <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[13px] font-bold hover:bg-gray-50 transition-all active:scale-95">
+                  <Folder className="w-4 h-4 text-gray-400" />
+                  폴더 만들기
+                </button>
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple disabled={isReadOnly} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50">
+                  <Upload className="w-4 h-4 text-white" />
+                  파일 업로드
+                </button>
+              </div>
+            )}
           </div>
         )
       )}
 
       <div className="space-y-6">
         {/* 폴더 내부인 경우 상단에 '미분류로 이동' 점선 박스 노출 */}
-        {currentFolderId !== null && (
+        {!isReadOnly && currentFolderId !== null && (
           <div 
             onDragOver={(e) => {
               if (draggingFileId) {
@@ -478,8 +487,9 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                   <motion.div
                     key={file.id}
                     layout
-                    draggable={true}
+                    draggable={!isReadOnly}
                     onDragStart={((e: DragEvent<HTMLDivElement>) => {
+                      if (isReadOnly) return;
                       setDraggingFileId(file.id);
                       if (e.dataTransfer) {
                         e.dataTransfer.effectAllowed = "move";
@@ -487,6 +497,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                       }
                     }) as any}
                     onDragEnd={(() => {
+                      if (isReadOnly) return;
                       setDraggingFileId(null);
                     }) as any}
                     onClick={() => setPreviewFile(file)}
@@ -522,7 +533,7 @@ export default function Drive({ projectId: propProjectId }: DriveProps = {}) {
                         >
                           <Download className="w-4 h-4" />
                         </a>
-                        {user?.email === file.uploaderEmail && (
+                        {!isReadOnly && user?.email === file.uploaderEmail && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

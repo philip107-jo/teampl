@@ -6,6 +6,7 @@ export interface ChatMessage {
   senderEmail: string;
   receiverEmail: string | null;
   content: string;
+  isPinned?: boolean;
   createdAt: string;
   sender?: { name: string, department: string | null };
 }
@@ -33,6 +34,11 @@ export const chatApi = {
     const response = await client.post('/chat/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
+  },
+
+  pinMessage: async (messageId: number, isPinned: boolean, roomKey?: string) => {
+    const response = await client.post(`/chat/messages/${messageId}/pin`, { isPinned, roomKey });
     return response.data;
   },
 

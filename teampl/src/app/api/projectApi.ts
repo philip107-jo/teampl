@@ -67,6 +67,16 @@ export const projectApi = {
         return response.data;
     },
 
+    updateProjectStatus: async (projectId: number, status: string): Promise<Project> => {
+        const response = await apiClient.patch(`/projects/${projectId}/status`, { status });
+        return response.data;
+    },
+
+    searchProject: async (projectId: number, q: string): Promise<any[]> => {
+        const response = await apiClient.get(`/projects/${projectId}/search`, { params: { q } });
+        return response.data;
+    },
+
     getKickedAlerts: async (): Promise<{projectId: number, projectName: string, kickReason: string}[]> => {
         const response = await apiClient.get('/projects/kicked-alerts');
         return response.data;

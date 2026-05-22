@@ -458,5 +458,58 @@ You must respond ONLY with a valid JSON array of objects. Never include markdown
             console.error("Failed to parse AI output:", content);
             throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
         }
+    },
+
+    updateStatus: async (email: string, projectId: number, status: string) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+
+        if (!member) throw new Error("권한이 없습니다.");
+
+        const updated = await prisma.project.update({
+            where: { id: projectId },
+            data: { status }
+        });
+        return updated;
+    },
+
+    searchAll: async (email: string, projectId: number, query: string) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+
+        if (!member) throw new Error("권한이 없습니다.");
+
+        const [messages, tasks, files] = await Promise.all([
+            prisma.message.findMany({
+                where: {
+                    projectId,
+                    content: { contains: query } // PostgreSQL default mode is case-sensitive, but contains searches substrings. To make it case insensitive, we can add mode: 'insensitive'
+                },
+                include: { sender: { select: { name: true } } },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.task.findMany({
+                where: {
+                    projectId,
+                    OR: [
+                        { title: { contains: query } },
+                        { description: { contains: query } }
+                    ]
+                },
+                take: 50
+            }),
+            prisma.driveFile.findMany({
+                where: {
+                    projectId,
+                    name: { contains: query }
+                },
+                take: 50
+            })
+        ]);
+
+        return { messages, tasks, files };
     }
 };

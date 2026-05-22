@@ -176,4 +176,35 @@ router.post('/:id/ai/split-tasks', async (req, res) => {
     }
 });
 
+// PATCH /api/projects/:id/status
+router.patch('/:id/status', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const { status } = req.body;
+    try {
+        const updatedProject = await ProjectsService.updateStatus(email, id, status);
+        res.json(updatedProject);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// GET /api/projects/:id/search
+router.get('/:id/search', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    const q = req.query.q as string;
+    
+    if (!q) {
+        return res.json({ messages: [], tasks: [], files: [] });
+    }
+    
+    try {
+        const results = await ProjectsService.searchAll(email, id, q);
+        res.json(results);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 export default router;
