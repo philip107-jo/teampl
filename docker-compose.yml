@@ -37,6 +37,8 @@ services:
       - KT_CLOUD_SECRET_KEY=${KT_CLOUD_SECRET_KEY}
       - KT_CLOUD_BUCKET=${KT_CLOUD_BUCKET}
       - KT_CLOUD_REGION=${KT_CLOUD_REGION}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
     volumes:
       - ./teampl-back:/app
       - /app/node_modules

@@ -5,6 +5,7 @@ import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
 import { Crown, CheckCircle2, Clock, Circle, Eye, Mail, GraduationCap, TrendingUp, Phone, Video, MessageSquare } from "lucide-react";
 import { useCall } from "../context/CallContext";
+import Avatar from "./Avatar";
 
 interface MembersTabProps {
   projectId: number;
@@ -83,9 +84,11 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[18px] font-black">
-                          {member.name?.[0]?.toUpperCase()}
-                        </div>
+                        <Avatar
+                          name={member.name}
+                          avatarUrl={member.avatarUrl}
+                          className="w-12 h-12 text-[18px]"
+                        />
                         <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#12182B] ${
                           isInCall 
                             ? "bg-red-500 animate-pulse animate-duration-1000" 

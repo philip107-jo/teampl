@@ -22,6 +22,7 @@ services:
     restart: always
     environment:
       - PORT=8080
+      - FRONTEND_URL=http://211.254.213.7
       - DATABASE_URL=postgresql://teampl_user:teampl_password@db:5432/teampl_db?schema=public
       - JWT_SECRET=${JWT_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -32,6 +33,8 @@ services:
       - KT_CLOUD_SECRET_KEY=${KT_CLOUD_SECRET_KEY}
       - KT_CLOUD_BUCKET=${KT_CLOUD_BUCKET}
       - KT_CLOUD_REGION=${KT_CLOUD_REGION}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
     depends_on:
       - db
 

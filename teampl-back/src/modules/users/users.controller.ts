@@ -43,6 +43,17 @@ router.put('/me', authMiddleware, validate(UpdateProfileSchema), async (req: Req
   res.json(userWithoutPassword);
 });
 
+// DELETE /api/users/me - 회원 탈퇴
+router.delete('/me', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    await UsersService.deleteAccount(userId);
+    res.json({ message: '회원탈퇴가 완료되었습니다.' });
+  } catch (e: any) {
+    res.status(500).json({ message: e.message || '회원탈퇴 중 오류가 발생했습니다.' });
+  }
+});
+
 
 // POST /api/users/avatar - 프로필 이미지 업로드
 router.post('/avatar', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {

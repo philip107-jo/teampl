@@ -36,5 +36,11 @@ export const UsersService = {
       where: { id },
       data: { aiUsageCount: { increment: 1 } }
     });
-  }
+  },
+
+  deleteAccount: async (id: string) => {
+    return await prisma.user.delete({
+      where: { id }
+    });
+  },
 };

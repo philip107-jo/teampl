@@ -9,9 +9,60 @@ const router = Router();
 const AuthSchema = z.object({
   body: z.object({
     email: z.string().email("Invalid email format"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(4, "Password must be at least 4 characters"), // 프론트엔드 기준(최소 4자)과 맞춥니다.
     name: z.string().optional(),
   }),
+});
+
+const SendCodeSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email format"),
+  }),
+});
+
+const VerifyCodeSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email format"),
+    code: z.string().length(6, "Verification code must be 6 digits"),
+  }),
+});
+
+const ResetPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email format"),
+    newPassword: z.string().min(4, "Password must be at least 4 characters"),
+  }),
+});
+
+router.post('/send-code', validate(SendCodeSchema), async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const result = await AuthService.sendVerificationCode(email);
+  res.json(result);
+});
+
+router.post('/verify-code', validate(VerifyCodeSchema), async (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  const result = await AuthService.verifyCode(email, code);
+  res.json(result);
+});
+
+router.post('/forgot-password/send-code', validate(SendCodeSchema), async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const result = await AuthService.sendPasswordResetCode(email);
+  res.json(result);
+});
+
+router.post('/forgot-password/verify-code', validate(VerifyCodeSchema), async (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  // verifyCode logic is the same (checking email and code, setting isVerified)
+  const result = await AuthService.verifyCode(email, code);
+  res.json(result);
+});
+
+router.post('/forgot-password/reset', validate(ResetPasswordSchema), async (req: Request, res: Response) => {
+  const { email, newPassword } = req.body;
+  const result = await AuthService.resetPassword(email, newPassword);
+  res.json(result);
 });
 
 router.post('/register', validate(AuthSchema), async (req: Request, res: Response) => {

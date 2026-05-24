@@ -18,6 +18,7 @@ import VotePage from "./Vote";
 import Overview from "./Overview";
 import { useChat } from "../context/ChatContext";
 import MembersTab from "../components/MembersTab";
+import Avatar from "../components/Avatar";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
@@ -278,9 +279,11 @@ export default function ProjectDetails() {
             {/* Search Bar has been moved to global Layout.tsx */}
 
             <div className="hidden xs:flex items-center gap-2 mr-2">
-              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
-                <span className="text-xs font-bold text-gray-600">{user?.name?.[0]}</span>
-              </div>
+              <Avatar
+                name={user?.name}
+                avatarUrl={user?.avatarUrl}
+                className="w-8 h-8 text-xs shrink-0"
+              />
               <span className="text-sm font-bold text-gray-700 dark:text-white/80">{user?.name}님</span>
             </div>
             
@@ -477,9 +480,11 @@ export default function ProjectDetails() {
                           className="w-5 h-5 text-[#FFB547] focus:ring-[#FFB547] accent-[#FFB547]" 
                         />
                         <div className="ml-4 flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full ${m.avatarColor} text-white flex items-center justify-center font-bold text-xs`}>
-                            {m.name[0]}
-                          </div>
+                          <Avatar
+                            name={m.name}
+                            avatarUrl={m.avatarUrl}
+                            className="w-8 h-8 text-xs shrink-0"
+                          />
                           <div>
                             <p className="font-bold text-[#1A2340] dark:text-white text-sm">{m.name}</p>
                             <p className="text-xs text-[#7D879C] dark:text-white/40">{m.email}</p>
@@ -518,9 +523,11 @@ export default function ProjectDetails() {
                           className="w-5 h-5 accent-red-500" 
                         />
                         <div className="ml-4 flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full ${m.avatarColor} text-white flex items-center justify-center font-bold text-xs`}>
-                            {m.name[0]}
-                          </div>
+                          <Avatar
+                            name={m.name}
+                            avatarUrl={m.avatarUrl}
+                            className="w-8 h-8 text-xs shrink-0"
+                          />
                           <div>
                             <p className="font-bold text-[#1A2340] dark:text-white text-sm">{m.name}</p>
                             <p className="text-xs text-[#7D879C] dark:text-white/40">{m.email}</p>

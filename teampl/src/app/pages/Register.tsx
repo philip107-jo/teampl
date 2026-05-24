@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { 
   UserPlus, 
@@ -47,6 +47,74 @@ export default function Register() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  // 이메일 인증 관련 상태들
+  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [timer, setTimer] = useState(300);
+  const [timerActive, setTimerActive] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (timerActive && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setTimerActive(false);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerActive, timer]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  const handleSendVerificationCode = async () => {
+    if (!formData.email.trim()) {
+      setError("이메일을 입력해주세요.");
+      return;
+    }
+    setError("");
+    setSendingCode(true);
+    try {
+      await authApi.sendVerificationCode(formData.email);
+      setIsEmailSent(true);
+      setTimer(300);
+      setTimerActive(true);
+      showToast("인증 번호가 이메일로 전송되었습니다.", "success");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "인증 번호 전송에 실패했습니다.");
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      setError("인증 번호 6자리를 입력해주세요.");
+      return;
+    }
+    setError("");
+    setVerifyingCode(true);
+    try {
+      await authApi.verifyCode(formData.email, verificationCode);
+      setIsEmailVerified(true);
+      setTimerActive(false);
+      showToast("이메일 인증이 완료되었습니다.", "success");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "인증 번호가 일치하지 않거나 유효하지 않습니다.");
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -59,6 +127,10 @@ export default function Register() {
     }
     if (!formData.email.trim()) {
       setError("이메일을 입력해주세요.");
+      return;
+    }
+    if (!isEmailVerified) {
+      setError("이메일 인증을 완료해주세요.");
       return;
     }
     if (!formData.department) {
@@ -189,20 +261,91 @@ export default function Register() {
               {/* Email */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 ml-1">이메일 주소</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                <div className="flex gap-2">
+                  <div className="relative flex-1 group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      disabled={isEmailVerified}
+                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm disabled:opacity-60 disabled:bg-slate-100"
+                      placeholder="name@university.ac.kr"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
-                    placeholder="name@university.ac.kr"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
+                  <button
+                    type="button"
+                    disabled={!formData.email.trim() || isEmailVerified || sendingCode}
+                    onClick={handleSendVerificationCode}
+                    className="px-4 bg-[#11B886] hover:bg-[#0EA271] text-white text-xs font-black rounded-2xl shadow-md shadow-[#11B886]/10 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap cursor-pointer flex items-center justify-center min-w-[90px]"
+                  >
+                    {sendingCode ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isEmailSent ? (
+                      "재전송"
+                    ) : (
+                      "인증 요청"
+                    )}
+                  </button>
                 </div>
               </div>
+
+              {/* Verification Code Input */}
+              {isEmailSent && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <label className="text-sm font-bold text-slate-700 ml-1 flex justify-between">
+                    <span>인증번호 입력</span>
+                    {timerActive && (
+                      <span className="text-red-500 font-extrabold text-xs">
+                        남은 시간: {formatTimer(timer)}
+                      </span>
+                    )}
+                    {!timerActive && timer === 0 && (
+                      <span className="text-red-500 font-extrabold text-xs">
+                        인증 시간이 만료되었습니다.
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1 group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Sparkles className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        disabled={isEmailVerified || (!timerActive && timer === 0)}
+                        maxLength={6}
+                        className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm disabled:opacity-60 disabled:bg-slate-100"
+                        placeholder="6자리 인증번호"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ""))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={verificationCode.length !== 6 || isEmailVerified || (!timerActive && timer === 0) || verifyingCode}
+                      onClick={handleVerifyCode}
+                      className="px-4 bg-[#1A2340] hover:bg-[#111827] text-white text-xs font-black rounded-2xl shadow-md hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap cursor-pointer flex items-center justify-center min-w-[90px]"
+                    >
+                      {verifyingCode ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isEmailVerified ? (
+                        "인증 완료"
+                      ) : (
+                        "인증 확인"
+                      )}
+                    </button>
+                  </div>
+                  {isEmailVerified && (
+                    <p className="text-xs font-bold text-[#11B886] ml-1">이메일 인증이 완료되었습니다.</p>
+                  )}
+                </div>
+              )}
+
 
               {/* Student ID */}
               <div className="space-y-2">

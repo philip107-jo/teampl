@@ -27,4 +27,8 @@ export const userApi = {
     const res = await apiClient.post('/users/upgrade');
     return res.data;
   },
+  deleteAccount: async () => {
+    const res = await apiClient.delete('/users/me');
+    return res.data;
+  },
 };
