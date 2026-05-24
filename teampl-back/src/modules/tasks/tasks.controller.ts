@@ -166,9 +166,9 @@ router.patch('/:id/details', async (req, res) => {
     const email = req.user!.email;
     const projectId = parseInt((req.params as any).projectId, 10);
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description, requiresDeliverable } = req.body;
     try {
-        const updatedTask = await TasksService.updateDetails(email, projectId, id, { title, description });
+        const updatedTask = await TasksService.updateDetails(email, projectId, id, { title, description, requiresDeliverable });
         res.json(updatedTask);
     } catch (e: any) {
         res.status(403).json({ message: e.message });

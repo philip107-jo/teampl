@@ -56,6 +56,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const activeRoomRef = useRef<string | null>(null);
+  const statusRef = useRef<CallStatus>(status);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   // 실시간 통화 유저 명단 동기화
   useEffect(() => {
@@ -78,7 +83,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. 전화 들어옴
     const onIncomingCall = (data: CallerInfo & { offer: any }) => {
       // 내가 통화 중이거나 통화 대기 중이 아닐 때만 수신
-      if (status !== "idle") {
+      if (statusRef.current !== "idle") {
         // 통화 중이면 거절 신호(end-call)를 바로 보내서 통화중 거절 처리
         socket.emit("end-call", { room: data.room });
         return;
@@ -98,7 +103,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. 전화 수락됨
     const onCallAccepted = async (data: { answer: any }) => {
-      if (status !== "calling" || !pcRef.current) return;
+      if (statusRef.current !== "calling" || !pcRef.current) return;
       try {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         setStatus("connected");
@@ -137,7 +142,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off("ice-candidate", onIceCandidateReceived);
       socket.off("call-ended", onCallEnded);
     };
-  }, [socket, user, status]);
+  }, [socket, user]); // remove status from dependencies to prevent re-binding and missing events
 
   // PeerConnection 생성 유틸
   const createPeerConnection = (room: string) => {

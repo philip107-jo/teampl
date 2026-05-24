@@ -14,6 +14,7 @@ import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
 import TaskSubmitModal from "../components/TaskSubmitModal";
+import { SubscriptionPaywallModal } from "../components/SubscriptionPaywallModal";
 import { getMemberName } from "../utils/members";
 
 interface TasksProps {
@@ -73,6 +74,8 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
   const [createModalConfig, setCreateModalConfig] = useState<{ stageId: number } | null>(null);
   const [submitTask, setSubmitTask] = useState<Task | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState('');
 
   const currentMember = members.find(m => m.email === user?.email);
   const isLeader = currentMember?.role === "LEADER";
@@ -157,12 +160,14 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
   }, [tasks, activeStages, getTaskStageId]);
 
   const updateStatus = async (taskId: string, newStatus: TaskStatus) => {
-    if (newStatus === 'DONE') {
-      alert("완료 상태로는 직접 이동할 수 없습니다. 산출물을 제출하고 팀원의 승인을 받아주세요.");
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (newStatus === 'DONE' && task.requiresDeliverable !== false) {
+      alert("이 과제는 산출물 제출 및 팀원의 승인이 필요합니다.");
       return;
     }
-    if (newStatus === 'IN_REVIEW') {
-      const task = tasks.find(t => t.id === taskId);
+    if (newStatus === 'IN_REVIEW' && task.requiresDeliverable !== false) {
       if (task) {
         setSubmitTask(task);
       }
@@ -382,12 +387,22 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                                     </button>
                                   )}
                                   
-                                  {task.status === 'IN_PROGRESS' && (
+                                  {task.status === 'IN_PROGRESS' && task.requiresDeliverable !== false && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); updateStatus(task.id, 'IN_REVIEW'); }}
                                       className="px-2.5 py-1 bg-purple-500 hover:bg-purple-600 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all"
                                     >
                                       산출물 제출
+                                    </button>
+                                  )}
+                                  
+                                  {task.status === 'IN_PROGRESS' && task.requiresDeliverable === false && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); updateStatus(task.id, 'DONE'); }}
+                                      className="px-2.5 py-1 bg-[#11B886] hover:bg-[#0EA271] text-white text-[10px] font-bold rounded-lg shadow-sm transition-all flex items-center gap-1"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      완료 처리
                                     </button>
                                   )}
 
@@ -463,8 +478,24 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
             setIsAiModalOpen(false);
             taskApi.getTasks(numProjectId).then(setTasks);
           }}
+          onPaywallNeeded={(msg) => {
+            setIsAiModalOpen(false);
+            setPaywallMessage(msg);
+            setIsPaywallOpen(true);
+          }}
         />
       )}
+
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        message={paywallMessage}
+        onSuccess={() => {
+          setIsPaywallOpen(false);
+          // Optional: re-open AI modal automatically after success, or let user click it again.
+          setIsAiModalOpen(true);
+        }}
+      />
 
       {submitTask && numProjectId && (
         <TaskSubmitModal

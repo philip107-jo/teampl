@@ -1,7 +1,10 @@
 import React, { useState, useRef } from "react";
-import { X, UploadCloud, File, FileImage, FileType2, Trash2, Plus } from "lucide-react";
+import { X, UploadCloud, File, FileImage, FileType2, Trash2, Plus, Check, Sparkles } from "lucide-react";
 import { taskApi } from "../api/taskApi";
+import { aiApi, AiEvaluationResponse } from "../api/aiApi";
 import { Task } from "../types";
+import { AiEvaluationModal } from "./AiEvaluationModal";
+import { SubscriptionPaywallModal } from "./SubscriptionPaywallModal";
 
 interface TaskSubmitModalProps {
   projectId: number;
@@ -27,6 +30,17 @@ export default function TaskSubmitModal({ projectId, task, onClose, onSuccess }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI Review States
+  const [useAiReview, setUseAiReview] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState<AiEvaluationResponse | null>(null);
+  const [isAiEvalModalOpen, setIsAiEvalModalOpen] = useState(false);
+  
+  // Paywall States
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState("");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -59,15 +73,34 @@ export default function TaskSubmitModal({ projectId, task, onClose, onSuccess }:
       setError("최소 1개의 산출물 파일을 선택해주세요.");
       return;
     }
+    if (useAiReview && !reportText.trim()) {
+      setError("AI 검토를 위한 텍스트를 입력해주세요.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       await taskApi.submitTaskForReview(projectId, task.id, files);
-      onSuccess();
+      
+      if (useAiReview && reportText.trim()) {
+        setIsEvaluating(true);
+        const evalResult = await aiApi.evaluateProject(projectId, reportText);
+        setEvaluationResult(evalResult);
+        setIsAiEvalModalOpen(true);
+      } else {
+        onSuccess();
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || "산출물 업로드에 실패했습니다.");
+      const statusCode = err.response?.status || err.status;
+      if (statusCode === 402) {
+        setPaywallMessage(err.response?.data?.message || 'AI 검토를 사용하려면 PRO 요금제가 필요합니다.');
+        setIsPaywallOpen(true);
+      } else {
+        setError(err.response?.data?.message || err.message || "산출물 제출 중 오류가 발생했습니다.");
+      }
     } finally {
       setLoading(false);
+      setIsEvaluating(false);
     }
   };
 
@@ -138,6 +171,36 @@ export default function TaskSubmitModal({ projectId, task, onClose, onSuccess }:
             </div>
           )}
 
+          {/* AI Review Toggle & Input */}
+          <div className="mt-5 border-t border-gray-100 dark:border-white/5 pt-5">
+            <label className="flex items-center gap-3 cursor-pointer group w-fit">
+              <input 
+                type="checkbox" 
+                className="hidden" 
+                checked={useAiReview} 
+                onChange={(e) => setUseAiReview(e.target.checked)} 
+              />
+              <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${useAiReview ? 'bg-indigo-500' : 'bg-gray-200 dark:bg-white/10 group-hover:bg-gray-300 dark:group-hover:bg-white/20'}`}>
+                {useAiReview && <Check className="w-3.5 h-3.5 text-white" />}
+              </div>
+              <span className="text-sm font-bold text-gray-700 dark:text-white flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-500" />
+                산출물 텍스트 AI 검토 받기 (선택사항)
+              </span>
+            </label>
+
+            {useAiReview && (
+              <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <textarea
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="작성한 보고서나 산출물의 핵심 내용을 텍스트로 붙여넣어 주세요..."
+                  className="w-full h-32 px-4 py-3 bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none text-sm dark:text-white"
+                />
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-red-500 text-xs mt-3 text-center">{error}</p>}
 
           <div className="mt-5 flex justify-end gap-3">
@@ -146,15 +209,39 @@ export default function TaskSubmitModal({ projectId, task, onClose, onSuccess }:
             </button>
             <button
               onClick={handleSubmit}
-              disabled={loading || files.length === 0}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#11B886] hover:bg-[#0EA271] text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+              disabled={loading || files.length === 0 || isEvaluating}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50 flex items-center gap-2 ${useAiReview ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-[#11B886] hover:bg-[#0EA271]'}`}
             >
-              {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              검토 요청하기 {files.length > 0 && `(${files.length}개)`}
+              {(loading || isEvaluating) && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {isEvaluating ? 'AI 평가 중...' : useAiReview ? '제출 및 AI 검토 시작' : `검토 요청하기 ${files.length > 0 ? `(${files.length}개)` : ''}`}
             </button>
           </div>
         </div>
       </div>
+
+      {/* AI Evaluation Result Modal */}
+      {evaluationResult && (
+        <AiEvaluationModal
+          isOpen={isAiEvalModalOpen}
+          onClose={() => {
+            setIsAiEvalModalOpen(false);
+            onSuccess();
+          }}
+          projectId={projectId}
+          existingReport={evaluationResult}
+        />
+      )}
+
+      {/* Paywall Modal */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        message={paywallMessage}
+        onSuccess={() => {
+          setIsPaywallOpen(false);
+          // 닫기만 하고 사용자가 다시 제출 버튼을 누를 수 있도록 둠
+        }}
+      />
     </div>
   );
 }

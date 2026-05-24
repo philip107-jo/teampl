@@ -6,6 +6,8 @@ export type User = {
   department?: string;
   avatarUrl?: string;
   avatarColor?: string;
+  plan?: 'FREE' | 'PRO';
+  aiUsageCount?: number;
 };
 
 export type Workspace = {
@@ -31,6 +33,7 @@ export type Task = {
   completedAt?: string;
   createdById: string;
   assignees?: string[]; // User IDs
+  requiresDeliverable?: boolean;
   
   submitterEmail?: string;
   deliverables?: TaskDeliverable[];

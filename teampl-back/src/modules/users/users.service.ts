@@ -24,4 +24,17 @@ export const UsersService = {
     });
   },
 
+  upgradePlan: async (id: string, plan: 'FREE' | 'PRO') => {
+    return await prisma.user.update({
+      where: { id },
+      data: { plan }
+    });
+  },
+
+  incrementAiUsage: async (id: string) => {
+    return await prisma.user.update({
+      where: { id },
+      data: { aiUsageCount: { increment: 1 } }
+    });
+  }
 };

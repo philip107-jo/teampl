@@ -185,9 +185,47 @@ router.post('/:id/ai/split-tasks', async (req, res) => {
             return res.status(403).json({ message: "권한이 없습니다." });
         }
 
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return res.status(404).json({ message: "유저를 찾을 수 없습니다." });
+
+        if (user.plan === 'FREE' && user.aiUsageCount >= 1) {
+            return res.status(402).json({ message: "무료 이용 횟수를 초과했습니다. PRO 플랜으로 업그레이드 해주세요.", requireUpgrade: true });
+        }
+
         if (!teamSize || !topic) return res.status(400).json({ message: "팀 인원 수와 주제를 입력해주세요." });
         const suggestions = await ProjectsService.generateTasksWithAi(id, teamSize, topic, description || "");
+        
+        await prisma.user.update({ where: { email }, data: { aiUsageCount: { increment: 1 } } });
+        
         res.json(suggestions);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:id/ai/evaluate
+router.post('/:id/ai/evaluate', async (req, res) => {
+    try {
+        const email = req.user!.email;
+        const id = parseInt(req.params.id, 10);
+        const { reportText } = req.body;
+
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId: id } }
+        });
+        if (!member) {
+            return res.status(403).json({ message: "권한이 없습니다." });
+        }
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user || user.plan !== 'PRO') {
+            return res.status(402).json({ message: "산출물 평가 기능은 PRO 플랜에서만 이용 가능합니다.", requireUpgrade: true });
+        }
+
+        if (!reportText) return res.status(400).json({ message: "평가할 보고서 텍스트를 입력해주세요." });
+        
+        const evaluation = await ProjectsService.evaluateProjectWithAi(id, reportText);
+        res.json(evaluation);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }

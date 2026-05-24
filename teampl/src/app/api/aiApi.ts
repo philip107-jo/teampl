@@ -8,6 +8,7 @@ export interface AiTaskSuggestion {
   difficulty: number;
   assignees?: string[];
   stageId?: number;
+  requiresDeliverable?: boolean;
 }
 
 export interface Stage {
@@ -22,9 +23,20 @@ export interface AiSplitResponse {
   tasks: AiTaskSuggestion[];
 }
 
+export interface AiEvaluationResponse {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  summary: string;
+}
+
 export const aiApi = {
   splitTasks: async (projectId: number, teamSize: number, topic: string, description: string): Promise<AiSplitResponse> => {
     const response = await apiClient.post(`/projects/${projectId}/ai/split-tasks`, { teamSize, topic, description });
+    return response.data;
+  },
+  evaluateProject: async (projectId: number, reportText: string): Promise<AiEvaluationResponse> => {
+    const response = await apiClient.post(`/projects/${projectId}/ai/evaluate`, { reportText });
     return response.data;
   }
 };

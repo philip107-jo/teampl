@@ -27,6 +27,7 @@ export const TasksService = {
                 deadline: data.deadline || new Date().toISOString().split('T')[0],
                 ownerEmail: email,
                 assignees: data.assignees || [],
+                requiresDeliverable: data.requiresDeliverable !== undefined ? data.requiresDeliverable : true,
             }
         });
         
@@ -67,6 +68,7 @@ export const TasksService = {
                     difficulty: parseInt(taskData.difficulty) || 3,
                     ownerEmail: email,
                     assignees: [], // AI 생성은 일단 미배정
+                    requiresDeliverable: taskData.requiresDeliverable !== undefined ? taskData.requiresDeliverable : true,
                 }
             });
             createdTasks.push(t);
@@ -243,6 +245,13 @@ export const TasksService = {
 
     updateStatus: async (email: string, projectId: number, taskId: string, status: string) => {
         await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) throw new Error("태스크를 찾을 수 없습니다.");
+
+        if (status === 'DONE' && (task as any).requiresDeliverable && task.status !== 'IN_REVIEW') {
+            throw new Error("이 과제는 산출물 제출 및 팀원 승인이 필요합니다.");
+        }
+
         const updated = await prisma.task.update({
             where: { id: taskId },
             data: { 
@@ -300,11 +309,12 @@ export const TasksService = {
     },
 
 
-    updateDetails: async (email: string, projectId: number, taskId: string, data: { description?: string; title?: string }) => {
+    updateDetails: async (email: string, projectId: number, taskId: string, data: { description?: string; title?: string; requiresDeliverable?: boolean }) => {
         await verifyMembership(email, projectId);
         const updateData: any = {};
         if (data.title !== undefined) updateData.title = data.title;
         if (data.description !== undefined) updateData.description = data.description;
+        if (data.requiresDeliverable !== undefined) updateData.requiresDeliverable = data.requiresDeliverable;
 
         const updated = await prisma.task.update({
             where: { id: taskId },

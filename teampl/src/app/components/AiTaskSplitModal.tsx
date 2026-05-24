@@ -9,9 +9,10 @@ interface AiTaskSplitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onPaywallNeeded?: (message: string) => void;
 }
 
-export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess }: AiTaskSplitModalProps) {
+export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess, onPaywallNeeded }: AiTaskSplitModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [teamSize, setTeamSize] = useState<number>(4);
   const [topic, setTopic] = useState("");
@@ -49,9 +50,15 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
       // By default, select all suggestions
       setSelectedIds(new Set(results.tasks.map(r => r.id)));
       setStep(2); // Move to Step 2
+      setStep(2); // Move to Step 2
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.error || err.message || "AI 업무 분할 중 오류가 발생했습니다.");
+      const statusCode = err.response?.status || err.status;
+      if (statusCode === 402 && onPaywallNeeded) {
+        onPaywallNeeded(err.response?.data?.message || '업그레이드가 필요합니다.');
+        return;
+      }
+      setError(err.response?.data?.message || err.response?.data?.error || err.message || "AI 업무 분할 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -103,6 +110,7 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
           deadline: s.deadline || undefined, // undefined로 전달 (오늘 날짜 강제 대입 제거)
           difficulty: s.difficulty, // difficulty 추가
           assignees: s.assignees || [], // 담당자 추가
+          requiresDeliverable: s.requiresDeliverable !== false,
         };
       });
 
@@ -276,37 +284,46 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
                   return (
                     <div 
                       key={suggestion.id}
-                      onClick={() => handleToggleSelect(suggestion.id)}
-                      className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                      className={`p-3 rounded-xl border flex items-start gap-3 transition-all ${
                         isSelected 
                           ? "bg-[#7C6CFF]/5 border-[#7C6CFF]/30 dark:border-[#7C6CFF]/30" 
                           : "bg-gray-50 dark:bg-[#0d1526] border-gray-200 dark:border-white/5 opacity-60"
                       }`}
                     >
-                      <div className={`mt-0.5 w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors ${
+                      <div 
+                        onClick={() => handleToggleSelect(suggestion.id)}
+                        className={`mt-0.5 w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center transition-colors cursor-pointer ${
                         isSelected ? "bg-[#7C6CFF] text-white" : "bg-gray-200 dark:bg-white/10"
                       }`}>
                         {isSelected && <Check className="w-3.5 h-3.5" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap cursor-pointer" onClick={() => handleToggleSelect(suggestion.id)}>
                           <span className={`text-[15px] font-bold truncate ${isSelected ? "text-[#1A2340] dark:text-white" : "text-[#7D879C] dark:text-white/40 line-through"}`}>
                             {suggestion.title}
                           </span>
                           {getPriorityBadge(suggestion.priority)}
                         </div>
-                        <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
                           {suggestion.deadline && (
                             <div className="text-xs font-bold text-[#7D879C]/80 dark:text-white/40">
                               마감: {suggestion.deadline}
                             </div>
                           )}
-                          {suggestion.assignees && suggestion.assignees.length > 0 && (
-                            <div className="text-xs font-bold text-[#11B886]/80 flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              담당자 추천
-                            </div>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newSugs = suggestions.map(s => s.id === suggestion.id ? { ...s, requiresDeliverable: !s.requiresDeliverable } : s);
+                              setSuggestions(newSugs);
+                            }}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors ${
+                              suggestion.requiresDeliverable !== false 
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400' 
+                                : 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-white/5 dark:border-white/10 dark:text-gray-400'
+                            }`}
+                          >
+                            {suggestion.requiresDeliverable !== false ? "산출물 필수" : "산출물 불필요"}
+                          </button>
                         </div>
                       </div>
                     </div>

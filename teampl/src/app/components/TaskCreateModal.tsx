@@ -28,6 +28,7 @@ export default function TaskCreateModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [requiresDeliverable, setRequiresDeliverable] = useState(true);
   const [selectedStageId, setSelectedStageId] = useState<number>(initialStageId);
   const [selectedAssigneeEmail, setSelectedAssigneeEmail] = useState<string>(
     members.length > 0 ? members[0].email : ""
@@ -55,6 +56,7 @@ export default function TaskCreateModal({
         deadline: deadline || undefined,
         ownerEmail: selectedAssigneeEmail,
         assignees: [selectedAssigneeEmail],
+        requiresDeliverable,
       } as any);
       onCreate();
       onClose();
@@ -142,6 +144,19 @@ export default function TaskCreateModal({
                 />
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2 pb-1">
+            <input 
+              type="checkbox" 
+              id="requiresDeliverable"
+              checked={requiresDeliverable}
+              onChange={(e) => setRequiresDeliverable(e.target.checked)}
+              className="w-4 h-4 text-[#11B886] border-gray-300 rounded focus:ring-[#11B886]"
+            />
+            <label htmlFor="requiresDeliverable" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+              산출물 제출 필수 (이 과제를 완료하려면 파일 제출이 필요합니다)
+            </label>
           </div>
 
           {/* Footer Buttons */}

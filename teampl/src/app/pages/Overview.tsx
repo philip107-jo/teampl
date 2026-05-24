@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CheckCircle2, Clock, AlertCircle, BarChart3,
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../api/client';
 import { socket, joinProjectChannel } from '../socket';
+import { SubscriptionPaywallModal } from "../components/SubscriptionPaywallModal";
 import AiTaskSplitModal from '../components/AiTaskSplitModal';
 
 interface OverviewProps {
@@ -82,6 +83,8 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
 
   // AI Modal states
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState<string>('');
 
   const activeStages: Stage[] = (project.customStages && project.customStages.length > 0) ? project.customStages : DEFAULT_STAGES;
 
@@ -181,18 +184,41 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
   };
 
   const handleUpdateTaskStatus = async (taskId: string, newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (newStatus === 'DONE' && task.requiresDeliverable !== false && task.status !== 'IN_REVIEW') {
+      showToast('이 과제는 산출물 제출 및 팀원의 승인이 필요합니다. (과제 관리 메뉴 이용)', 'error');
+      return;
+    }
+
     // Instant UI reactive state update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     
     try {
       await taskApi.updateTaskStatus(projectId, taskId, newStatus);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      showToast('작업 상태 업데이트에 실패했습니다.', 'error');
-      // Revert state
-      loadTasks();
+      // Revert UI on failure
+      if (e.response?.status === 402) {
+        handlePaywallNeeded('더 많은 작업을 수행하려면 요금제 업그레이드가 필요합니다.');
+      }
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: t.status } : t));
+      showToast('상태 변경에 실패했습니다.', 'error');
     }
   };
+
+  const handlePaywallNeeded = (message: string) => {
+    setIsAiModalOpen(false);
+    setPaywallMessage(message);
+    setIsPaywallOpen(true);
+  };
+
+  const totalProgress = useMemo(() => {
+    if (tasks.length === 0) return 0;
+    const done = tasks.filter(t => t.status === 'DONE').length;
+    return Math.round((done / tasks.length) * 100);
+  }, [tasks]);
 
   const handleCreateTask = async (stageId: number, title: string, status: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
     if (!title.trim()) return;
@@ -216,9 +242,13 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
       if (status === 'DONE') setNewDoneTitle('');
 
       showToast('새 과제가 추가되었습니다!', 'success');
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      showToast('과제 추가에 실패했습니다.', 'error');
+      if (e.response?.status === 402) {
+        handlePaywallNeeded('작업을 추가하려면 요금제 업그레이드가 필요합니다.');
+      } else {
+        showToast('과제 추가에 실패했습니다.', 'error');
+      }
     }
   };
 
@@ -238,8 +268,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
     }
   };
 
-  // AI Recommendation Trigger is handled by AiTaskSplitModal now
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -255,7 +283,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
   const stageProgress = selectedStageStats?.progress || 0;
 
   const todoTasks = stageTasks.filter(t => t.status === 'TODO');
-  const inProgressTasks = stageTasks.filter(t => t.status === 'IN_PROGRESS');
+  const inProgressTasks = stageTasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'IN_REVIEW');
   const doneTasks = stageTasks.filter(t => t.status === 'DONE');
 
   return (
@@ -298,6 +326,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                 const unlocked = isStageUnlocked(stage.id);
                 const isCompleted = stats.hasTasks && stats.progress === 100;
                 const isActive = unlocked && !isCompleted;
+                const isLastStage = idx === activeStages.length - 1;
                 const isShaking = shakingStageId === stage.id;
 
                 return (
@@ -377,9 +406,19 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                             )}
                           </div>
 
-                          {/* Right: progress aligned identical to design */}
-                          <div className="flex items-center gap-12 text-right">
-                            <span className="text-sm font-semibold text-slate-400 dark:text-white/30">
+                          {/* Right: progress and actions aligned identical to design */}
+                          <div className="flex items-center gap-6 text-right">
+                            <div className="flex items-center gap-2">
+                              {!isReadOnly && isActive && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleStageClick(stage.id); }}
+                                  className="bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 transition text-gray-700 dark:text-white px-3 py-1.5 rounded-lg text-xs font-bold shrink-0"
+                                >
+                                  과제 시작하기
+                                </button>
+                              )}
+                            </div>
+                            <span className="text-sm font-semibold text-slate-400 dark:text-white/30 w-20">
                               {stats.hasTasks ? (
                                 isCompleted ? '완료' : `${stats.progress}% 진행 중`
                               ) : (
@@ -447,8 +486,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
               {/* COLUMN 1: 할 일 */}
               <div
                 className="bg-[#F8FAFC] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-slate-100 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => !isReadOnly && e.preventDefault()}
-                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'TODO')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -467,8 +504,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                       <TaskCard
                         key={task.id}
                         task={task}
-                        isReadOnly={isReadOnly}
-                        onDragStart={() => setDraggedTaskId(task.id)}
+                        isReadOnly={true}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
                       />
@@ -496,8 +532,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
               {/* COLUMN 2: 진행 중 */}
               <div
                 className="bg-[#FFFDF5] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-amber-100/40 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => !isReadOnly && e.preventDefault()}
-                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'IN_PROGRESS')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -516,8 +550,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                       <TaskCard
                         key={task.id}
                         task={task}
-                        isReadOnly={isReadOnly}
-                        onDragStart={() => setDraggedTaskId(task.id)}
+                        isReadOnly={true}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
                       />
@@ -545,8 +578,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
               {/* COLUMN 3: 완료 */}
               <div
                 className="bg-[#F4FDF9] dark:bg-[#0F172A]/40 rounded-2xl p-5 border border-emerald-100/40 dark:border-white/5 flex flex-col min-h-[500px]"
-                onDragOver={(e) => !isReadOnly && e.preventDefault()}
-                onDrop={() => !isReadOnly && draggedTaskId && handleUpdateTaskStatus(draggedTaskId, 'DONE')}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -565,8 +596,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                       <TaskCard
                         key={task.id}
                         task={task}
-                        isReadOnly={isReadOnly}
-                        onDragStart={() => setDraggedTaskId(task.id)}
+                        isReadOnly={true}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={(status) => handleUpdateTaskStatus(task.id, status)}
                       />
@@ -609,6 +639,19 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
           loadTasks();
           window.location.reload();
         }}
+        onPaywallNeeded={handlePaywallNeeded}
+      />
+      {/* ============================================================== */}
+      {/* SUBSCRIPTION PAYWALL MODAL                                     */}
+      {/* ============================================================== */}
+      <SubscriptionPaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        message={paywallMessage}
+        onSuccess={() => {
+          setIsPaywallOpen(false);
+          // 닫기만 하고 사용자가 다시 버튼을 누를 수 있도록 둠
+        }}
       />
     </div>
   );
@@ -619,7 +662,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
 // ==============================================================
 interface TaskCardProps {
   task: any;
-  onDragStart: () => void;
+  onDragStart?: () => void;
   onDelete: () => void;
   onStatusChange: (status: 'TODO' | 'IN_PROGRESS' | 'DONE') => void;
   isReadOnly?: boolean;

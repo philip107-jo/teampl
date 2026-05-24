@@ -462,6 +462,7 @@ Instructions:
    - "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
    - "assignees": An array containing the email address of the most suitable member from the Active Members list, or an empty array if unsure.
    - "stageId": the integer ID of the stage this task belongs to.
+   - "requiresDeliverable": a boolean indicating if this task strictly requires submitting a file/report to be considered done (e.g. true for writing code/docs, false for simple research/communication).
 
 You must respond ONLY with a valid JSON object containing "stages" and "tasks" arrays. Never include markdown formatting like \`\`\`json. Example:
 {
@@ -470,8 +471,8 @@ You must respond ONLY with a valid JSON object containing "stages" and "tasks" a
     { "id": 2, "title": "프론트엔드 개발", "description": "UI 컴포넌트 개발" }
   ],
   "tasks": [
-    { "id": "t-1", "title": "요구사항 정의서 작성", "priority": "high", "deadline": "2024-05-15", "difficulty": 3, "assignees": ["user1@example.com"], "stageId": 1 },
-    { "id": "t-2", "title": "메인 화면 UI 구현", "priority": "medium", "deadline": "", "difficulty": 4, "assignees": [], "stageId": 2 }
+    { "id": "t-1", "title": "요구사항 정의서 작성", "priority": "high", "deadline": "2024-05-15", "difficulty": 3, "assignees": ["user1@example.com"], "stageId": 1, "requiresDeliverable": true },
+    { "id": "t-2", "title": "관련 사례 조사", "priority": "medium", "deadline": "", "difficulty": 2, "assignees": [], "stageId": 1, "requiresDeliverable": false }
   ]
 }
 `;
@@ -490,13 +491,86 @@ You must respond ONLY with a valid JSON object containing "stages" and "tasks" a
 
         const content = response.choices[0]?.message?.content || "{}";
         try {
-            // Some robust parsing in case GPT returns markdown blocks
-            const jsonStr = content.replace(/```json/g, "").replace(/```/g, "").trim();
-            const result = JSON.parse(jsonStr);
-            return result;
-        } catch (e) {
-            console.error("Failed to parse AI output:", content);
-            throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
+            const raw = content;
+            let cleaned = raw.trim();
+            if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json/, '');
+            if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
+            if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
+            
+            return JSON.parse(cleaned.trim());
+        } catch (e: any) {
+            console.error("AI parsing error:", e);
+            throw new Error("AI 응답을 파싱하는데 실패했습니다.");
+        }
+    },
+
+    evaluateProjectWithAi: async (projectId: number, reportText: string) => {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key is not configured.");
+        }
+
+        const project = await prisma.project.findUnique({
+            where: { id: projectId }
+        });
+        if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
+
+        const systemPrompt = `
+You are an expert project evaluator and professor. Your job is to review the final project report provided by the user and give an objective, constructive evaluation based on the project's original topic and description.
+
+Project Details:
+- Topic: ${project.name}
+- Course/Context: ${project.course || 'N/A'}
+- Initial Goal/Description: ${project.description || 'N/A'}
+
+Evaluate the provided report on the following criteria:
+1. Relevance: Does it address the original topic?
+2. Completeness: Is it logically sound and complete?
+3. Quality: Are there clear insights or conclusions?
+
+You must respond ONLY with a valid JSON object. Never include markdown formatting like \`\`\`json.
+All text values inside the JSON MUST be written in Korean (한국어).
+Format:
+{
+  "score": <integer between 0 and 100>,
+  "strengths": [ <string in Korean>, <string in Korean> ... (2-3 items) ],
+  "weaknesses": [ <string in Korean>, <string in Korean> ... (2-3 items) ],
+  "summary": "<string in Korean, an overall encouraging but objective summary>"
+}
+`;
+
+        const userPrompt = `Here is the final report:\n\n${reportText}`;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            temperature: 0.3,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ]
+        });
+
+        try {
+            const raw = response.choices[0]?.message?.content || "{}";
+            let cleaned = raw.trim();
+            if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json/, '');
+            if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
+            if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
+            
+            const parsed = JSON.parse(cleaned.trim());
+
+            // Save the evaluation to the project
+            await prisma.project.update({
+                where: { id: projectId },
+                data: {
+                    aiEvaluationScore: parsed.score,
+                    aiEvaluationReport: parsed
+                }
+            });
+
+            return parsed;
+        } catch (e: any) {
+            console.error("AI parsing error:", e);
+            throw new Error("AI 응답을 파싱하는데 실패했습니다.");
         }
     },
 

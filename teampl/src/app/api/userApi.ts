@@ -23,4 +23,8 @@ export const userApi = {
     });
     return res.data;
   },
+  upgradePlan: async () => {
+    const res = await apiClient.post('/users/upgrade');
+    return res.data;
+  },
 };

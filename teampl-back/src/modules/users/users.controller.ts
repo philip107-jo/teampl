@@ -63,4 +63,16 @@ router.post('/avatar', authMiddleware, upload.single('file'), async (req: Reques
   }
 });
 
+// POST /api/users/upgrade - 유료 플랜 업그레이드 (Mock)
+router.post('/upgrade', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const updated = await UsersService.upgradePlan(userId, 'PRO');
+    const { password: _, ...userWithoutPassword } = updated;
+    res.json(userWithoutPassword);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
 export default router;
