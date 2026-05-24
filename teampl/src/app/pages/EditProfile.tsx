@@ -18,7 +18,7 @@ const DEPARTMENTS = [
 ];
 
 export default function EditProfile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -31,6 +31,7 @@ export default function EditProfile() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +46,23 @@ export default function EditProfile() {
       showToast("프로필 이미지 업로드에 실패했습니다.", "error");
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("정말로 탈퇴하시겠습니까? 탈퇴 시 작성한 과제와 메시지 등 모든 데이터가 완전히 삭제되며 복구할 수 없습니다.")) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await userApi.deleteAccount();
+      showToast("회원탈퇴가 완료되었습니다.", "success");
+      logout();
+      navigate("/login");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "회원탈퇴에 실패했습니다.", "error");
+      setDeleting(false);
     }
   };
 
@@ -206,7 +224,7 @@ export default function EditProfile() {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || deleting}
                 className="flex-1 py-4 bg-[#11B886] hover:bg-[#11B886]/90 text-white rounded-2xl font-bold shadow-lg shadow-[#11B886]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
@@ -220,6 +238,24 @@ export default function EditProfile() {
               </button>
             </div>
           </form>
+
+          {/* Danger Zone */}
+          <div className="mt-16 pt-8 border-t border-red-100 dark:border-red-900/30">
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-500 mb-2">위험 구역 (Danger Zone)</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">계정을 삭제하면 복구할 수 없으며, 참여 중인 프로젝트와 작성한 모든 데이터가 함께 삭제됩니다.</p>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleting || loading}
+              className="w-full py-4 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 rounded-2xl font-bold border border-red-200 dark:border-red-500/30 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+            >
+              {deleting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "회원 탈퇴하기"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

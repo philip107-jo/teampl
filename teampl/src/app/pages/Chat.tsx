@@ -13,6 +13,7 @@ import { taskApi } from "../api/taskApi";
 import { chatApi, ChatMessage } from "../api/chatApi";
 import { voteApi, Vote, CreateVoteData } from "../api/voteApi";
 import { Task } from "../types";
+import Avatar from "../components/Avatar";
 
 // ProfileModal 
 function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { projectId?: number, selectedMember: any, onClose: () => void, onMessage: () => void }) {
@@ -61,9 +62,11 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
           <X className="w-5 h-5" />
         </button>
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className={`w-24 h-24 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[36px] font-bold shadow-sm uppercase`}>
-            {selectedMember.name?.[0] || 'U'}
-          </div>
+          <Avatar 
+            name={selectedMember.name} 
+            avatarUrl={selectedMember.avatarUrl} 
+            className="w-24 h-24 text-[36px] shadow-sm uppercase" 
+          />
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{selectedMember.name}</h3>
             <p className="text-sm font-medium text-gray-505 uppercase tracking-widest">{selectedMember.role || '팀원'}</p>
@@ -381,6 +384,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
 
         const formatted = msgs.map((m: any) => ({
           id: String(m.id),
+          senderEmail: m.senderEmail,
           sender: m.sender?.name || m.senderEmail.split('@')[0],
           content: m.content,
           isPinned: m.isPinned,
@@ -676,9 +680,11 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                     )}
                     <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} items-start gap-3 mt-4 group`}>
                       {!msg.isMe && (
-                        <div className="w-9 h-9 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold shrink-0">
-                          {msg.sender[0]}
-                        </div>
+                        <Avatar
+                          name={msg.sender}
+                          avatarUrl={projectMembers.find(m => m.email === (msg as any).senderEmail)?.avatarUrl}
+                          className="w-9 h-9 text-sm shrink-0"
+                        />
                       )}
                       <div className={`max-w-[70%] flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
                         {!msg.isMe && <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender}</span>}
@@ -771,12 +777,16 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
           {/* 타이핑 인디케이터 */}
           {typingUsers.length > 0 && (
             <div className="flex items-center gap-2 px-6 pb-3">
-              <div className="w-8 h-8 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-xs font-bold shrink-0">
-                {(() => {
-                  const member = projectMembers.find(m => m.email === typingUsers[0]);
-                  return member?.name?.[0] || '?';
-                })()}
-              </div>
+              {(() => {
+                const member = projectMembers.find(m => m.email === typingUsers[0]);
+                return (
+                  <Avatar
+                    name={member?.name || '?'}
+                    avatarUrl={member?.avatarUrl}
+                    className="w-8 h-8 text-xs shrink-0"
+                  />
+                );
+              })()}
               <div className="flex items-center gap-1 bg-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -944,9 +954,11 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                 className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold">
-                    {member.name?.[0] || 'U'}
-                  </div>
+                  <Avatar
+                    name={member.name}
+                    avatarUrl={member.avatarUrl}
+                    className="w-10 h-10 text-sm shrink-0"
+                  />
                   {isOnline && (
                     <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white dark:ring-[#132038]" />
                   )}

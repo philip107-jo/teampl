@@ -16,7 +16,7 @@ export interface Project {
     inviteCode?: string;
     userName?: string;
     creatorEmail?: string;
-    membersList?: { id: number; email: string; name: string; role: string; avatarColor: string }[];
+    membersList?: { id: number; email: string; name: string; role: string; avatarColor: string; avatarUrl?: string }[];
     userRole?: string;
     userStatus?: string;
     kickReason?: string;

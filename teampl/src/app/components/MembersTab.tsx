@@ -3,6 +3,7 @@ import { taskApi } from "../api/taskApi";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
 import { Crown, CheckCircle2, Clock, Circle, Eye, Mail, GraduationCap, TrendingUp } from "lucide-react";
+import Avatar from "./Avatar";
 
 interface MembersTabProps {
   projectId: number;
@@ -78,9 +79,11 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[18px] font-black">
-                          {member.name?.[0]?.toUpperCase()}
-                        </div>
+                        <Avatar
+                          name={member.name}
+                          avatarUrl={member.avatarUrl}
+                          className="w-12 h-12 text-[18px]"
+                        />
                         <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#12182B] ${isOnline ? "bg-[#11B886]" : "bg-gray-300 dark:bg-white/20"}`} />
                       </div>
                       <div>

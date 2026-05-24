@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router";
 import { useDarkMode } from "../context/DarkModeContext";
 import { notificationApi } from "../api/notificationApi";
+import Avatar from "../components/Avatar";
 
 function urlB64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -145,8 +146,13 @@ export default function MyPage() {
             <div className={`absolute top-0 right-0 w-48 h-48 bg-[#11B886]/10 rounded-bl-full -z-10 opacity-50 blur-3xl group-hover:scale-110 transition-transform duration-700`}></div>
             
             <div className="relative group/avatar cursor-pointer flex-shrink-0">
-              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-[#11B886] to-[#0D9068] flex items-center justify-center text-[#1A2340] dark:text-white text-[48px] font-black shadow-[0_0_40px_rgba(17,184,134,0.4)]">
-                {user?.name?.[0] || "U"}
+              <div className="w-32 h-32 shadow-[0_0_40px_rgba(17,184,134,0.4)] rounded-[40px]">
+                <Avatar 
+                  name={user?.name || "User"} 
+                  avatarUrl={user?.avatarUrl} 
+                  shape="squircle"
+                  className="w-full h-full text-[48px] !rounded-[40px] !text-[#1A2340] dark:!text-white"
+                />
               </div>
               <div className="absolute inset-0 bg-black/60 rounded-[40px] opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
                 <Camera className="w-10 h-10 text-[#1A2340] dark:text-white" />
