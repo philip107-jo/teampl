@@ -3,12 +3,14 @@ import { useNavigate, Link, useSearchParams } from "react-router";
 import { LogIn, Mail, Lock, AlertCircle, Loader2, Sparkles, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -163,12 +165,13 @@ export default function Login() {
                 />
                 로그인 상태 유지
               </label>
-              <Link 
-                to="#" 
+              <button 
+                type="button"
+                onClick={() => setIsForgotModalOpen(true)}
                 className="font-bold text-[#11B886] hover:text-[#0EA271] transition-colors"
               >
                 비밀번호 찾기
-              </Link>
+              </button>
             </div>
 
             {/* Submit Button */}
@@ -246,6 +249,11 @@ export default function Login() {
 
         </div>
       </div>
+
+      <ForgotPasswordModal 
+        isOpen={isForgotModalOpen} 
+        onClose={() => setIsForgotModalOpen(false)} 
+      />
     </div>
   );
 }
