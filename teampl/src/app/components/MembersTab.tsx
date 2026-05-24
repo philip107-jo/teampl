@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { taskApi } from "../api/taskApi";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
-import { Crown, CheckCircle2, Clock, Circle, Eye, Mail, GraduationCap, TrendingUp } from "lucide-react";
+import { Crown, CheckCircle2, Clock, Circle, Eye, Mail, GraduationCap, TrendingUp, Phone, Video, MessageSquare } from "lucide-react";
+import { useCall } from "../context/CallContext";
 
 interface MembersTabProps {
   projectId: number;
@@ -11,8 +13,10 @@ interface MembersTabProps {
 }
 
 export default function MembersTab({ projectId, members }: MembersTabProps) {
+  const navigate = useNavigate();
   const { onlineUsers } = useChat();
   const { user } = useAuth();
+  const { startCall, inCallUsers } = useCall();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
@@ -62,6 +66,7 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
             const isOnline = onlineUsers.includes(member.email);
             const rCfg = roleConfig[member.role] || roleConfig.MEMBER;
             const isMe = member.email === user?.email;
+            const isInCall = inCallUsers.includes(member.email);
 
             return (
               <button
@@ -81,7 +86,13 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
                         <div className="w-12 h-12 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[18px] font-black">
                           {member.name?.[0]?.toUpperCase()}
                         </div>
-                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#12182B] ${isOnline ? "bg-[#11B886]" : "bg-gray-300 dark:bg-white/20"}`} />
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#12182B] ${
+                          isInCall 
+                            ? "bg-red-500 animate-pulse animate-duration-1000" 
+                            : isOnline 
+                              ? "bg-[#11B886]" 
+                              : "bg-gray-300 dark:bg-white/20"
+                        }`} />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -94,9 +105,15 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
                         </span>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded-full ${isOnline ? "text-[#11B886] bg-[#11B886]/10" : "text-gray-400 dark:text-white/30 bg-gray-100 dark:bg-white/5"}`}>
-                      {isOnline ? "온라인" : "오프라인"}
-                    </span>
+                    {isInCall ? (
+                      <span className="text-[10px] font-black px-2 py-1 rounded-full text-red-500 bg-red-500/10 animate-pulse shrink-0">
+                        전화 중
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-full ${isOnline ? "text-[#11B886] bg-[#11B886]/10" : "text-gray-400 dark:text-white/30 bg-gray-100 dark:bg-white/5"}`}>
+                        {isOnline ? "온라인" : "오프라인"}
+                      </span>
+                    )}
                   </div>
 
                   {/* 진행률 바 */}
@@ -169,6 +186,50 @@ export default function MembersTab({ projectId, members }: MembersTabProps) {
                         {stats.tasks.length > 4 && (
                           <p className="text-[11px] text-gray-400 dark:text-white/30 ml-5">+{stats.tasks.length - 4}개 더...</p>
                         )}
+                      </div>
+                    )}
+
+                    {/* 통화 및 메시지 시작 버튼 그룹 */}
+                    {!isMe && (
+                      <div className="space-y-2.5 pt-3 mt-2 border-t border-gray-100 dark:border-white/5 animate-in fade-in duration-300">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(`/projects/${projectId}?tab=chat&dm=${member.email}`);
+                          }}
+                          className="w-full py-2.5 bg-[#11B886] text-white hover:bg-[#0EA271] rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          1:1 메시지 보내기
+                        </button>
+                        
+                        <div className="flex gap-2.5">
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const dmRoom = [user!.email, member.email].sort().join('-');
+                              await startCall(dmRoom, member.name, member.email, false);
+                            }}
+                            className="flex-1 py-2.5 bg-[#11B886]/10 hover:bg-[#11B886]/20 text-[#11B886] rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            음성 전화
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const dmRoom = [user!.email, member.email].sort().join('-');
+                              await startCall(dmRoom, member.name, member.email, true);
+                            }}
+                            className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            영상 전화
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -70,6 +70,7 @@ app.use('/api/projects/:projectId/votes', votesRouter);
 // Socket.io 통신 처리
 const onlineUsers = new Set<string>();
 const socketToEmail = new Map<string, string>();
+const inCallUsers = new Set<string>();
 
 io.on('connection', (socket: Socket) => {
   console.log('🟢 Client connected directly:', socket.id);
@@ -78,6 +79,38 @@ io.on('connection', (socket: Socket) => {
     socketToEmail.set(socket.id, email);
     onlineUsers.add(email);
     io.emit('onlineUsers', Array.from(onlineUsers));
+    io.emit('inCallUsers', Array.from(inCallUsers)); // 연결 시 현재 통화 중 유저 상태도 즉시 동기화
+  });
+
+  // WebRTC 통화 상태 업데이트
+  socket.on('set-call-status', (data: { isInCall: boolean }) => {
+    const email = socketToEmail.get(socket.id);
+    if (email) {
+      if (data.isInCall) {
+        inCallUsers.add(email);
+      } else {
+        inCallUsers.delete(email);
+      }
+      io.emit('inCallUsers', Array.from(inCallUsers));
+      console.log(`📞 Call status updated for ${email}: ${data.isInCall ? 'IN CALL' : 'IDLE'}`);
+    }
+  });
+
+  // WebRTC 1:1 통화 시그널 중계
+  socket.on('call-user', (data: { room: string; offer: any; callerEmail: string; callerName: string; isVideo: boolean }) => {
+    socket.to(data.room).emit('incoming-call', data);
+  });
+
+  socket.on('accept-call', (data: { room: string; answer: any }) => {
+    socket.to(data.room).emit('call-accepted', data);
+  });
+
+  socket.on('ice-candidate', (data: { room: string; candidate: any }) => {
+    socket.to(data.room).emit('ice-candidate', data);
+  });
+
+  socket.on('end-call', (data: { room: string }) => {
+    socket.to(data.room).emit('call-ended', data);
   });
 
   // 방 입장 (프로젝트방 또는 1:1방)
@@ -128,8 +161,10 @@ io.on('connection', (socket: Socket) => {
     const email = socketToEmail.get(socket.id);
     if (email) {
       onlineUsers.delete(email);
+      inCallUsers.delete(email); // 통화 중 상태였을 시 해제
       socketToEmail.delete(socket.id);
       io.emit('onlineUsers', Array.from(onlineUsers));
+      io.emit('inCallUsers', Array.from(inCallUsers)); // 통화중 목록 전파
     }
   });
 });

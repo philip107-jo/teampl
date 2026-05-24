@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Send, Plus, User as UserIcon, MessageSquare, ChevronLeft, ChevronRight, Users, 
   Mail, GraduationCap, X, CheckCircle2, AlertCircle, Loader2, BarChart3, 
-  Lock, Shuffle, Circle, Clock
+  Lock, Shuffle, Circle, Clock, Phone, Video
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
+import { useCall } from "../context/CallContext";
 
 import { taskApi } from "../api/taskApi";
 import { chatApi, ChatMessage } from "../api/chatApi";
@@ -16,6 +18,8 @@ import { Task } from "../types";
 
 // ProfileModal 
 function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { projectId?: number, selectedMember: any, onClose: () => void, onMessage: () => void }) {
+  const { user } = useAuth();
+  const { startCall, inCallUsers } = useCall();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
 
@@ -41,6 +45,10 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
   const contributionRate = tasks.length > 0 ? Math.round((userTasks.length / tasks.length) * 100) : 0;
 
   if (!selectedMember) return null;
+
+  const isInCall = inCallUsers.includes(selectedMember.email);
+  const isMe = selectedMember.email === user?.email;
+
   return createPortal(
     <motion.div 
       initial={{ opacity: 0 }}
@@ -61,8 +69,15 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
           <X className="w-5 h-5" />
         </button>
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className={`w-24 h-24 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[36px] font-bold shadow-sm uppercase`}>
-            {selectedMember.name?.[0] || 'U'}
+          <div className="relative">
+            <div className={`w-24 h-24 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-[36px] font-bold shadow-sm uppercase`}>
+              {selectedMember.name?.[0] || 'U'}
+            </div>
+            {isInCall && (
+              <span className="absolute -bottom-1 -right-1 px-2.5 py-0.5 bg-red-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full animate-pulse border-2 border-white shadow-sm">
+                전화 중
+              </span>
+            )}
           </div>
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{selectedMember.name}</h3>
@@ -121,7 +136,7 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
           )}
         </div>
 
-        <div className="pt-4">
+        <div className="pt-4 space-y-2.5">
           <button
             type="button"
             onClick={(e) => {
@@ -134,6 +149,37 @@ function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { proje
             <MessageSquare className="w-5 h-5" />
             1:1 메시지 보내기
           </button>
+          
+          {!isMe && (
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                  const dmRoom = [user!.email, selectedMember.email].sort().join('-');
+                  await startCall(dmRoom, selectedMember.name, selectedMember.email, false);
+                }}
+                className="flex-1 py-3 bg-[#11B886]/10 text-[#11B886] hover:bg-[#11B886]/20 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-200"
+              >
+                📞 음성 전화
+              </button>
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                  const dmRoom = [user!.email, selectedMember.email].sort().join('-');
+                  await startCall(dmRoom, selectedMember.name, selectedMember.email, true);
+                }}
+                className="flex-1 py-3 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-200"
+              >
+                📹 영상 전화
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>,
@@ -280,6 +326,8 @@ interface ChatProps {
 
 export default function Chat({ projectId, projectMembers = [], projectData, isReadOnly }: ChatProps) {
   const { user } = useAuth();
+  const { startCall, inCallUsers } = useCall();
+  const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputText, setInputText] = useState("");
@@ -348,6 +396,20 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
       initProjectChat(projectId, user.email, projectMembers);
     }
   }, [projectId, user, membersHash, initProjectChat]);
+
+  const dmEmail = searchParams.get("dm");
+  useEffect(() => {
+    if (dmEmail && projectMembers.length > 0) {
+      const target = projectMembers.find(m => m.email === dmEmail);
+      if (target) {
+        setSelectedMember(target);
+        setChatMode("INDIVIDUAL");
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("dm");
+        setSearchParams(nextParams, { replace: true });
+      }
+    }
+  }, [dmEmail, projectMembers, searchParams, setSearchParams]);
 
   const chatKey = chatMode === "TEAM" ? `team-${projectId}` : (selectedMember ? `${[user?.email, selectedMember.email].sort().join('-')}` : '');
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
@@ -589,16 +651,44 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex items-center justify-between mb-4 px-1">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            {chatMode === "TEAM" ? "팀 채팅" : (
-              <>
-                <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mr-1">
-                  <ChevronLeft className="w-5 h-5" />
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              {chatMode === "TEAM" ? "팀 채팅" : (
+                <>
+                  <button onClick={() => { setChatMode("TEAM"); setSelectedMember(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mr-1">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  {selectedMember?.name}님과의 대화
+                </>
+              )}
+            </h2>
+            
+            {/* 1:1 대화중일 때 상단 퀵 전화기능 버튼 배치 */}
+            {chatMode === "INDIVIDUAL" && selectedMember && (
+              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                <button
+                  onClick={async () => {
+                    const dmRoom = [user!.email, selectedMember.email].sort().join('-');
+                    await startCall(dmRoom, selectedMember.name, selectedMember.email, false);
+                  }}
+                  className="p-2 bg-[#11B886]/10 hover:bg-[#11B886]/20 text-[#11B886] rounded-xl transition-all"
+                  title="음성 전화"
+                >
+                  <Phone className="w-4 h-4" />
                 </button>
-                {selectedMember?.name}님과의 대화
-              </>
+                <button
+                  onClick={async () => {
+                    const dmRoom = [user!.email, selectedMember.email].sort().join('-');
+                    await startCall(dmRoom, selectedMember.name, selectedMember.email, true);
+                  }}
+                  className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl transition-all"
+                  title="영상 전화"
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+              </div>
             )}
-          </h2>
+          </div>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-xs font-bold shadow-sm ${
@@ -932,6 +1022,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
             const isOnline = onlineUsers.includes(member.email);
             const unreadKey = `user-${projectId}-${member.id}`;
             const unreadCount = unreadCounts[unreadKey] || 0;
+            const isInCall = inCallUsers.includes(member.email);
 
             return (
               <button
@@ -947,13 +1038,22 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                   <div className="w-10 h-10 rounded-full bg-[#11B886]/10 text-[#11B886] flex items-center justify-center text-sm font-bold">
                     {member.name?.[0] || 'U'}
                   </div>
-                  {isOnline && (
+                  {isInCall ? (
+                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#132038] animate-pulse" />
+                  ) : isOnline ? (
                     <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#11B886] ring-2 ring-white dark:ring-[#132038]" />
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{member.name}</p>
-                  <p className="text-xs text-gray-505 dark:text-gray-400 truncate">{member.role || '팀원'}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs text-gray-550 dark:text-gray-400 truncate">{member.role || '팀원'}</span>
+                    {isInCall && (
+                      <span className="px-1.5 py-0.5 bg-red-500/15 text-red-500 text-[9px] font-black uppercase tracking-widest rounded animate-pulse shrink-0">
+                        전화 중
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {unreadCount > 0 && (
                   <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 shadow-sm shrink-0">
