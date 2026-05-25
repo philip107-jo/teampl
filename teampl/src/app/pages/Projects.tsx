@@ -249,15 +249,17 @@ export default function Projects() {
                     <FolderOpen className="w-6 h-6" />
                   </div>
                   
-                  {project.userRole === 'LEADER' && activeTab !== "완료됨" && (
+                  {project.userRole === 'LEADER' && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"
-                        onClick={(e) => handleEditClick(e, project)}
-                        title="수정하기"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {activeTab !== "완료됨" && (
+                        <button 
+                          className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"
+                          onClick={(e) => handleEditClick(e, project)}
+                          title="수정하기"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button 
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                         onClick={(e) => handleDeleteClick(e, project)}

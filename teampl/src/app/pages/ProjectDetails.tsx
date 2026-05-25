@@ -289,7 +289,13 @@ export default function ProjectDetails() {
             
             <div className="relative">
               <button 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                onClick={() => {
+                  if (project.userRole !== 'LEADER') {
+                    showToast('프로젝트 설정은 팀장만 변경할 수 있습니다.', 'error');
+                    return;
+                  }
+                  setIsDropdownOpen(!isDropdownOpen);
+                }}
                 className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
               >
                 <Settings className="w-5 h-5" />

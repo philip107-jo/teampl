@@ -498,7 +498,18 @@ You must respond ONLY with a valid JSON object containing "stages" and "tasks" a
             if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
             if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
             
-            return JSON.parse(cleaned.trim());
+            const parsed = JSON.parse(cleaned.trim());
+            
+            // 모든 생성된 테스크의 마감일을 프로젝트의 마감일로 통일
+            const unifiedDeadline = project.deadline ? project.deadline.replace(/\./g, '-') : '';
+            if (parsed.tasks && Array.isArray(parsed.tasks)) {
+                parsed.tasks = parsed.tasks.map((task: any) => ({
+                    ...task,
+                    deadline: unifiedDeadline
+                }));
+            }
+            
+            return parsed;
         } catch (e: any) {
             console.error("AI parsing error:", e);
             throw new Error("AI 응답을 파싱하는데 실패했습니다.");
