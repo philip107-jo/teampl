@@ -191,53 +191,7 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Quick Login Section */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <p className="text-center text-xs font-bold text-slate-400 tracking-wider">빠른 로그인</p>
-            <div className="grid grid-cols-3 gap-3">
-              {/* Profile 1 */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("minji@university.ac.kr")}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 bg-slate-50 hover:bg-[#11B886]/10 border border-slate-100 hover:border-[#11B886]/20 rounded-xl transition-all cursor-pointer group active:scale-95"
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=50&h=50&q=80" 
-                  alt="김민지" 
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-                <span className="text-[12px] font-bold text-slate-600 group-hover:text-[#11B886]">김민지</span>
-              </button>
 
-              {/* Profile 2 */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("junho@university.ac.kr")}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 bg-slate-50 hover:bg-[#11B886]/10 border border-slate-100 hover:border-[#11B886]/20 rounded-xl transition-all cursor-pointer group active:scale-95"
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=50&h=50&q=80" 
-                  alt="박준호" 
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-                <span className="text-[12px] font-bold text-slate-600 group-hover:text-[#11B886]">박준호</span>
-              </button>
-
-              {/* Profile 3 */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("seoyeon@university.ac.kr")}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 bg-slate-50 hover:bg-[#11B886]/10 border border-slate-100 hover:border-[#11B886]/20 rounded-xl transition-all cursor-pointer group active:scale-95"
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=50&h=50&q=80" 
-                  alt="이서연" 
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-                <span className="text-[12px] font-bold text-slate-600 group-hover:text-[#11B886]">이서연</span>
-              </button>
-            </div>
-          </div>
 
           {/* Bottom links */}
           <p className="text-center text-sm font-semibold text-slate-400 pt-4">
