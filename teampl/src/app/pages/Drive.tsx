@@ -4,13 +4,14 @@ import {
   Folder, FolderOpen, FileText, FileImage, FileCode2, FileType2, FileSpreadsheet,
   Search, Plus, Upload, Download,
   ChevronRight, HardDrive, ChevronLeft,
-  Loader2, Trash2, CloudUpload, CheckCircle2, GripVertical, Move
+  Loader2, Trash2, CloudUpload, CheckCircle2, GripVertical, Move, AlertCircle, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { driveApi, DriveFolder, DriveFile } from "../api/driveApi";
 import FilePreviewModal from "../components/FilePreviewModal";
+import { socket, joinProjectChannel } from "../socket";
 
 interface DriveProps {
   projectId?: number;
@@ -79,12 +80,22 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<any | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<DriveFile | null>(null);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [selectedFileIds, setSelectedFileIds] = useState<number[]>([]);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   // 탐색 및 드래그앤드롭 상태
   const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
   const [draggingFileId, setDraggingFileId] = useState<number | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<number | null>(null);
   const [isDragOverBreadcrumb, setIsDragOverBreadcrumb] = useState(false);
+
+  useEffect(() => {
+    setSelectedFileIds([]);
+  }, [currentFolderId]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -103,7 +114,21 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
   }, [propProjectId]);
 
   useEffect(() => {
-    if (propProjectId) loadDocuments();
+    if (propProjectId) {
+      loadDocuments();
+      joinProjectChannel(propProjectId);
+
+      const onDriveUpdated = () => {
+        console.log("실시간 드라이브 업데이트 수신! 리로드 중...");
+        loadDocuments();
+      };
+
+      socket.on('driveUpdated', onDriveUpdated);
+
+      return () => {
+        socket.off('driveUpdated', onDriveUpdated);
+      };
+    }
   }, [propProjectId, loadDocuments]);
 
   const uploadFiles = async (files: FileList | File[], folderId?: number | null) => {
@@ -135,31 +160,57 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
     if (e.target.files) uploadFiles(e.target.files);
   };
 
-  const handleCreateFolder = async () => {
-    if (!propProjectId) return;
-    const name = window.prompt("새 폴더 이름을 입력하세요:");
-    if (!name?.trim()) return;
+  const handleCreateFolder = () => {
+    setNewFolderName("");
+    setIsCreateFolderOpen(true);
+  };
+
+  const handleCreateFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!propProjectId || !newFolderName.trim()) return;
     try {
       setIsLoading(true);
-      await driveApi.createFolder(propProjectId, name.trim());
+      await driveApi.createFolder(propProjectId, newFolderName.trim());
       showToast("폴더가 생성되었습니다.", "success");
+      setIsCreateFolderOpen(false);
+      setNewFolderName("");
       await loadDocuments();
     } catch (e) {
       console.error("폴더 생성 실패", e);
+      showToast("폴더 생성 중 오류가 발생했습니다.", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteFile = async (file: DriveFile) => {
-    if (!propProjectId) return;
-    if (!confirm(`"${file.originalName}" 파일을 삭제하시겠습니까?`)) return;
+  const confirmDeleteFile = async () => {
+    if (!propProjectId || !fileToDelete) return;
+    const file = fileToDelete;
+    setFileToDelete(null);
     try {
       await driveApi.deleteFile(propProjectId, file.id);
       showToast("파일이 삭제되었습니다.", "success");
       await loadDocuments();
     } catch (e) {
       console.error("파일 삭제 실패", e);
+      showToast("파일 삭제 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!propProjectId || !folderToDelete) return;
+    const folder = folderToDelete;
+    setFolderToDelete(null);
+    try {
+      setIsLoading(true);
+      await driveApi.deleteFolder(propProjectId, folder.id);
+      showToast("폴더가 삭제되었습니다.", "success");
+      await loadDocuments();
+    } catch (e) {
+      console.error("폴더 삭제 실패", e);
+      showToast("폴더 삭제 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -200,6 +251,40 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
     if (isReadOnly) return;
     if (e.dataTransfer.files.length > 0) {
       uploadFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleSelectAllToggle = () => {
+    const isAllSelected = filteredFiles.length > 0 && filteredFiles.every(f => selectedFileIds.includes(f.id));
+    if (isAllSelected) {
+      const filteredIds = filteredFiles.map(f => f.id);
+      setSelectedFileIds(selectedFileIds.filter(id => !filteredIds.includes(id)));
+    } else {
+      const newIds = filteredFiles.map(f => f.id).filter(id => !selectedFileIds.includes(id));
+      setSelectedFileIds([...selectedFileIds, ...newIds]);
+    }
+  };
+
+  const handleDownloadZip = async (fileIdsToDownload: number[], archiveName: string = "archive.zip") => {
+    if (!propProjectId || fileIdsToDownload.length === 0) return;
+    setIsDownloadingZip(true);
+    try {
+      showToast("ZIP 압축 파일 생성 중...", "info");
+      const blob = await driveApi.downloadZip(propProjectId, fileIdsToDownload);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', archiveName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast("다운로드가 완료되었습니다.", "success");
+    } catch (e: any) {
+      console.error("ZIP 다운로드 실패", e);
+      showToast("압축 다운로드 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsDownloadingZip(false);
     }
   };
 
@@ -435,14 +520,32 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
                     }`}>
                       <Icon className={`w-6 h-6 ${isAutoCreated ? 'text-purple-500' : 'text-[#11B886]'}`} />
                     </div>
-                    {isAutoCreated && (
+                    {isAutoCreated ? (
                       <span className="text-[9px] font-black text-purple-500 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest">자동</span>
+                    ) : (
+                      !isReadOnly && (!folder.creatorEmail || folder.creatorEmail === user?.email) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderToDelete(folder);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-300 dark:text-white/20 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl cursor-pointer"
+                          title="폴더 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )
                     )}
                   </div>
                   <div className="flex items-end justify-between">
                     <span className="bg-[#1A2340] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                       {folder.items}개
                     </span>
+                    {!isAutoCreated && (folder.creator?.name || folder.creatorEmail) && (
+                      <span className="text-[12px] font-bold text-gray-500 dark:text-white/50 truncate max-w-[100px]" title={`생성자: ${folder.creator?.name || folder.creatorEmail}`}>
+                        {folder.creator?.name || folder.creatorEmail?.split("@")[0]}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-4">
                     <h3 className="text-[15px] font-bold text-gray-900 dark:text-white truncate">{folder.name}</h3>
@@ -475,6 +578,73 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
               </span>
             </div>
           )}
+          {filteredFiles.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 mb-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={filteredFiles.length > 0 && filteredFiles.every(f => selectedFileIds.includes(f.id))}
+                  onChange={handleSelectAllToggle}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-white/20 text-[#11B886] focus:ring-[#11B886] cursor-pointer accent-[#11B886]"
+                  id="selectAllFiles"
+                />
+                <label htmlFor="selectAllFiles" className="text-[13px] font-bold text-gray-600 dark:text-white/70 cursor-pointer select-none">
+                  전체 선택 ({filteredFiles.length}개 중 {filteredFiles.filter(f => selectedFileIds.includes(f.id)).length}개 선택됨)
+                </label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {selectedFileIds.filter(id => filteredFiles.some(f => f.id === id)).length > 0 ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        const currentViewSelectedIds = selectedFileIds.filter(id => filteredFiles.some(f => f.id === id));
+                        handleDownloadZip(
+                          currentViewSelectedIds,
+                          `${activeFolderName || "자료실"}_선택_산출물.zip`
+                        );
+                      }}
+                      disabled={isDownloadingZip}
+                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-[12px] font-bold transition-all active:scale-95 shadow-[0_2px_8px_rgba(17,184,134,0.2)] animate-fade-in"
+                    >
+                      {isDownloadingZip ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      선택 다운로드 ({selectedFileIds.filter(id => filteredFiles.some(f => f.id === id)).length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentViewIds = filteredFiles.map(f => f.id);
+                        setSelectedFileIds(selectedFileIds.filter(id => !currentViewIds.includes(id)));
+                      }}
+                      className="px-3.5 py-2.5 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/80 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl text-[12px] font-bold transition-all active:scale-95"
+                    >
+                      선택 해제
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const allIds = filteredFiles.map(f => f.id);
+                      handleDownloadZip(allIds, `${activeFolderName || "자료실"}_일괄_산출물.zip`);
+                    }}
+                    disabled={isDownloadingZip}
+                    className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-[12px] font-bold transition-all active:scale-95 shadow-[0_2px_8px_rgba(37,99,235,0.2)]"
+                  >
+                    {isDownloadingZip ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    일괄 다운로드 (전체 {filteredFiles.length}개)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {filteredFiles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredFiles.map(file => {
@@ -509,6 +679,21 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-3 min-w-0">
+                        {/* 선택 체크박스 */}
+                        <input
+                          type="checkbox"
+                          checked={selectedFileIds.includes(file.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            if (selectedFileIds.includes(file.id)) {
+                              setSelectedFileIds(selectedFileIds.filter(id => id !== file.id));
+                            } else {
+                              setSelectedFileIds([...selectedFileIds, file.id]);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded border-gray-300 dark:border-white/20 text-[#11B886] focus:ring-[#11B886] cursor-pointer mt-4 accent-[#11B886] flex-shrink-0"
+                        />
                         {/* 파일 아이콘 */}
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg}`}>
                           <Icon className={`w-6 h-6 ${colors.icon}`} />
@@ -537,7 +722,7 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteFile(file);
+                              setFileToDelete(file);
                             }}
                             className="w-8 h-8 rounded-full bg-gray-50 hover:bg-red-500 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-500 hover:text-white transition-all duration-200"
                             title="삭제"
@@ -614,6 +799,99 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
           file={previewFile}
           onClose={() => setPreviewFile(null)}
         />
+      )}
+
+      {/* -- Folder Delete Confirmation Modal -- */}
+      {folderToDelete && (
+        <div className="fixed inset-0 z-[350] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
+            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
+              <span className="text-[#1A2340] dark:text-white">'{folderToDelete.name}'</span> 폴더를 삭제하면 폴더 내부의 <span className="text-red-500 font-black">모든 파일과 데이터도 함께 즉시 영구 삭제</span>됩니다. 그래도 삭제하시겠습니까?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setFolderToDelete(null)}
+                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteFolder}
+                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -- File Delete Confirmation Modal -- */}
+      {fileToDelete && (
+        <div className="fixed inset-0 z-[350] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
+            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
+              <span className="text-[#1A2340] dark:text-white">'{fileToDelete.originalName}'</span> 파일을 삭제하시겠습니까? 삭제된 파일 정보는 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setFileToDelete(null)}
+                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteFile}
+                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -- Create Folder Modal -- */}
+      {isCreateFolderOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setIsCreateFolderOpen(false)}>
+          <div className="card w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.5)] !p-8 border border-gray-300 dark:border-white/10 dark:bg-[#132038]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-[20px] font-black text-[#1A2340] dark:text-white">새 폴더 만들기</h2>
+              <button onClick={() => setIsCreateFolderOpen(false)} className="p-3 hover:bg-white/10 dark:bg-white/10 rounded-2xl transition-all active:scale-90 border-none cursor-pointer">
+                <X className="w-6 h-6 text-[#7D879C] dark:text-white/60" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateFolderSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[#7D879C] ml-1">폴더 이름</label>
+                <input
+                  type="text"
+                  placeholder="폴더 이름을 입력하세요"
+                  autoFocus
+                  required
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-[#0d1526] border border-gray-300 dark:border-white/10 rounded-2xl focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.2)] outline-none transition-all placeholder-[#7D879C]/50 dark:text-white text-sm font-bold"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!newFolderName.trim()}
+                className="w-full py-5 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-2xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(17,184,134,0.3)] disabled:opacity-30 transition-all active:scale-[0.98] border-none cursor-pointer"
+              >
+                생성하기
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

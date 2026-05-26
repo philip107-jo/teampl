@@ -1,12 +1,19 @@
-import { prisma } from '../../prisma';
-import { uploadToKTCloud, deleteFromKTCloud } from './ktcloud.storage';
+import { prisma } from '../../prisma'; // Prisma client connection
+import { uploadToKTCloud, deleteFromKTCloud, s3Client, BUCKET } from './ktcloud.storage';
+import AdmZip from 'adm-zip';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 export const DriveService = {
   // 프로젝트 드라이브 조회
   getDriveContents: async (projectId: number) => {
     const folders = await prisma.driveFolder.findMany({
       where: { projectId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        creator: {
+          select: { name: true }
+        }
+      }
     });
 
     const files = await prisma.driveFile.findMany({
@@ -22,12 +29,18 @@ export const DriveService = {
     return { folders, files };
   },
 
-  createFolder: async (projectId: number, name: string) => {
+  createFolder: async (projectId: number, name: string, creatorEmail: string) => {
     return await prisma.driveFolder.create({
       data: {
         projectId,
         name,
-        theme: 'blue'
+        theme: 'blue',
+        creatorEmail
+      },
+      include: {
+        creator: {
+          select: { name: true }
+        }
       }
     });
   },
@@ -95,5 +108,103 @@ export const DriveService = {
       where: { id: fileId },
       data: { folderId }
     });
+  },
+
+  /**
+   * 폴더와 폴더 안의 모든 파일을 KT Cloud와 DB에서 삭제합니다.
+   */
+  deleteFolder: async (projectId: number, folderId: number, requesterEmail: string) => {
+    const folder = await prisma.driveFolder.findFirst({
+      where: { id: folderId, projectId }
+    });
+    if (!folder) return false;
+
+    // 본인이 생성한 폴더만 삭제 권한 부여 (기존 생성자가 없는 폴더는 삭제 허용)
+    if (folder.creatorEmail && folder.creatorEmail !== requesterEmail) {
+      throw new Error('폴더를 삭제할 권한이 없습니다.');
+    }
+
+    // 폴더 내부의 모든 파일 조회
+    const files = await prisma.driveFile.findMany({
+      where: { folderId }
+    });
+
+    // 파일들을 KT Cloud 및 DB에서 삭제
+    for (const file of files) {
+      try {
+        await deleteFromKTCloud(file.name);
+      } catch (err) {
+        console.error('[KT Cloud] 파일 삭제 실패 (계속 진행):', err);
+      }
+      await prisma.driveFile.delete({ where: { id: file.id } });
+    }
+
+    // 폴더 자체 삭제
+    await prisma.driveFolder.delete({
+      where: { id: folderId }
+    });
+    return true;
+  },
+
+  /**
+   * 여러 개의 파일을 하나의 ZIP 파일로 만들어 버퍼를 반환합니다.
+   */
+  downloadZip: async (projectId: number, fileIds: number[]) => {
+    const files = await prisma.driveFile.findMany({
+      where: {
+        id: { in: fileIds },
+        projectId
+      }
+    });
+
+    if (files.length === 0) {
+      throw new Error('다운로드할 파일이 없습니다.');
+    }
+
+    const zip = new AdmZip();
+    const usedNames = new Set<string>();
+
+    const getUniqueName = (originalName: string) => {
+      let name = originalName;
+      let counter = 1;
+      const extIndex = name.lastIndexOf('.');
+      const base = extIndex !== -1 ? name.substring(0, extIndex) : name;
+      const ext = extIndex !== -1 ? name.substring(extIndex) : '';
+      
+      while (usedNames.has(name)) {
+        name = `${base} (${counter})${ext}`;
+        counter++;
+      }
+      usedNames.add(name);
+      return name;
+    };
+
+    const streamToBuffer = async (stream: any): Promise<Buffer> => {
+      return new Promise((resolve, reject) => {
+        const chunks: any[] = [];
+        stream.on('data', (chunk: any) => chunks.push(chunk));
+        stream.on('error', reject);
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+    };
+
+    for (const file of files) {
+      try {
+        const command = new GetObjectCommand({
+          Bucket: BUCKET,
+          Key: file.name
+        });
+        const s3Response = await s3Client.send(command);
+        if (s3Response.Body) {
+          const buffer = await streamToBuffer(s3Response.Body);
+          const uniqueName = getUniqueName(file.originalName);
+          zip.addFile(uniqueName, buffer);
+        }
+      } catch (err) {
+        console.error(`[KT Cloud] 파일 다운로드 실패 (${file.originalName}):`, err);
+      }
+    }
+
+    return zip.toBuffer();
   }
 };

@@ -15,3 +15,9 @@ export const emitTaskUpdate = (projectId: number) => {
     io.to(`project-${projectId}`).emit('taskUpdated');
   }
 };
+
+export const emitDriveUpdate = (projectId: number) => {
+  if (io) {
+    io.to(`project-${projectId}`).emit('driveUpdated');
+  }
+};

@@ -6,6 +6,8 @@ export interface DriveFolder {
   name: string;
   theme: string;
   createdAt: string;
+  creatorEmail?: string;
+  creator?: { name: string };
 }
 
 export interface DriveFile {
@@ -50,8 +52,19 @@ export const driveApi = {
     await client.delete(`/projects/${projectId}/drive/files/${fileId}`);
   },
 
+  deleteFolder: async (projectId: number, folderId: number): Promise<void> => {
+    await client.delete(`/projects/${projectId}/drive/folders/${folderId}`);
+  },
+
   moveFile: async (projectId: number, fileId: number, folderId: number | null): Promise<DriveFile> => {
     const response = await client.patch(`/projects/${projectId}/drive/files/${fileId}/move`, { folderId });
+    return response.data;
+  },
+
+  downloadZip: async (projectId: number, fileIds: number[]): Promise<Blob> => {
+    const response = await client.post(`/projects/${projectId}/drive/download-zip`, { fileIds }, {
+      responseType: 'blob'
+    });
     return response.data;
   }
 };

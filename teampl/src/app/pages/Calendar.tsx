@@ -19,6 +19,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
   const [projects, setProjects] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [eventToDelete, setEventToDelete] = useState<any | null>(null);
   
   const todayStr = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({ 
@@ -77,36 +78,37 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
     }
   };
 
-  const handleDeleteEvent = async () => {
-    if (!editingEventId) return;
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return;
+    const eventId = eventToDelete.id;
     try {
-      if (numProjectId) {
-        await scheduleApi.deleteSchedule(numProjectId, editingEventId);
+      const targetProjectId = numProjectId || (eventToDelete.projectId || (formData.project === 'personal' ? null : Number(formData.project)));
+      if (targetProjectId) {
+        await scheduleApi.deleteSchedule(targetProjectId, eventId);
       } else {
-        const targetProjectId = formData.project === 'personal' ? null : Number(formData.project);
-        await scheduleApi.deleteGlobalSchedule(editingEventId, targetProjectId);
+        await scheduleApi.deleteGlobalSchedule(eventId, null);
       }
-      setEvents(events.filter(ev => ev.id !== editingEventId));
-      closeModal();
+      setEvents(events.filter(ev => ev.id !== eventId));
+      setEventToDelete(null);
+      if (editingEventId === eventId) {
+        closeModal();
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleDirectDelete = async (e: React.MouseEvent, eventItem: any) => {
-    e.stopPropagation();
-    if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-    try {
-      if (numProjectId) {
-        await scheduleApi.deleteSchedule(numProjectId, eventItem.id);
-      } else {
-        const targetProjectId = eventItem.projectId || null;
-        await scheduleApi.deleteGlobalSchedule(eventItem.id, targetProjectId);
-      }
-      setEvents(events.filter(ev => ev.id !== eventItem.id));
-    } catch (err) {
-      console.error(err);
+  const handleDeleteEvent = () => {
+    if (!editingEventId) return;
+    const currentEvent = events.find(ev => ev.id === editingEventId);
+    if (currentEvent) {
+      setEventToDelete(currentEvent);
     }
+  };
+
+  const handleDirectDelete = (e: React.MouseEvent, eventItem: any) => {
+    e.stopPropagation();
+    setEventToDelete(eventItem);
   };
 
   const closeModal = () => {
@@ -335,6 +337,34 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* -- Delete Confirmation Modal -- */}
+      {eventToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
+            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
+              <span className="text-[#1A2340] dark:text-white">'{eventToDelete.title}'</span> 일정을 삭제하시겠습니까? 삭제된 일정 정보는 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEventToDelete(null)}
+                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteEvent}
+                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 border-none cursor-pointer"
+              >
+                삭제하기
+              </button>
+            </div>
           </div>
         </div>
       )}
