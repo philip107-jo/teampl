@@ -78,7 +78,7 @@ router.delete('/:cardId', async (req: Request, res: Response) => {
   try {
     const userEmail = req.user!.email;
     const userId = req.user!.id;
-    const cardId = parseInt(req.params.cardId, 10);
+    const cardId = parseInt(req.params.cardId as string, 10);
 
     const card = await prisma.paymentCard.findUnique({ where: { id: cardId } });
     if (!card || card.userEmail !== userEmail) {
