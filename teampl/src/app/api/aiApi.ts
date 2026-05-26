@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { aiClient } from './client';
 
 export interface AiTaskSuggestion {
   id: string;
@@ -32,11 +32,11 @@ export interface AiEvaluationResponse {
 
 export const aiApi = {
   splitTasks: async (projectId: number, teamSize: number, topic: string, description: string): Promise<AiSplitResponse> => {
-    const response = await apiClient.post(`/projects/${projectId}/ai/split-tasks`, { teamSize, topic, description });
+    const response = await aiClient.post(`/projects/${projectId}/ai/split-tasks`, { teamSize, topic, description });
     return response.data;
   },
   evaluateProject: async (projectId: number, reportText: string): Promise<AiEvaluationResponse> => {
-    const response = await apiClient.post(`/projects/${projectId}/ai/evaluate`, { reportText });
+    const response = await aiClient.post(`/projects/${projectId}/ai/evaluate`, { reportText });
     return response.data;
   }
 };

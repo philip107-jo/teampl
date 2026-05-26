@@ -14,37 +14,39 @@ export const apiClient = axios.create({
   },
 });
 
+// AI 전용 Axios 인스턴스 (GPT 응답이 오래 걸리므로 60초 타임아웃)
+export const aiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000, // 60초 타임아웃
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // 요청(Request) 인터셉터
 // - 백엔드로 요청을 보내기 "직전"에 무언가(예: 로그인 토큰)를 가로채서 넣을 때 사용합니다.
-apiClient.interceptors.request.use(
-  (config) => {
-    // 예시: localStorage에서 JWT 토큰을 꺼내서 헤더에 담기
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    // [이메일 수동 주입 로직 제거 완료] 
-    // 서버는 이제 토큰(Bearer)만을 신뢰하여 유저 정보를 추출합니다.
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+const requestInterceptor = (config: any) => {
+  const token = localStorage.getItem('access_token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+};
+const requestErrorInterceptor = (error: any) => Promise.reject(error);
 
-// 응답(Response) 인터셉터
-// - 백엔드에서 응답이 돌아온 "직후" (컴포넌트에 도달하기 전)에 공통 에러 처리를 할 때 사용합니다.
-apiClient.interceptors.response.use(
-  (response) => {
-    // 요청이 성공적인 경우 그대로 응답 반환
-    return response;
-  },
-  (error) => {
-    // 예시: 401 권한 없음 에러가 오면 강제 로그아웃 처리
-    if (error.response?.status === 401) {
-      console.error("인증이 만료되었습니다. 다시 로그인해주세요.");
-      // 여기서 상태 관리 도구나 window.location.href 등을 통해 로그인 페이지로 이동시킬 수 있음
-    }
-    return Promise.reject(error);
+const responseInterceptor = (response: any) => response;
+const responseErrorInterceptor = (error: any) => {
+  if (error.response?.status === 401) {
+    console.error("인증이 만료되었습니다. 다시 로그인해주세요.");
   }
-);
+  return Promise.reject(error);
+};
+
+// apiClient 인터셉터
+apiClient.interceptors.request.use(requestInterceptor, requestErrorInterceptor);
+apiClient.interceptors.response.use(responseInterceptor, responseErrorInterceptor);
+
+// aiClient 인터셉터 (동일한 JWT 주입 + 에러 처리)
+aiClient.interceptors.request.use(requestInterceptor, requestErrorInterceptor);
+aiClient.interceptors.response.use(responseInterceptor, responseErrorInterceptor);
+
