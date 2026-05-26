@@ -7,6 +7,7 @@ import { chatApi } from '../api/chatApi';
 export interface Message {
   id: string;
   sender: string;
+  senderEmail?: string;
   content: string;
   time: string;
   isMe: boolean;
@@ -105,6 +106,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const formatted: Message = {
         id: String(m.id),
         sender: m.sender?.name || senderEmail.split('@')[0],
+        senderEmail: senderEmail,
         content: m.content,
         time: new Date(m.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true }),
         isMe: senderEmail === currentUserEmailRef.current

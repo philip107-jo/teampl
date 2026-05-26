@@ -772,7 +772,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                       {!msg.isMe && (
                         <Avatar
                           name={msg.sender}
-                          avatarUrl={projectMembers.find(m => m.email === (msg as any).senderEmail)?.avatarUrl}
+                          avatarUrl={projectMembers.find(m => m.email === msg.senderEmail)?.avatarUrl}
                           className="w-9 h-9 text-sm shrink-0"
                         />
                       )}
