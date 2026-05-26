@@ -64,7 +64,7 @@ export const AuthService = {
         return { message: '이메일 인증이 성공적으로 완료되었습니다.' };
     },
 
-    register: async (email: string, password: string, name?: string) => {
+    register: async (email: string, password: string, name?: string, studentId?: string, department?: string) => {
         const existing = await UsersService.findByEmail(email);
         if (existing) {
             throw new ConflictError('User already exists');
@@ -86,6 +86,8 @@ export const AuthService = {
             email,
             password: hashedPassword,
             name: name || email.split('@')[0],
+            studentId,
+            department
         });
 
         // 회원가입 성공 시 인증 레코드 삭제

@@ -162,7 +162,9 @@ export default function Register() {
       await authApi.register({
         email: formData.email,
         password: formData.password,
-        name: formData.name
+        name: formData.name,
+        studentId: formData.studentId,
+        department: formData.department
       });
       showToast("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.", "success");
       navigate("/login");

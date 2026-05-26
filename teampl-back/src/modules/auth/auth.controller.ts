@@ -11,6 +11,8 @@ const AuthSchema = z.object({
     email: z.string().email("Invalid email format"),
     password: z.string().min(4, "Password must be at least 4 characters"), // 프론트엔드 기준(최소 4자)과 맞춥니다.
     name: z.string().optional(),
+    studentId: z.string().optional(),
+    department: z.string().optional(),
   }),
 });
 
@@ -66,8 +68,8 @@ router.post('/forgot-password/reset', validate(ResetPasswordSchema), async (req:
 });
 
 router.post('/register', validate(AuthSchema), async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
-  const result = await AuthService.register(email, password, name);
+  const { email, password, name, studentId, department } = req.body;
+  const result = await AuthService.register(email, password, name, studentId, department);
   res.status(201).json(result);
 });
 
