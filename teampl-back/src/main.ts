@@ -15,6 +15,7 @@ import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
 import votesRouter from './modules/votes/votes.controller';
+import cardsRouter from './modules/users/cards.controller';
 import { ChatService } from './modules/chat/chat.service';
 import { setIo } from './socket';
 import { startCronJobs } from './modules/cron/cron.service';
@@ -59,6 +60,7 @@ app.use('/api/chat', chatRouter);
 import globalSchedulesRouter from './modules/schedules/global-schedules.controller';
 app.use('/api/schedules', globalSchedulesRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/users/cards', cardsRouter);
 
 // 프로젝트 하위 라우트 (방 기반 구조)
 app.use('/api/projects/:projectId/tasks', tasksRouter);

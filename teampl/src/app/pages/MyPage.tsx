@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Mail, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, Eye, EyeOff, X, Lock } from "lucide-react";
+import { User, Mail, Building2, Bell, Shield, LogOut, ChevronRight, Camera, Moon, Sun, Eye, EyeOff, X, Lock, CreditCard, Trash2, Plus, Crown, Sparkles } from "lucide-react";
 import { authApi } from "../api/authApi";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
@@ -7,6 +7,8 @@ import { useNavigate } from "react-router";
 import { useDarkMode } from "../context/DarkModeContext";
 import { notificationApi } from "../api/notificationApi";
 import Avatar from "../components/Avatar";
+import { cardApi, PaymentCard } from "../api/cardApi";
+import CardRegisterModal from "../components/CardRegisterModal";
 
 function urlB64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -24,7 +26,7 @@ function urlB64ToUint8Array(base64String: string) {
 }
 
 export default function MyPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { isDark: darkMode, toggleDark: setDarkModeToggle } = useDarkMode();
   const { showToast } = useToast();
@@ -35,18 +37,21 @@ export default function MyPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [cards, setCards] = useState<PaymentCard[]>([]);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [deletingCardId, setDeletingCardId] = useState<number | null>(null);
 
   useEffect(() => {
     // Check initial subscription status
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.ready.then(reg => {
         reg.pushManager.getSubscription().then(sub => {
-          if (sub) {
-            setPushNoti(true);
-          }
+          if (sub) setPushNoti(true);
         });
       });
     }
+    // 카드 목록 불러오기
+    cardApi.getCards().then(setCards).catch(() => {});
   }, []);
 
   const handlePushNotiToggle = async () => {
@@ -121,6 +126,21 @@ export default function MyPage() {
       showToast(e.response?.data?.message || '비밀번호 변경에 실패했습니다.', 'error');
     } finally {
       setPwLoading(false);
+    }
+  };
+
+  const handleDeleteCard = async (cardId: number) => {
+    if (!confirm('이 카드를 삭제하시겠습니까?\n등록된 카드가 없으면 FREE 플랜으로 전환됩니다.')) return;
+    setDeletingCardId(cardId);
+    try {
+      const res = await cardApi.deleteCard(cardId);
+      setCards(prev => prev.filter(c => c.id !== cardId));
+      await refreshUser();
+      showToast(res.remainingCards === 0 ? '카드가 삭제되어 FREE 플랜으로 전환되었습니다.' : '카드가 삭제되었습니다.', 'success');
+    } catch (e: any) {
+      showToast(e.response?.data?.message || '카드 삭제에 실패했습니다.', 'error');
+    } finally {
+      setDeletingCardId(null);
     }
   };
 
@@ -280,6 +300,67 @@ export default function MyPage() {
               </div>
             </div>
           </div>
+
+          {/* 구독 & 결제 섹션 */}
+          <div className="card !p-8 border border-gray-200 dark:border-white/5 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="hero-meta flex items-center gap-3">
+                <Crown className="w-5 h-5 text-amber-500" />
+                구독 및 결제 관리
+              </h3>
+              {/* 현재 플랜 뱃지 */}
+              {user?.plan === 'PRO' ? (
+                <span className="px-3 py-1.5 bg-amber-500/10 text-amber-500 text-[11px] font-black rounded-full border border-amber-500/20 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> PRO 플랜
+                </span>
+              ) : (
+                <span className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 text-[11px] font-black rounded-full border border-gray-200 dark:border-white/10">
+                  FREE 플랜
+                </span>
+              )}
+            </div>
+
+            {/* 등록된 카드 목록 */}
+            {cards.length > 0 ? (
+              <div className="space-y-3">
+                {cards.map(card => (
+                  <div key={card.id} className="flex items-center justify-between p-4 bg-white/40 dark:bg-[#1A2340] rounded-2xl border border-gray-200 dark:border-white/10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-8 bg-gradient-to-br from-[#11B886] to-[#0EA271] rounded-lg flex items-center justify-center shadow-sm">
+                        <CreditCard className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-black text-[#1A2340] dark:text-white">{card.maskedNumber}</p>
+                        <p className="text-[11px] font-bold text-gray-400 dark:text-white/40">{card.cardCompany} · {card.expiryMonth}/{card.expiryYear} · {card.cardHolder}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCard(card.id)}
+                      disabled={deletingCardId === card.id}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all disabled:opacity-40"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-400 dark:text-white/30">
+                <CreditCard className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-bold">등록된 카드가 없습니다</p>
+                <p className="text-xs mt-1">카드를 등록하면 PRO 플랜을 이용할 수 있습니다</p>
+              </div>
+            )}
+
+            {/* 카드 추가 버튼 */}
+            <button
+              onClick={() => setIsCardModalOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl text-[14px] font-black text-gray-500 dark:text-white/40 hover:border-[#11B886] hover:text-[#11B886] transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              카드 추가하기
+            </button>
+          </div>
         </div>
       </div>
 
@@ -344,6 +425,16 @@ export default function MyPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 카드 등록 모달 */}
+      {isCardModalOpen && (
+        <CardRegisterModal
+          onClose={() => setIsCardModalOpen(false)}
+          onSuccess={() => {
+            cardApi.getCards().then(setCards).catch(() => {});
+          }}
+        />
       )}
     </div>
   );

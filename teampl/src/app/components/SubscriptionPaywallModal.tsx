@@ -4,6 +4,7 @@ import { Crown, Check, X, Sparkles, AlertCircle } from 'lucide-react';
 import { userApi } from '../api/userApi';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import CardRegisterModal from './CardRegisterModal';
 
 interface SubscriptionPaywallModalProps {
   isOpen: boolean;
@@ -16,30 +17,19 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
   const { updateUser } = useAuth();
+  const [showCardRegister, setShowCardRegister] = useState(false);
 
-  if (!isOpen) return null;
+  // if (!isOpen) return null; 대신 AnimatePresence 안에서 조건부 렌더링
 
   const handleUpgrade = async () => {
-    try {
-      setLoading(true);
-      // 가상 결제 진행 시간
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      await userApi.upgradePlan();
-      updateUser({ plan: 'PRO' }); // 유저 상태 갱신
-      
-      showToast('PRO 플랜으로 업그레이드 되었습니다! 🎉', 'success');
-      onSuccess?.();
-      onClose();
-    } catch (e: any) {
-      showToast(e.response?.data?.message || '결제 처리에 실패했습니다.', 'error');
-    } finally {
-      setLoading(false);
-    }
+    setShowCardRegister(true);
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -109,7 +99,7 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
                 </div>
                 <h3 className="font-bold text-indigo-600 dark:text-indigo-400 mb-4 flex items-center justify-between">
                   PRO 플랜
-                  <span className="text-sm font-normal text-gray-500 dark:text-white/50">₩4,900/월</span>
+                  <span className="text-sm font-normal text-gray-500 dark:text-white/50">첫 달 무료 (이후 ₩4,900/월)</span>
                 </h3>
                 <ul className="space-y-3">
                   <li className="flex gap-3 text-sm text-gray-900 dark:text-white">
@@ -135,8 +125,8 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
             <div className="bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex gap-3 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <div>
-                <p className="font-bold mb-1">졸업작품 시연 모드</p>
-                <p className="opacity-90 leading-relaxed text-xs">현재 결제 모듈은 시연을 위한 가상 결제(Mock)로 동작합니다. 실제 금액이 청구되지 않으며, 아래 버튼 클릭 시 즉시 PRO 권한을 체험하실 수 있습니다.</p>
+                <p className="font-bold mb-1">PRO 요금제 구독 안내</p>
+                <p className="opacity-90 leading-relaxed text-xs">안전한 서비스 이용을 위해 결제 카드를 등록해주세요. (졸업작품 시연 모드에서는 실제 결제가 발생하지 않습니다.)</p>
               </div>
             </div>
           </div>
@@ -156,13 +146,25 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
               ) : (
                 <>
                   <Crown className="w-5 h-5" />
-                  월 4,900원으로 업그레이드 체험하기
+                  카드 등록하고 첫 달 무료로 PRO 시작하기
                 </>
               )}
             </button>
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+      
+      {showCardRegister && (
+        <CardRegisterModal
+          onClose={() => setShowCardRegister(false)}
+          onSuccess={() => {
+            onSuccess?.();
+            onClose();
+          }}
+        />
+      )}
+    </>
   );
 }

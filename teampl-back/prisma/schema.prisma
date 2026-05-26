@@ -57,6 +57,7 @@ model User {
   chatReads        ChatRead[]
   taskApprovals    TaskApproval[]
   taskDeliverables TaskDeliverable[]
+  paymentCards     PaymentCard[]
 }
 
 model Project {
@@ -309,3 +310,17 @@ model EmailVerification {
   isVerified Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
+
+model PaymentCard {
+  id           Int      @id @default(autoincrement())
+  userEmail    String
+  cardCompany  String   // 카드사 이름 (e.g. 신한, 국민, 현대)
+  maskedNumber String   // 마스킹된 번호 (e.g. **** **** **** 1234)
+  expiryMonth  String   // 유효기간 월 (e.g. 12)
+  expiryYear   String   // 유효기간 년 (e.g. 27)
+  cardHolder   String   // 카드 소유자명
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+

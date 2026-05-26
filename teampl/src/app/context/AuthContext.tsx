@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,8 +81,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const refreshUser = async () => {
+    try {
+      const freshUser = await authApi.getProfile();
+      setUser(freshUser);
+      localStorage.setItem('user', JSON.stringify(freshUser));
+    } catch (e) {
+      console.error('refreshUser failed', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
