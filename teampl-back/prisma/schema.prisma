@@ -112,6 +112,7 @@ model Task {
   deadline    String
   ownerEmail  String?
   assignees   String[]
+  unreadCommentBy String[]
   requiresDeliverable Boolean @default(true)
   completedAt DateTime?
   createdAt   DateTime @default(now())
@@ -152,14 +153,16 @@ model TaskApproval {
 }
 
 model TaskComment {
-  id          Int      @id @default(autoincrement())
-  taskId      String
-  userEmail   String
-  content     String
-  createdAt   DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  taskId        String
+  userEmail     String
+  content       String
+  isAnonymous   Boolean  @default(false)
+  anonymousName String?
+  createdAt     DateTime @default(now())
 
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 }
 
 model Schedule {

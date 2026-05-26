@@ -25,6 +25,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
   const [addingFiles, setAddingFiles] = useState(false);
@@ -39,6 +40,10 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
     try {
       const data = await taskApi.getTaskComments(projectId, task.id);
       setComments(data);
+      // 담당자이면 모달 열릴 때 읽지 않음 표시 자동 해제
+      if (task.assignees?.includes(user?.email || '')) {
+        taskApi.markCommentsRead(projectId, task.id).catch(() => {});
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -61,8 +66,9 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
     e.preventDefault();
     if (!newComment.trim()) return;
     try {
-      await taskApi.addTaskComment(projectId, task.id, newComment);
+      await taskApi.addTaskComment(projectId, task.id, newComment, isAnonymous);
       setNewComment("");
+      setIsAnonymous(false);
       fetchComments();
     } catch (err) {
       console.error(err);
@@ -123,12 +129,13 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
     }
   };
 
+  const isAssignee = task.assignees?.includes(user?.email || '') || false;
+  
   const canApprove = task.status === 'IN_REVIEW' &&
-    task.submitterEmail !== user?.email &&
+    !isAssignee &&
     !task.approvals?.find(a => a.userEmail === user?.email);
 
   const alreadyApproved = task.approvals?.find(a => a.userEmail === user?.email);
-  const isSubmitter = task.submitterEmail === user?.email;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -163,7 +170,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
           <section>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[14px] font-black text-[#7D879C] uppercase tracking-widest">상세 설명</h3>
-              {!isReadOnly && (
+              {!isReadOnly && task.assignees?.includes(user?.email || '') && (
                 !isEditingDesc ? (
                   <button onClick={() => setIsEditingDesc(true)} className="text-[12px] font-bold text-[#11B886] hover:underline">편집</button>
                 ) : (
@@ -195,7 +202,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
                 <h3 className="flex items-center gap-2 text-[14px] font-black text-[#7D879C] uppercase tracking-widest">
                   <Paperclip className="w-4 h-4" /> 제출된 산출물 ({task.deliverables?.length || 0}개)
                 </h3>
-                {!isReadOnly && isSubmitter && (
+                {!isReadOnly && isAssignee && (
                   <label className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg text-[11px] font-bold cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors">
                     {addingFiles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                     파일 추가
@@ -230,7 +237,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
                           >
                             <Download className="w-4 h-4" />
                           </a>
-                          {!isReadOnly && isSubmitter && (
+                          {!isReadOnly && isAssignee && (
                             <button
                               onClick={() => handleDeleteDeliverable(deliverable)}
                               disabled={deletingId === deliverable.id}
@@ -275,9 +282,9 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
                     </button>
                   )}
 
-                  {isSubmitter && (
+                  {isAssignee && (
                     <span className="text-[11px] font-bold text-gray-400 dark:text-white/30">
-                      본인이 제출한 산출물입니다
+                      담당 중인 과제의 산출물입니다
                     </span>
                   )}
                 </div>
@@ -300,14 +307,21 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
                 {comments.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-xl">첫 번째 댓글을 남겨보세요!</p>
                 ) : (
-                  comments.map(comment => (
+                  comments.map(comment => {
+                    const isAnon = (comment as any).isAnonymous;
+                    const anonName = (comment as any).anonymousName || '익명';
+                    const displayName = isAnon ? anonName : comment.user.name;
+                    const displayAvatar = isAnon ? '익' : comment.user.name[0];
+                    const avatarColor = isAnon ? 'bg-gray-400' : 'bg-[#11B886]';
+                    
+                    return (
                     <div key={comment.id} className="group flex gap-4 p-4 rounded-2xl bg-white dark:bg-[#12182B] border border-gray-100 dark:border-white/5 shadow-sm">
-                      <div className="w-8 h-8 rounded-full bg-[#11B886] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                        {comment.user.name[0]}
+                      <div className={`w-8 h-8 rounded-full ${avatarColor} text-white flex items-center justify-center font-bold text-sm shrink-0`}>
+                        {displayAvatar}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-[13px] text-[#1A2340] dark:text-white">{comment.user.name}</span>
+                          <span className="font-bold text-[13px] text-[#1A2340] dark:text-white">{displayName}</span>
                           <span className="text-[10px] text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
                         </div>
                         <p className="text-[13px] text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{comment.content}</p>
@@ -321,27 +335,41 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
                         </button>
                       )}
                     </div>
-                  ))
+                  );})
                 )}
               </div>
             )}
 
             {!isReadOnly && (
-              <form onSubmit={handleAddComment} className="relative">
-                <input 
-                  type="text"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="댓글을 입력하세요..."
-                  className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#11B886] transition-all"
-                />
-                <button 
-                  type="submit"
-                  disabled={!newComment.trim()}
-                  className="absolute right-2 top-2 bottom-2 px-4 bg-[#11B886] hover:bg-[#11B886]/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
-                >
-                  등록
-                </button>
+              <form onSubmit={handleAddComment} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 px-1">
+                  <input
+                    type="checkbox"
+                    id="isAnonymous"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                    className="w-3.5 h-3.5 text-[#11B886] border-gray-300 rounded focus:ring-[#11B886]"
+                  />
+                  <label htmlFor="isAnonymous" className="text-xs font-bold text-gray-500 cursor-pointer select-none">
+                    익명으로 남기기
+                  </label>
+                </div>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="댓글을 입력하세요..."
+                    className="w-full pl-5 pr-16 py-4 rounded-2xl bg-gray-50 dark:bg-[#12182B] border border-gray-200 dark:border-white/10 text-sm focus:outline-none focus:border-[#11B886] transition-all"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!newComment.trim()}
+                    className="absolute right-2 top-2 bottom-2 px-4 bg-[#11B886] hover:bg-[#11B886]/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                  >
+                    등록
+                  </button>
+                </div>
               </form>
             )}
           </section>

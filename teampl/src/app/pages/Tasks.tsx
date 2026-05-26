@@ -322,6 +322,10 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                           }`}
                           onClick={() => setSelectedTask(task)}
                         >
+                          {/* 읽지 않은 댓글 밨지 */}
+                          {(task as any).unreadCommentBy?.includes(user?.email || '') && (
+                            <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.8)] z-10" title="읽지 않은 댓글이 있습니다" />
+                          )}
                           <div>
                             <div className="flex items-start justify-between gap-4 mb-2.5">
                               <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${statusColor}`}>
@@ -378,7 +382,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                               {/* Interactive Action Buttons */}
                               {!isReadOnly && (
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                  {task.status === 'TODO' && (
+                                  {task.assignees?.includes(user?.email || '') && task.status === 'TODO' && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); updateStatus(task.id, 'IN_PROGRESS'); }}
                                       className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all"
@@ -387,7 +391,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                                     </button>
                                   )}
                                   
-                                  {task.status === 'IN_PROGRESS' && task.requiresDeliverable !== false && (
+                                  {task.assignees?.includes(user?.email || '') && task.status === 'IN_PROGRESS' && task.requiresDeliverable !== false && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); updateStatus(task.id, 'IN_REVIEW'); }}
                                       className="px-2.5 py-1 bg-purple-500 hover:bg-purple-600 text-white text-[10px] font-bold rounded-lg shadow-sm transition-all"
@@ -396,7 +400,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                                     </button>
                                   )}
                                   
-                                  {task.status === 'IN_PROGRESS' && task.requiresDeliverable === false && (
+                                  {task.assignees?.includes(user?.email || '') && task.status === 'IN_PROGRESS' && task.requiresDeliverable === false && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); updateStatus(task.id, 'DONE'); }}
                                       className="px-2.5 py-1 bg-[#11B886] hover:bg-[#0EA271] text-white text-[10px] font-bold rounded-lg shadow-sm transition-all flex items-center gap-1"
@@ -411,7 +415,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                                       <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 px-1">
                                         승인 {task.approvals?.length || 0}/1
                                       </span>
-                                      {task.submitterEmail !== user?.email && !task.approvals?.find(a => a.userEmail === user?.email) && (
+                                      {!task.assignees?.includes(user?.email || '') && !task.approvals?.find(a => a.userEmail === user?.email) && (
                                         <button 
                                           onClick={e => { e.stopPropagation(); approveTask(task.id); }}
                                           className="px-2 py-0.5 bg-purple-500 hover:bg-purple-600 text-white text-[9px] font-bold rounded shadow-sm transition-colors"

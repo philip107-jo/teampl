@@ -122,7 +122,7 @@ export const TasksService = {
         const task = await prisma.task.findUnique({ where: { id: taskId } });
         if (!task) throw new Error("태스크를 찾을 수 없습니다.");
         if (task.status !== 'IN_REVIEW') throw new Error("검토 중인 과제에만 파일을 추가할 수 있습니다.");
-        if (task.submitterEmail !== email) throw new Error("제출자만 파일을 추가할 수 있습니다.");
+        if (!task.assignees.includes(email)) throw new Error("담당자만 파일을 추가할 수 있습니다.");
         
         
         if (files && files.length > 0) {
@@ -157,7 +157,7 @@ export const TasksService = {
         await verifyMembership(email, projectId);
         const task = await prisma.task.findUnique({ where: { id: taskId } });
         if (!task) throw new Error("태스크를 찾을 수 없습니다.");
-        if (task.submitterEmail !== email) throw new Error("제출자만 파일을 삭제할 수 있습니다.");
+        if (!task.assignees.includes(email)) throw new Error("담당자만 파일을 삭제할 수 있습니다.");
         
         const deliverable = await prisma.taskDeliverable.findUnique({ where: { id: deliverableId } });
         if (!deliverable || deliverable.taskId !== taskId) throw new Error("파일을 찾을 수 없습니다.");
@@ -180,7 +180,7 @@ export const TasksService = {
         });
         if (!task) throw new Error("태스크를 찾을 수 없습니다.");
         if (task.status !== 'IN_REVIEW') throw new Error("검토 중인 과제만 승인할 수 있습니다.");
-        if (task.submitterEmail === email) throw new Error("본인이 제출한 산출물은 직접 승인할 수 없습니다.");
+        if (task.assignees.includes(email)) throw new Error("본인이 담당한 과제는 직접 승인할 수 없습니다.");
         if ((task.deliverables as any[]).length === 0) throw new Error("제출된 산출물이 없습니다.");
         
         const alreadyApproved = task.approvals.find(a => a.userEmail === email);
@@ -333,19 +333,57 @@ export const TasksService = {
         });
     },
 
-    addComment: async (email: string, projectId: number, taskId: string, content: string) => {
+    addComment: async (email: string, projectId: number, taskId: string, content: string, isAnonymous: boolean = false) => {
         await verifyMembership(email, projectId);
+        
+        let anonymousName = null;
+        if (isAnonymous) {
+            const animals = ['토끼', '다람쥐', '강아지', '고양이', '햄스터', '병아리', '오리', '거북이', '알파카', '너구리', '사막여우', '돌고래', '물개', '수달', '코알라'];
+            const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+            const randomNum = Math.floor(Math.random() * 99) + 1;
+            anonymousName = `익명의 ${randomAnimal} ${randomNum}`;
+        }
+
         const comment = await prisma.taskComment.create({
             data: {
                 taskId,
                 userEmail: email,
-                content
+                content,
+                isAnonymous,
+                anonymousName
             },
             include: { user: { select: { name: true, email: true } } }
         });
-        // We could emit a specific comment update, but task update suffices to trigger refresh
+
+        // 댓글 작성자를 제외한 담당자들에게 읽지 않음 표시 추가
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (task) {
+            const assigneesToNotify = task.assignees.filter(a => a !== email);
+            if (assigneesToNotify.length > 0) {
+                // 현재 unreadCommentBy에 없는 담당자만 추가
+                const currentUnread = task.unreadCommentBy || [];
+                const newUnread = Array.from(new Set([...currentUnread, ...assigneesToNotify]));
+                await prisma.task.update({
+                    where: { id: taskId },
+                    data: { unreadCommentBy: newUnread }
+                });
+            }
+        }
+
         emitTaskUpdate(projectId);
         return comment;
+    },
+
+    markCommentsRead: async (email: string, projectId: number, taskId: string) => {
+        await verifyMembership(email, projectId);
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) return;
+        const newUnread = (task.unreadCommentBy || []).filter(e => e !== email);
+        await prisma.task.update({
+            where: { id: taskId },
+            data: { unreadCommentBy: newUnread }
+        });
+        emitTaskUpdate(projectId);
     },
 
     deleteComment: async (email: string, projectId: number, commentId: number) => {

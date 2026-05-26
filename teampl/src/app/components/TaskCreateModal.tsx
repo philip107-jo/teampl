@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { taskApi } from "../api/taskApi";
+import { useAuth } from "../context/AuthContext";
 
 interface TaskCreateModalProps {
   projectId: number;
@@ -25,13 +26,14 @@ export default function TaskCreateModal({
   onClose,
   onCreate
 }: TaskCreateModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
   const [requiresDeliverable, setRequiresDeliverable] = useState(true);
   const [selectedStageId, setSelectedStageId] = useState<number>(initialStageId);
-  const [selectedAssigneeEmail, setSelectedAssigneeEmail] = useState<string>(
-    members.length > 0 ? members[0].email : ""
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
+    members.length > 0 ? [members[0].email] : []
   );
   const [loading, setLoading] = useState(false);
 
@@ -54,8 +56,8 @@ export default function TaskCreateModal({
         priority: "medium",
         difficulty: 3,
         deadline: deadline || undefined,
-        ownerEmail: selectedAssigneeEmail,
-        assignees: [selectedAssigneeEmail],
+        ownerEmail: selectedAssignees.length > 0 ? selectedAssignees[0] : user?.email,
+        assignees: selectedAssignees,
         requiresDeliverable,
       } as any);
       onCreate();
@@ -121,17 +123,41 @@ export default function TaskCreateModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">담당 팀원</label>
-              <select
-                value={selectedAssigneeEmail}
-                onChange={(e) => setSelectedAssigneeEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#11B886] transition-colors text-gray-600"
-              >
-                {members.map(member => (
-                  <option key={member.email} value={member.email}>
-                    {member.name} ({member.email.split('@')[0]})
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 flex-wrap p-2 min-h-[46px] rounded-xl bg-white border border-gray-200">
+                {members.map(m => {
+                  const isAssigned = selectedAssignees.includes(m.email);
+                  const mAny = m as any;
+                  const isHex = mAny.avatarColor?.startsWith('#');
+                  return (
+                    <div
+                      key={m.email}
+                      onClick={() => {
+                        setSelectedAssignees(prev => 
+                          isAssigned ? prev.filter(e => e !== m.email) : [...prev, m.email]
+                        );
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full cursor-pointer transition-all border select-none ${
+                        isAssigned 
+                          ? 'border-[#11B886] bg-[#11B886]/10 text-[#11B886]' 
+                          : 'border-transparent text-gray-600 hover:bg-gray-100'
+                      }`}
+                      title={m.name}
+                    >
+                      <div 
+                        className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${!isHex && mAny.avatarColor ? mAny.avatarColor : 'bg-gray-400'}`}
+                        style={isHex ? { backgroundColor: mAny.avatarColor } : {}}
+                      >
+                        {mAny.avatarUrl ? (
+                          <img src={mAny.avatarUrl} alt={m.name} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          m.name.charAt(0)
+                        )}
+                      </div>
+                      <span className="text-xs font-bold">{m.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">마감일</label>

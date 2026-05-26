@@ -38,8 +38,8 @@ export const taskApi = {
     return response.data;
   },
 
-  addTaskComment: async (projectId: number, taskId: string, content: string): Promise<any> => {
-    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/comments`, { content });
+  addTaskComment: async (projectId: number, taskId: string, content: string, isAnonymous: boolean = false): Promise<any> => {
+    const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/comments`, { content, isAnonymous });
     return response.data;
   },
 
@@ -72,5 +72,9 @@ export const taskApi = {
   approveTask: async (projectId: number, taskId: string): Promise<Task> => {
     const response = await apiClient.post(`/projects/${projectId}/tasks/${taskId}/approve`);
     return response.data;
+  },
+
+  markCommentsRead: async (projectId: number, taskId: string): Promise<void> => {
+    await apiClient.post(`/projects/${projectId}/tasks/${taskId}/mark-read`);
   }
 };

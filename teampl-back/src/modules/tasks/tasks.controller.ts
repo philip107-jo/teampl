@@ -175,6 +175,19 @@ router.patch('/:id/details', async (req, res) => {
     }
 });
 
+// POST /api/projects/:projectId/tasks/:id/mark-read
+router.post('/:id/mark-read', async (req, res) => {
+    const email = req.user!.email;
+    const projectId = parseInt((req.params as any).projectId, 10);
+    const { id } = req.params;
+    try {
+        await TasksService.markCommentsRead(email, projectId, id);
+        res.status(204).send();
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 // GET /api/projects/:projectId/tasks/:id/comments
 router.get('/:id/comments', async (req, res) => {
     const email = req.user!.email;
@@ -193,9 +206,9 @@ router.post('/:id/comments', async (req, res) => {
     const email = req.user!.email;
     const projectId = parseInt((req.params as any).projectId, 10);
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, isAnonymous } = req.body;
     try {
-        const comment = await TasksService.addComment(email, projectId, id, content);
+        const comment = await TasksService.addComment(email, projectId, id, content, isAnonymous);
         res.status(201).json(comment);
     } catch (e: any) {
         res.status(403).json({ message: e.message });
