@@ -67,7 +67,7 @@ export const TasksService = {
                     deadline: taskData.deadline || '',
                     difficulty: parseInt(taskData.difficulty) || 3,
                     ownerEmail: email,
-                    assignees: [], // AI 생성은 일단 미배정
+                    assignees: taskData.assignees || [], // 선택된 담당자 반영
                     requiresDeliverable: taskData.requiresDeliverable !== undefined ? taskData.requiresDeliverable : true,
                 }
             });

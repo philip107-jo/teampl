@@ -24,6 +24,16 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
   const [suggestions, setSuggestions] = useState<AiTaskSuggestion[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [members, setMembers] = useState<{ id: number; email: string; name: string; avatarUrl?: string; avatarColor?: string }[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      projectApi.getProjects().then(projects => {
+        const p = projects.find(p => p.id === projectId);
+        if (p && p.membersList) setMembers(p.membersList);
+      }).catch(console.error);
+    }
+  }, [isOpen, projectId]);
 
   if (!isOpen) return null;
 
@@ -324,6 +334,40 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
                           >
                             {suggestion.requiresDeliverable !== false ? "산출물 필수" : "산출물 불필요"}
                           </button>
+                          
+                          {members.length > 0 && (
+                            <div className="flex items-center gap-1 ml-auto">
+                              {members.map(m => {
+                                const isAssigned = (suggestion.assignees || []).includes(m.email);
+                                const isHex = m.avatarColor?.startsWith('#');
+                                return (
+                                  <div
+                                    key={m.email}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const currentAssignees = suggestion.assignees || [];
+                                      const newAssignees = isAssigned 
+                                        ? currentAssignees.filter(email => email !== m.email)
+                                        : [...currentAssignees, m.email];
+                                      const newSugs = suggestions.map(s => s.id === suggestion.id ? { ...s, assignees: newAssignees } : s);
+                                      setSuggestions(newSugs);
+                                    }}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer transition-all ${
+                                      isAssigned ? 'ring-2 ring-[#7C6CFF] ring-offset-1 opacity-100 shadow-sm dark:ring-offset-[#0d1526]' : 'opacity-30 grayscale hover:opacity-70 hover:grayscale-0'
+                                    } ${!isHex && m.avatarColor ? m.avatarColor : 'bg-gray-400'}`}
+                                    style={isHex ? { backgroundColor: m.avatarColor, color: '#fff' } : { color: '#fff' }}
+                                    title={m.name}
+                                  >
+                                    {m.avatarUrl ? (
+                                      <img src={m.avatarUrl} alt={m.name} className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                      m.name.charAt(0)
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
