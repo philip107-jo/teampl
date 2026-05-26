@@ -26,7 +26,8 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
     project: '', 
     date: todayStr, 
     endDate: todayStr, 
-    type: 'other' 
+    type: 'other',
+    customType: ''
   });
 
   useEffect(() => {
@@ -49,12 +50,14 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
     e.preventDefault();
     try {
       const targetProjectId = numProjectId || (formData.project === 'personal' ? null : Number(formData.project));
-      const payload = { ...formData, projectId: targetProjectId };
+      const finalType = formData.type === 'other' && formData.customType.trim() ? formData.customType.trim() : formData.type;
+      const submitData = { ...formData, type: finalType };
+      const payload = { ...submitData, projectId: targetProjectId };
       
       if (editingEventId) {
         let updatedEvent;
         if (numProjectId) {
-          updatedEvent = await scheduleApi.updateSchedule(numProjectId, editingEventId, formData);
+          updatedEvent = await scheduleApi.updateSchedule(numProjectId, editingEventId, submitData);
         } else {
           updatedEvent = await scheduleApi.updateGlobalSchedule(editingEventId, payload);
         }
@@ -62,7 +65,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
       } else {
         let newEvent;
         if (numProjectId) {
-          newEvent = await scheduleApi.createSchedule(numProjectId, formData);
+          newEvent = await scheduleApi.createSchedule(numProjectId, submitData);
         } else {
           newEvent = await scheduleApi.createGlobalSchedule(payload);
         }
@@ -109,7 +112,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingEventId(null);
-    setFormData({ title: '', project: numProjectId ? String(numProjectId) : 'personal', date: todayStr, endDate: todayStr, type: 'other' });
+    setFormData({ title: '', project: numProjectId ? String(numProjectId) : 'personal', date: todayStr, endDate: todayStr, type: 'other', customType: '' });
   };
 
   const openAddModal = () => {
@@ -117,6 +120,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
       title: '', 
       project: numProjectId ? String(numProjectId) : (projects.length > 0 ? String(projects[0].id) : 'personal'), 
       type: 'other', 
+      customType: '',
       date: todayStr, 
       endDate: todayStr 
     });
@@ -128,13 +132,17 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
     if (String(event.id).startsWith('proj-')) return;
     if (isReadOnly) return;
     
+    const predefinedTypes = ['deadline', 'meeting', 'presentation', 'milestone', 'other'];
+    const isCustom = !predefinedTypes.includes(event.type);
+
     setEditingEventId(event.id);
     setFormData({
       title: event.title,
       project: event.projectId ? String(event.projectId) : 'personal',
       date: event.date.split('T')[0],
       endDate: (event.endDate || event.date).split('T')[0],
-      type: event.type
+      type: isCustom ? 'other' : event.type,
+      customType: isCustom ? event.type : ''
     });
     setIsModalOpen(true);
   };
@@ -295,26 +303,29 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="hero-meta ml-1">시작 날짜</label>
-                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white" value={formData.date} onChange={e => {
+                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white cursor-pointer" value={formData.date} onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()} onChange={e => {
                     const newDate = e.target.value;
                     setFormData(prev => ({...prev, date: newDate, endDate: prev.endDate < newDate ? newDate : prev.endDate}))
-                  }} style={{ colorScheme: 'dark' }} />
+                  }} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="hero-meta ml-1">종료 날짜</label>
-                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white" value={formData.endDate} min={formData.date} onChange={e => setFormData({...formData, endDate: e.target.value})} style={{ colorScheme: 'dark' }} />
+                  <input required type="date" className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white cursor-pointer" value={formData.endDate} min={formData.date} onClick={(e) => (e.target as any).showPicker && (e.target as any).showPicker()} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="hero-meta ml-1">유형</label>
-                <select className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white appearance-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                <select className="w-full font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white appearance-none cursor-pointer" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value, customType: e.target.value !== 'other' ? '' : formData.customType})}>
                   <option value="deadline" className="bg-white dark:bg-[#0F172A]">마감일 (긴급)</option>
                   <option value="meeting" className="bg-white dark:bg-[#0F172A]">미팅</option>
                   <option value="presentation" className="bg-white dark:bg-[#0F172A]">발표</option>
                   <option value="milestone" className="bg-white dark:bg-[#0F172A]">마일스톤</option>
-                  <option value="other" className="bg-white dark:bg-[#0F172A]">기타</option>
+                  <option value="other" className="bg-white dark:bg-[#0F172A]">기타 (직접 입력)</option>
                 </select>
+                {formData.type === 'other' && (
+                  <input required type="text" placeholder="예: 팀 회식, 중간점검 등" className="w-full mt-2 font-black bg-gray-50 dark:bg-[#1E293B] border border-gray-200 dark:border-white/5 rounded-2xl py-3.5 px-4 outline-none focus:bg-white dark:focus:bg-[#1E293B] focus:border-[#11B886] focus:shadow-[0_0_15px_rgba(17,184,134,0.15)] transition-all text-[#1A2340] dark:text-white placeholder-gray-400 dark:placeholder-white/20 animate-in fade-in slide-in-from-top-1" value={formData.customType} onChange={e => setFormData({...formData, customType: e.target.value})} />
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
