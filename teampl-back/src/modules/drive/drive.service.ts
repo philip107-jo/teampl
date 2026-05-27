@@ -29,14 +29,34 @@ export const DriveService = {
     return { folders, files };
   },
 
-  createFolder: async (projectId: number, name: string, creatorEmail: string) => {
+  createFolder: async (projectId: number, name: string, creatorEmail: string, parentFolderId?: number | null) => {
     return await prisma.driveFolder.create({
       data: {
         projectId,
         name,
         theme: 'blue',
-        creatorEmail
+        creatorEmail,
+        parentFolderId: parentFolderId ?? null
       },
+      include: {
+        creator: {
+          select: { name: true }
+        }
+      }
+    });
+  },
+
+  updateFolder: async (projectId: number, folderId: number, name: string, requesterEmail: string) => {
+    const folder = await prisma.driveFolder.findUnique({
+      where: { id: folderId }
+    });
+    if (!folder) throw new Error('폴더를 찾을 수 없습니다.');
+    if (folder.creatorEmail && folder.creatorEmail !== requesterEmail) {
+      throw new Error('폴더를 수정할 권한이 없습니다.');
+    }
+    return await prisma.driveFolder.update({
+      where: { id: folderId },
+      data: { name },
       include: {
         creator: {
           select: { name: true }
@@ -206,5 +226,35 @@ export const DriveService = {
     }
 
     return zip.toBuffer();
+  },
+
+  getFileBuffer: async (projectId: number, fileId: number) => {
+    const file = await prisma.driveFile.findFirst({
+      where: { id: fileId, projectId }
+    });
+    if (!file) throw new Error('파일을 찾을 수 없습니다.');
+
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: file.name
+    });
+    const s3Response = await s3Client.send(command);
+    if (!s3Response.Body) throw new Error('파일 데이터를 읽을 수 없습니다.');
+
+    const streamToBuffer = async (stream: any): Promise<Buffer> => {
+      return new Promise((resolve, reject) => {
+        const chunks: any[] = [];
+        stream.on('data', (chunk: any) => chunks.push(chunk));
+        stream.on('error', reject);
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+    };
+
+    const buffer = await streamToBuffer(s3Response.Body);
+    return {
+      buffer,
+      originalName: file.originalName,
+      mimeType: file.type
+    };
   }
 };

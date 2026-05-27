@@ -1,6 +1,6 @@
-import { X, Download } from "lucide-react";
-import { DriveFile } from "../api/driveApi";
-import { useEffect } from "react";
+import { X, Download, Loader2 } from "lucide-react";
+import { driveApi, DriveFile } from "../api/driveApi";
+import { useEffect, useState } from "react";
 
 interface FilePreviewModalProps {
   file: DriveFile;
@@ -8,8 +8,29 @@ interface FilePreviewModalProps {
 }
 
 export default function FilePreviewModal({ file, onClose }: FilePreviewModalProps) {
+  const [isDownloading, setIsDownloading] = useState(false);
   const isImage = file.type.startsWith("image/");
   const isPdf = file.type === "application/pdf";
+
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const blob = await driveApi.downloadFile(file.projectId, file.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", file.originalName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("다운로드 에러:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -38,17 +59,15 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-4">
-            <a 
-              href={file.url} 
-              download={file.originalName}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] text-white rounded-xl transition-all font-bold text-sm"
+            <button 
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex items-center gap-2 px-4 py-2 bg-[#11B886] hover:bg-[#0EA271] disabled:opacity-50 text-white rounded-xl transition-all font-bold text-sm cursor-pointer border-none"
               title="다운로드"
             >
-              <Download className="w-4 h-4" />
-              다운로드
-            </a>
+              {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isDownloading ? "다운로드 중..." : "다운로드"}
+            </button>
             <button 
               onClick={onClose} 
               className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
@@ -77,14 +96,14 @@ export default function FilePreviewModal({ file, onClose }: FilePreviewModalProp
               <p className="text-gray-500 dark:text-white/40 mb-4 font-medium text-sm">
                 이 파일 형식은 브라우저 미리보기를 지원하지 않습니다.
               </p>
-              <a 
-                href={file.url} 
-                download={file.originalName} 
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#11B886] text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity"
+              <button 
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#11B886] text-white disabled:opacity-50 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity cursor-pointer border-none"
               >
-                <Download className="w-4 h-4" />
-                다운로드하여 확인하기
-              </a>
+                {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isDownloading ? "다운로드 중..." : "다운로드하여 확인하기"}
+              </button>
             </div>
           )}
         </div>

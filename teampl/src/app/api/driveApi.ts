@@ -8,6 +8,7 @@ export interface DriveFolder {
   createdAt: string;
   creatorEmail?: string;
   creator?: { name: string };
+  parentFolderId?: number | null;
 }
 
 export interface DriveFile {
@@ -30,8 +31,13 @@ export const driveApi = {
     return response.data;
   },
 
-  createFolder: async (projectId: number, name: string): Promise<DriveFolder> => {
-    const response = await client.post(`/projects/${projectId}/drive/folders`, { name });
+  createFolder: async (projectId: number, name: string, parentFolderId?: number | null): Promise<DriveFolder> => {
+    const response = await client.post(`/projects/${projectId}/drive/folders`, { name, parentFolderId });
+    return response.data;
+  },
+
+  updateFolder: async (projectId: number, folderId: number, name: string): Promise<DriveFolder> => {
+    const response = await client.patch(`/projects/${projectId}/drive/folders/${folderId}`, { name });
     return response.data;
   },
 
@@ -63,6 +69,13 @@ export const driveApi = {
 
   downloadZip: async (projectId: number, fileIds: number[]): Promise<Blob> => {
     const response = await client.post(`/projects/${projectId}/drive/download-zip`, { fileIds }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  downloadFile: async (projectId: number, fileId: number): Promise<Blob> => {
+    const response = await client.get(`/projects/${projectId}/drive/files/${fileId}/download`, {
       responseType: 'blob'
     });
     return response.data;

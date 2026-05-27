@@ -28,11 +28,30 @@ router.get('/', async (req: Request<{ projectId: string }>, res: Response) => {
 // POST /api/projects/:projectId/drive/folders
 router.post('/folders', async (req: Request<{ projectId: string }>, res: Response) => {
   const projectId = parseInt(req.params.projectId, 10);
-  const { name } = req.body;
+  const { name, parentFolderId } = req.body;
   try {
-    const folder = await DriveService.createFolder(projectId, name, req.user!.email);
+    const folder = await DriveService.createFolder(
+      projectId,
+      name,
+      req.user!.email,
+      parentFolderId ? parseInt(parentFolderId, 10) : null
+    );
     emitDriveUpdate(projectId);
     res.status(201).json(folder);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// PATCH /api/projects/:projectId/drive/folders/:folderId
+router.patch('/folders/:folderId', async (req: Request<{ projectId: string; folderId: string }>, res: Response) => {
+  const projectId = parseInt(req.params.projectId, 10);
+  const folderId = parseInt(req.params.folderId, 10);
+  const { name } = req.body;
+  try {
+    const folder = await DriveService.updateFolder(projectId, folderId, name, req.user!.email);
+    emitDriveUpdate(projectId);
+    res.json(folder);
   } catch (e: any) {
     res.status(500).json({ message: e.message });
   }
@@ -116,6 +135,22 @@ router.post('/download-zip', async (req: Request<{ projectId: string }>, res: Re
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="documents.zip"');
     res.send(zipBuffer);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// GET /api/projects/:projectId/drive/files/:fileId/download
+router.get('/files/:fileId/download', async (req: Request<{ projectId: string; fileId: string }>, res: Response) => {
+  const projectId = parseInt(req.params.projectId, 10);
+  const fileId = parseInt(req.params.fileId, 10);
+  try {
+    const { buffer, originalName, mimeType } = await DriveService.getFileBuffer(projectId, fileId);
+    
+    const safeFileName = encodeURIComponent(originalName);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeFileName}`);
+    res.send(buffer);
   } catch (e: any) {
     res.status(500).json({ message: e.message });
   }
