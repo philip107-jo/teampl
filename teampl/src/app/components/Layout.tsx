@@ -22,6 +22,7 @@ import { notificationApi, Notification } from "../api/notificationApi";
 import { useChat } from '../context/ChatContext';
 import Avatar from './Avatar';
 import { useRef } from 'react';
+import BottomNavigation from './BottomNavigation';
 
 export default function Layout() {
   const location = useLocation();
@@ -146,7 +147,7 @@ export default function Layout() {
     <div className="flex flex-col h-screen bg-[var(--theme-bg)] dark:bg-[var(--theme-bg-gradient)] transition-all duration-500 overflow-hidden">
       {/* Top Bar - Slimmer for Mobile */}
       {/* Global Top Bar - Always visible */}
-      <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-6 py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
+      <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 md:px-6 py-2.5 md:py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
           <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
@@ -154,14 +155,13 @@ export default function Layout() {
                   src="https://obj-e-1.ktcloud.com/teampl/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png" 
                   onError={(e) => { e.currentTarget.src = "/logo.png"; }}
                   alt="Teampl Logo" 
-                  className="object-contain"
-                  style={{ width: "52px", height: "52px" }}
+                  className="w-10 h-10 md:w-[52px] md:h-[52px] object-contain"
                 />
-                <h1 className="text-xl font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
+                <h1 className="text-lg md:text-xl font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
               </div>
 
               {/* Desktop Global Navigation */}
-              <nav className="flex items-center gap-1">
+              <nav className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item);
@@ -268,8 +268,8 @@ export default function Layout() {
                 </button>
               </div>
               
-              <div className="flex items-center gap-3 border-l border-gray-200 dark:border-white/10 pl-4 ml-2">
-                <div className="text-right">
+              <div className="flex items-center gap-3 border-l border-gray-200 dark:border-white/10 pl-2 md:pl-4 ml-1 md:ml-2">
+                <div className="hidden sm:block text-right">
                   <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
                   <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
                 </div>
@@ -286,7 +286,7 @@ export default function Layout() {
       </header>
 
       {/* Page Content */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden scrolling-touch relative">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden scrolling-touch relative pb-16 md:pb-0">
         <div className={`${!projectId ? 'max-w-7xl mx-auto px-6 py-6 h-full' : 'w-full h-full'}`}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -352,6 +352,7 @@ export default function Layout() {
           </div>
         )}
       </AnimatePresence>
+      <BottomNavigation unreadNotificationsCount={unreadNotificationsCount} />
     </div>
   );
 }

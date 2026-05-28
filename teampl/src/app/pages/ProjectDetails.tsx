@@ -326,7 +326,7 @@ export default function ProjectDetails() {
         )}
 
         {/* Tab Navigation Menu */}
-        <div className="px-4 md:px-8 flex gap-6 overflow-x-auto no-scrollbar pb-0.5">
+        <div className="px-4 md:px-8 flex gap-3 md:gap-6 overflow-x-auto no-scrollbar pb-3 md:pb-0.5 scroll-smooth snap-x">
           {[
             { id: 'overview', label: '개요', icon: LayoutDashboard },
             { id: 'tasks', label: '과제 관리', icon: CheckSquare },
@@ -339,14 +339,25 @@ export default function ProjectDetails() {
             <button
               key={tab.id}
               onClick={() => navigate(`/projects/${projectId}?tab=${tab.id}`, { replace: true })}
-              className={`flex items-center gap-2 pb-3 px-1 border-b-2 whitespace-nowrap transition-colors -mb-[2px] ${
-                activeTab === tab.id
-                  ? "border-[#11B886] text-[#11B886] font-bold"
-                  : "border-transparent text-gray-500 hover:text-gray-700 font-medium"
-              }`}
+              className={`flex items-center gap-2 whitespace-nowrap transition-all duration-200 snap-align-start shrink-0
+                /* 데스크톱: 기존 언더라인 스타일 100% 동일 유지 */
+                md:pb-3 md:px-1 md:border-b-2 md:rounded-none md:border-t-0 md:border-x-0 md:bg-transparent md:shadow-none md:-mb-[2px]
+                ${
+                  activeTab === tab.id
+                    ? "md:border-[#11B886] md:text-[#11B886] md:font-bold"
+                    : "md:border-transparent md:text-gray-500 md:hover:text-gray-700 md:font-medium"
+                }
+                /* 모바일: 손가락 터치 전용 둥근 필 스타일 적용 */
+                max-md:py-2.5 max-md:px-4 max-md:rounded-xl max-md:border
+                ${
+                  activeTab === tab.id
+                    ? "max-md:bg-[#11B886] max-md:text-white max-md:border-transparent max-md:shadow-[0_4px_12px_rgba(17,184,134,0.25)] max-md:font-black"
+                    : "max-md:border-gray-100 dark:max-md:border-white/5 max-md:bg-gray-50/50 dark:max-md:bg-white/5 max-md:text-gray-500 max-md:hover:text-gray-900 dark:max-md:text-white/60 dark:max-md:hover:text-white max-md:font-bold"
+                }
+              `}
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <tab.icon className="w-4 h-4 shrink-0" />
+              <span className="text-xs md:text-sm">{tab.label}</span>
             </button>
           ))}
         </div>

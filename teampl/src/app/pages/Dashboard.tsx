@@ -188,22 +188,22 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <section className="flex justify-center gap-6 sm:gap-10 my-8">
+      <section className="flex justify-center gap-4 sm:gap-10 my-8">
         {[
-          { id: 'tasks', label: '업무', icon: <CheckCircle2 className="w-8 h-8" />, color: 'bg-[#FFB547]', link: `/projects/${selectedProject.id}?tab=tasks` },
-          { id: 'calendar', label: '일정', icon: <CalendarIcon className="w-8 h-8" />, color: 'bg-[#11B886]', link: `/projects/${selectedProject.id}?tab=calendar` },
-          { id: 'chat', label: '채팅', icon: <MessageSquare className="w-8 h-8" />, color: 'bg-[#27D7A1]', link: `/projects/${selectedProject.id}?tab=chat` },
-          { id: 'drive', label: '자료', icon: <FolderOpen className="w-8 h-8" />, color: 'bg-[#FF6B7A]', link: `/projects/${selectedProject.id}?tab=drive` }
+          { id: 'tasks', label: '업무', icon: <CheckCircle2 className="w-5 h-5 sm:w-8 sm:h-8" />, color: 'bg-[#FFB547]', link: `/projects/${selectedProject.id}?tab=tasks` },
+          { id: 'calendar', label: '일정', icon: <CalendarIcon className="w-5 h-5 sm:w-8 sm:h-8" />, color: 'bg-[#11B886]', link: `/projects/${selectedProject.id}?tab=calendar` },
+          { id: 'chat', label: '채팅', icon: <MessageSquare className="w-5 h-5 sm:w-8 sm:h-8" />, color: 'bg-[#27D7A1]', link: `/projects/${selectedProject.id}?tab=chat` },
+          { id: 'drive', label: '자료', icon: <FolderOpen className="w-5 h-5 sm:w-8 sm:h-8" />, color: 'bg-[#FF6B7A]', link: `/projects/${selectedProject.id}?tab=drive` }
         ].map(shortcut => (
           <button 
             key={shortcut.id}
             onClick={() => navigate(shortcut.link)}
-            className="flex flex-col items-center gap-3 group active:scale-95 transition-all"
+            className="flex flex-col items-center gap-3 group active:scale-95 transition-all animate-in fade-in zoom-in duration-300"
           >
-            <div className={`w-20 h-20 rounded-full ${shortcut.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-2xl transition-all group-hover:-translate-y-2`}>
+            <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full ${shortcut.color} flex items-center justify-center text-white shadow-lg group-hover:shadow-2xl transition-all group-hover:-translate-y-2`}>
               {shortcut.icon}
             </div>
-            <span className="text-sm font-black text-[#1A2340] dark:text-white/80">{shortcut.label}</span>
+            <span className="text-xs sm:text-sm font-black text-[#1A2340] dark:text-white/80">{shortcut.label}</span>
           </button>
         ))}
       </section>

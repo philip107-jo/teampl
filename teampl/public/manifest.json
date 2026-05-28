@@ -6,6 +6,31 @@
   "background_color": "#09111f",
   "theme_color": "#09111f",
   "description": "팀 협업을 위한 스마트 플랫폼, Teampl",
+  "orientation": "portrait",
+  "categories": ["collaboration", "productivity"],
+  "shortcuts": [
+    {
+      "name": "내 프로젝트",
+      "short_name": "프로젝트",
+      "description": "내가 참여 중인 프로젝트 목록을 봅니다",
+      "url": "/projects",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "일정 확인",
+      "short_name": "일정",
+      "description": "캘린더 일정을 확인합니다",
+      "url": "/calendar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "내 정보",
+      "short_name": "내 정보",
+      "description": "마이페이지를 확인합니다",
+      "url": "/mypage",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

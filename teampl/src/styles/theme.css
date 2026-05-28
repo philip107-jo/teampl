@@ -198,4 +198,37 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+
+  /* 모바일 및 터치 제스처 최적화 */
+  html, body {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 가상 키보드 및 모바일 브라우저 전용 줌 방지 설정 */
+  input[type="text"], input[type="email"], input[type="password"], textarea {
+    font-size: 16px !important; /* iOS 자동 줌인 현상 완벽 방지 */
+  }
+
+  /* 스크롤바 숨기기 유틸리티 */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* 세이프 에어리어 대응 도우미 클래스 */
+  .pb-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
 }

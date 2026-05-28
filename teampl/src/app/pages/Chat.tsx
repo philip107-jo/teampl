@@ -339,7 +339,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
   const [chatMode, setChatMode] = useState<"TEAM" | "INDIVIDUAL">("TEAM");
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [mentionQuery, setMentionQuery] = useState<{ active: boolean, query: string, index: number } | null>(null);
   const [initialLastRead, setInitialLastRead] = useState<number>(0);
 
@@ -644,14 +644,14 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
 
   if (!projectId) {
     return (
-      <div className="flex flex-col h-[75vh] items-center justify-center text-gray-500 font-bold">
+      <div className="flex flex-col h-[calc(100dvh-280px)] md:h-[75vh] items-center justify-center text-gray-500 font-bold">
         진행 중인 프로젝트 내에서만 채팅을 이용할 수 있습니다.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-row h-[75vh] mb-8 pt-2 relative">
+    <div className="flex flex-row h-[calc(100dvh-280px)] md:h-[75vh] mb-2 md:mb-8 pt-2 relative">
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex items-center justify-between mb-4 px-1">
@@ -1018,12 +1018,24 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
         </div>
       </div>
 
+      {/* 모바일 사이드바 활성화 시 뒷배경 흐림 및 어둡게 딤 처리 */}
+      {isSidebarOpen && (
+        <div 
+          className="md:hidden absolute inset-0 bg-black/45 backdrop-blur-[1.5px] z-30 transition-opacity duration-300 rounded-[20px]"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Right Sidebar for Team Members */}
-      <div className={`flex flex-col h-full bg-white dark:bg-[#132038] border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300 ${
-        isSidebarOpen 
-          ? "w-64 ml-6 opacity-100 border-gray-100 dark:border-white/5" 
-          : "w-0 ml-0 opacity-0 pointer-events-none border-transparent dark:border-transparent shadow-none"
-      }`}>
+      <div className={`flex flex-col h-full bg-white dark:bg-[#132038] border rounded-[20px] shadow-sm overflow-hidden shrink-0 transition-all duration-300
+        /* 모바일 전용: 절대좌표 플로팅 드로어 레이아웃으로 전환 */
+        max-md:absolute max-md:top-0 max-md:right-0 max-md:h-full max-md:z-40 max-md:shadow-[0_8px_32px_rgba(0,0,0,0.25)]
+        ${
+          isSidebarOpen 
+            ? "w-64 ml-6 max-md:ml-0 opacity-100 border-gray-100 dark:border-white/5" 
+            : "w-0 ml-0 opacity-0 pointer-events-none border-transparent dark:border-transparent shadow-none"
+        }
+      `}>
         <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">팀원 목록 (1:1 채팅)</h3>
         </div>

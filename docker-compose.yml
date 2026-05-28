@@ -1,31 +1,35 @@
-version: '3.3'
+version: '3.8'
 
 services:
+  # 1. 데이터베이스 서비스
   db:
     image: postgres:15-alpine
-    container_name: teampl-db
+    container_name: teampl-db-dev
     restart: always
     environment:
-      POSTGRES_USER: teampl_user
-      POSTGRES_PASSWORD: teampl_password
-      POSTGRES_DB: teampl_db
+      POSTGRES_USER: ${DB_USER:-teampl_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-teampl_password}
+      POSTGRES_DB: ${DB_NAME:-teampl_db}
     ports:
       - '5432:5432'
     volumes:
       - teampl_pgdata:/var/lib/postgresql/data
+    networks:
+      - teampl-dev-net
 
+  # 2. 백엔드 API 서비스 (서비스 이름인 'backend'가 가상 망 내 호스트 주소가 됩니다)
   backend:
     build:
       context: ./teampl-back
       dockerfile: Dockerfile.dev
-    container_name: teampl-backend
+    container_name: teampl-backend-dev
     ports:
       - '8080:8080'
     environment:
       - PORT=8080
       - FRONTEND_URL=http://localhost:5173
-      - DATABASE_URL=postgresql://teampl_user:teampl_password@db:5432/teampl_db?schema=public
-      - JWT_SECRET=fallback-secret-key
+      - DATABASE_URL=postgresql://${DB_USER:-teampl_user}:${DB_PASSWORD:-teampl_password}@db:5432/${DB_NAME:-teampl_db}?schema=public
+      - JWT_SECRET=${JWT_SECRET:-fallback-secret-key}
       - CHOKIDAR_USEPOLLING=true
       - MS_CLIENT_ID=${MS_CLIENT_ID}
       - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
@@ -44,18 +48,20 @@ services:
       - /app/node_modules
     depends_on:
       - db
-    # 컨테이너 구동 시 Prisma 스키마를 DB에 반영하고 최신 클라이언트를 생성합니다. (익명 볼륨 캐싱 문제 해결)
-    command: sh -c "npm install && npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"
+    networks:
+      - teampl-dev-net
+    # 클라이언트 파일 유실 캐시 버그를 방지하기 위해 generate를 선행하고 안전하게 푸시합니다.
+    command: sh -c "npm install && npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
 
+  # 3. 프론트엔드 서비스
   frontend:
     build:
       context: ./teampl
       dockerfile: Dockerfile.dev
-    container_name: teampl-frontend
+    container_name: teampl-frontend-dev
     ports:
       - '5173:5173'
     environment:
-      # 윈도우 환경 호스트 볼륨 핫리로딩 호환 옵션
       - CHOKIDAR_USEPOLLING=true 
       - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
@@ -63,8 +69,13 @@ services:
       - /app/node_modules
     depends_on:
       - backend
-    # 외부 접속 허용 및 캐시 초기화(--force) 개발 서버 구동
+    networks:
+      - teampl-dev-net
     command: sh -c "npm config set strict-ssl false && npm install && npm run dev -- --host 0.0.0.0 --force"
 
 volumes:
   teampl_pgdata:
+
+networks:
+  teampl-dev-net:
+    driver: bridge
