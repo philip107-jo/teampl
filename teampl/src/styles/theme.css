@@ -201,9 +201,7 @@
 
   /* 모바일 및 터치 제스처 최적화 */
   html, body {
-    touch-action: manipulation;
     -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
 

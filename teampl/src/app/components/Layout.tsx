@@ -284,7 +284,7 @@ export default function Layout() {
       </header>
 
       {/* Page Content */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden scrolling-touch relative pb-16 md:pb-0">
+      <main className="flex-1 overflow-y-auto scrolling-touch relative pb-16 md:pb-0">
         <div className={`${!projectId ? 'max-w-7xl mx-auto px-6 py-6 h-full' : 'w-full h-full'}`}>
           <AnimatePresence mode="wait">
             <motion.div
