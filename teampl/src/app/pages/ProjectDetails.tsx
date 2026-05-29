@@ -26,7 +26,7 @@ export default function ProjectDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { onlineUsers, socket, activeChatKey } = useChat();
+  const { onlineUsers, socket, activeChatKey, initProjectChat } = useChat();
 
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
@@ -111,6 +111,15 @@ export default function ProjectDetails() {
       socket.off('newMessage', onNewMessage);
     };
   }, [socket, user, activeChatKey, showToast]);
+
+  // Chat / Socket initialization for the project
+  const membersHash = useMemo(() => JSON.stringify(realProject?.membersList || []), [realProject?.membersList]);
+  
+  useEffect(() => {
+    if (projectId && user?.email && realProject?.membersList) {
+      initProjectChat(Number(projectId), user.email, realProject.membersList);
+    }
+  }, [projectId, user?.email, membersHash, initProjectChat]);
 
   // Mock data for the specific project
   const mockProject = {
