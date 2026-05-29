@@ -38,6 +38,7 @@ export type Task = {
   submitterEmail?: string;
   deliverables?: TaskDeliverable[];
   approvals?: { id: number; taskId: string; userEmail: string; createdAt: string }[];
+  unreadCommentBy?: string[];
 };
 
 export type TaskDeliverable = {
@@ -61,6 +62,8 @@ export type TaskComment = {
     name: string;
     email: string;
   };
+  isAnonymous?: boolean;
+  anonymousName?: string;
 };
 
 export type ChatMessage = {

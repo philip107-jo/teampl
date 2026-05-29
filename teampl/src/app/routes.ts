@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router";
 import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import MyPage from "./pages/MyPage";
@@ -31,11 +30,9 @@ export const router = createBrowserRouter([
     Component: Landing,
   },
   {
-    path: "/",
     Component: ProtectedRoute,
     children: [
       {
-        path: "/",
         Component: Layout,
         children: [
           { path: "projects", Component: Projects },

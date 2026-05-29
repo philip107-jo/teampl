@@ -277,8 +277,7 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
       joinProjectChannel(propProjectId);
 
       const onDriveUpdated = () => {
-        console.log("실시간 드라이브 업데이트 수신! 리로드 중...");
-        loadDocuments();
+      loadDocuments();
       };
 
       socket.on('driveUpdated', onDriveUpdated);
@@ -689,17 +688,17 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
               </div>
 
               {!isReadOnly && (
-                <>
-                  <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[13px] font-bold hover:bg-gray-50 transition-all active:scale-95">
-                    <Folder className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center gap-2 flex-nowrap">
+                  <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[12px] sm:text-[13px] font-bold hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap">
+                    <Folder className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     폴더 만들기
                   </button>
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple disabled={isReadOnly} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50">
-                    <Upload className="w-4 h-4 text-white" />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#11B886] text-white rounded-xl text-[12px] sm:text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50 whitespace-nowrap">
+                    <Upload className="w-3.5 h-3.5 text-white shrink-0" />
                     파일 업로드
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -708,7 +707,7 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
           <div className="flex items-start justify-between gap-6 mb-8 mt-2">
             <div>
               <h1 className="text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">자료실</h1>
-              <p className="text-[12px] text-gray-400 dark:text-white/30 mt-1">
+              <p className="text-[12px] text-gray-400 dark:text-white/30 mt-1 hidden sm:block">
                 폴더를 클릭하거나 파일을 끌어 정리해보세요
               </p>
             </div>
@@ -741,17 +740,17 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
               </div>
 
               {!isReadOnly && (
-                <>
-                  <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[13px] font-bold hover:bg-gray-50 transition-all active:scale-95">
-                    <Folder className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center gap-2 flex-nowrap">
+                  <button onClick={handleCreateFolder} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 rounded-xl text-[12px] sm:text-[13px] font-bold hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap">
+                    <Folder className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     폴더 만들기
                   </button>
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple disabled={isReadOnly} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#11B886] text-white rounded-xl text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50">
-                    <Upload className="w-4 h-4 text-white" />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isReadOnly} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#11B886] text-white rounded-xl text-[12px] sm:text-[13px] font-bold hover:opacity-90 active:scale-95 transition-all shadow-[0_2px_8px_rgba(17,184,134,0.2)] disabled:opacity-50 whitespace-nowrap">
+                    <Upload className="w-3.5 h-3.5 text-white shrink-0" />
                     파일 업로드
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>

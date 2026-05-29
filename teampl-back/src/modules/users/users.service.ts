@@ -1,7 +1,8 @@
 import { prisma } from '../../prisma';
+import { Prisma } from '@prisma/client';
 
 export const UsersService = {
-  create: async (data: any) => {
+  create: async (data: Prisma.UserCreateInput) => {
     return await prisma.user.create({ data });
   },
   findByEmail: async (email: string) => {

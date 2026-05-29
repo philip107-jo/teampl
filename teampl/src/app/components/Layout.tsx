@@ -1,5 +1,5 @@
 import { useOutlet, Link, useLocation, useNavigate, useParams } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   User as UserIcon,
@@ -22,6 +22,7 @@ import { notificationApi, Notification } from "../api/notificationApi";
 import { useChat } from '../context/ChatContext';
 import Avatar from './Avatar';
 import { useRef } from 'react';
+import { TEAMPL_LOGO_URL } from "../constants/assets";
 import BottomNavigation from './BottomNavigation';
 
 export default function Layout() {
@@ -69,6 +70,16 @@ export default function Layout() {
     return () => clearTimeout(timer);
   }, [searchQuery, projectId]);
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const notis = await notificationApi.getNotifications();
+      const unread = notis.filter(n => !n.isRead).length;
+      setUnreadNotificationsCount(unread);
+    } catch (error) {
+      console.error("알림을 가져오는 데 실패했습니다", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
@@ -76,35 +87,22 @@ export default function Layout() {
       try {
         const alerts = await projectApi.getKickedAlerts();
         setKickedAlerts(alerts);
-      } catch (error) {}
-    };
-
-    const fetchNotifications = async () => {
-      try {
-        const notis = await notificationApi.getNotifications();
-        const unread = notis.filter(n => !n.isRead).length;
-        setUnreadNotificationsCount(unread);
-      } catch (error) {}
+      } catch (error) {
+        console.error("강퇴 알림을 가져오는 데 실패했습니다", error);
+      }
     };
 
     fetchAlerts();
     fetchNotifications();
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   // 소켓 실시간 알림 이벤트 발생 시 알림 목록 갱신
   useEffect(() => {
     if (notificationCount > 0) {
-      const fetchNotifications = async () => {
-        try {
-          const notis = await notificationApi.getNotifications();
-          const unread = notis.filter(n => !n.isRead).length;
-          setUnreadNotificationsCount(unread);
-        } catch (error) {}
-      };
       fetchNotifications();
       clearNotifications(); // 컨텍스트의 카운트 초기화 (DB 동기화 완료)
     }
-  }, [notificationCount, clearNotifications]);
+  }, [notificationCount, clearNotifications, fetchNotifications]);
 
   const handleAckAlert = async (projectId: number) => {
     try {
@@ -152,7 +150,7 @@ export default function Layout() {
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
                 <img 
-                  src="https://obj-e-1.ktcloud.com/teampl/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png" 
+                  src={TEAMPL_LOGO_URL} 
                   onError={(e) => { e.currentTarget.src = "/logo.png"; }}
                   alt="Teampl Logo" 
                   className="w-10 h-10 md:w-[52px] md:h-[52px] object-contain"
@@ -352,7 +350,7 @@ export default function Layout() {
           </div>
         )}
       </AnimatePresence>
-      <BottomNavigation unreadNotificationsCount={unreadNotificationsCount} />
+      <BottomNavigation />
     </div>
   );
 }

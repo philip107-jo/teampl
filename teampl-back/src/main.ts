@@ -10,6 +10,7 @@ import authRouter from './modules/auth/auth.controller';
 import usersRouter from './modules/users/users.controller';
 import tasksRouter from './modules/tasks/tasks.controller';
 import schedulesRouter from './modules/schedules/schedules.controller';
+import globalSchedulesRouter from './modules/schedules/global-schedules.controller';
 import aiRouter from './modules/ai/ai.controller';
 import driveRouter from './modules/drive/drive.controller';
 import chatRouter from './modules/chat/chat.controller';
@@ -19,6 +20,7 @@ import cardsRouter from './modules/users/cards.controller';
 import { ChatService } from './modules/chat/chat.service';
 import { setIo } from './socket';
 import { startCronJobs } from './modules/cron/cron.service';
+import { errorHandler } from './middlewares/errorHandler';
 
 dotenv.config();
 
@@ -38,9 +40,11 @@ setIo(io);
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json());
 
-// Request Logger
+// Request Logger (개발 환경에서만 상세 로그)
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -57,7 +61,6 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
-import globalSchedulesRouter from './modules/schedules/global-schedules.controller';
 app.use('/api/schedules', globalSchedulesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/users/cards', cardsRouter);
@@ -75,13 +78,13 @@ const socketToEmail = new Map<string, string>();
 const inCallUsers = new Set<string>();
 
 io.on('connection', (socket: Socket) => {
-  console.log('🟢 Client connected directly:', socket.id);
+  console.log('🟢 Socket connected:', socket.id);
 
   socket.on('userConnected', (email: string) => {
     socketToEmail.set(socket.id, email);
     onlineUsers.add(email);
     io.emit('onlineUsers', Array.from(onlineUsers));
-    io.emit('inCallUsers', Array.from(inCallUsers)); // 연결 시 현재 통화 중 유저 상태도 즉시 동기화
+    io.emit('inCallUsers', Array.from(inCallUsers));
   });
 
   // WebRTC 통화 상태 업데이트
@@ -94,7 +97,6 @@ io.on('connection', (socket: Socket) => {
         inCallUsers.delete(email);
       }
       io.emit('inCallUsers', Array.from(inCallUsers));
-      console.log(`📞 Call status updated for ${email}: ${data.isInCall ? 'IN CALL' : 'IDLE'}`);
     }
   });
 
@@ -118,7 +120,6 @@ io.on('connection', (socket: Socket) => {
   // 방 입장 (프로젝트방 또는 1:1방)
   socket.on('joinRoom', (roomName: string) => {
     socket.join(roomName);
-    console.log(`Socket ${socket.id} joined room: ${roomName}`);
   });
 
   // 타이핑 인디케이터
@@ -149,7 +150,6 @@ io.on('connection', (socket: Socket) => {
   // 태스크 업데이트 등을 위한 프로젝트 전용 소켓 룸 입장
   socket.on('joinProject', (projectId: number) => {
     socket.join(`project-${projectId}`);
-    console.log(`Socket ${socket.id} subscribed to project updates: ${projectId}`);
   });
 
   // AI 카드 내 개별 태스크 선점 처리
@@ -159,19 +159,17 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('🔴 Client disconnected:', socket.id);
     const email = socketToEmail.get(socket.id);
     if (email) {
       onlineUsers.delete(email);
-      inCallUsers.delete(email); // 통화 중 상태였을 시 해제
+      inCallUsers.delete(email);
       socketToEmail.delete(socket.id);
       io.emit('onlineUsers', Array.from(onlineUsers));
-      io.emit('inCallUsers', Array.from(inCallUsers)); // 통화중 목록 전파
+      io.emit('inCallUsers', Array.from(inCallUsers));
     }
   });
 });
 
-import { errorHandler } from './middlewares/errorHandler';
 // Global Error Handler
 app.use(errorHandler);
 

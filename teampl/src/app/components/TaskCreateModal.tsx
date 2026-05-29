@@ -11,13 +11,7 @@ interface TaskCreateModalProps {
   onCreate: () => void;
 }
 
-const DEFAULT_STAGES = [
-  { id: 1, title: '주제 선정' },
-  { id: 2, title: '설문 설계' },
-  { id: 3, title: '데이터 수집' },
-  { id: 4, title: '분석' },
-  { id: 5, title: '발표준비' }
-];
+import { DEFAULT_STAGES } from "../constants/stages";
 
 export default function TaskCreateModal({
   projectId,

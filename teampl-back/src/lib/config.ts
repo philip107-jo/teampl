@@ -4,7 +4,7 @@ dotenv.config();
 export const config = {
     jwt: {
         secret: process.env.JWT_SECRET || 'fallback-secret-key-do-not-use-in-production',
-        expiresIn: '7d',
+        expiresIn: '30d',
     },
     vapid: {
         publicKey: process.env.VAPID_PUBLIC_KEY || 'BM2x5B4BqOEKuFpXJ27Zl75BwX8qA5zY79x6H-02q7x7X9XyX7XyX7XyX7XyX7XyX7XyX7XyX7XyX7XyX7XyX7Q',

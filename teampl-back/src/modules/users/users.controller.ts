@@ -24,23 +24,31 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 
 // GET /api/users/me - 내 정보 조회
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
-  const userId = req.user!.id;
-  const user = await UsersService.findById(userId);
-  if (!user) {
-    res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
-    return;
+  try {
+    const userId = req.user!.id;
+    const user = await UsersService.findById(userId);
+    if (!user) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+      return;
+    }
+    const { password: _, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message || '사용자 정보 조회 중 오류가 발생했습니다.' });
   }
-  const { password: _, ...userWithoutPassword } = user;
-  res.json(userWithoutPassword);
 });
 
 // PUT /api/users/me - 내 정보 수정
 router.put('/me', authMiddleware, validate(UpdateProfileSchema), async (req: Request, res: Response) => {
-  const userId = req.user!.id;
-  const { name, studentId, department } = req.body;
-  const updated = await UsersService.updateProfile(userId, { name, studentId, department });
-  const { password: _, ...userWithoutPassword } = updated;
-  res.json(userWithoutPassword);
+  try {
+    const userId = req.user!.id;
+    const { name, studentId, department } = req.body;
+    const updated = await UsersService.updateProfile(userId, { name, studentId, department });
+    const { password: _, ...userWithoutPassword } = updated;
+    res.json(userWithoutPassword);
+  } catch (e: any) {
+    res.status(500).json({ message: e.message || '프로필 수정 중 오류가 발생했습니다.' });
+  }
 });
 
 // DELETE /api/users/me - 회원 탈퇴

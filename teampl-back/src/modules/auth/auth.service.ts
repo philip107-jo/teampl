@@ -113,7 +113,7 @@ export const AuthService = {
         const token = jwt.sign(
             { id: user.id, email: user.email }, 
             JWT_SECRET, 
-            { expiresIn: '30d' }
+            { expiresIn: config.jwt.expiresIn as any }
         );
         
         const { password: _, ...userWithoutPassword } = user;

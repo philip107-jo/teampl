@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { TEAMPL_LOGO_URL } from "../constants/assets";
+
 interface LogoProps {
   className?: string;
   size?: number;
@@ -8,7 +10,7 @@ interface LogoProps {
 export default function Logo({ className = "", size = 36 }: LogoProps) {
   // KT Cloud Object Storage endpoints & bucket URLs for the logo image
   const sources = [
-    "https://obj-e-1.ktcloud.com/teampl/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png",
+    TEAMPL_LOGO_URL,
     "https://objectstorage.kr-central-1.ktcloud.com/teampl-storage/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png",
     "/logo.png" // Local fallback
   ];

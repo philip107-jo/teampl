@@ -15,6 +15,7 @@ import TaskDetailModal from "../components/TaskDetailModal";
 import TaskCreateModal from "../components/TaskCreateModal";
 import AiTaskSplitModal from "../components/AiTaskSplitModal";
 import TaskSubmitModal from "../components/TaskSubmitModal";
+import TaskDeleteModal from "../components/TaskDeleteModal";
 import { SubscriptionPaywallModal } from "../components/SubscriptionPaywallModal";
 import { getMemberName } from "../utils/members";
 
@@ -23,41 +24,7 @@ interface TasksProps {
   isReadOnly?: boolean;
 }
 
-const DEFAULT_STAGES = [
-  {
-    id: 1,
-    title: '주제 선정',
-    description: '조사 주제 및 가설 수립',
-    keywords: ['주제', '가설', '기획', '아이디어', '목표', '선정', '범위', '기본', '주제선정'],
-  },
-  {
-    id: 2,
-    title: '설문 설계',
-    description: '설문지 및 인터뷰 문항 작성',
-    keywords: ['설문', '인터뷰', '질문', '설계', '피드백', '질의', '문항', '설문지'],
-  },
-  {
-    id: 3,
-    title: '데이터 수집',
-    description: '설문 배포 및 응답 확보',
-    keywords: ['수집', '배포', '응답', '확보', '설문조사', '크롤링', '획득', '데이터', '자료', '조사', '논문'],
-  },
-  {
-    id: 4,
-    title: '분석',
-    description: 'SPSS 및 통계 분석 진행',
-    keywords: ['분석', 'spss', '통계', '결과', '코딩', '분석 진행', '차트', '해석', '검증'],
-  },
-  {
-    id: 5,
-    title: '발표준비',
-    description: '발표 및 PPT 준비',
-    keywords: ['발표', 'ppt', '대본', '스크립트', '제작', '피피티', '녹음', '연습', '최종', '발표준비'],
-  }
-];
-
-// Move getTaskStageId inside component or accept activeStages as param.
-
+import { DEFAULT_STAGES, getTaskStageId } from "../constants/stages";
 export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksProps) {
   const { projectId: routeProjectId } = useParams();
   const navigate = useNavigate();
@@ -125,29 +92,12 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
     };
   }, [numProjectId, fetchData]);
 
-  const getTaskStageId = useCallback((task: any) => {
-    const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
-    
-    // Explicit stage tags check: e.g. [1단계]
-    const match = text.match(/\[(?:stage:?)?(\d+)단계?\]/i) || text.match(/\[stage(\d+)\]/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Reverse keyword scanning for intelligent automated categorization
-    for (let i = activeStages.length - 1; i >= 0; i--) {
-      const stage = activeStages[i];
-      if (stage.keywords && stage.keywords.some((k: string) => text.includes(k.toLowerCase()))) {
-        return stage.id;
-      }
-    }
-    return activeStages.length > 0 ? activeStages[0].id : 1; // Default fallback
-  }, [activeStages]);
-
   const stageGroupedTasks = useMemo(() => {
     const map: { [stageId: number]: Task[] } = {};
     activeStages.forEach(s => map[s.id] = []);
     
     tasks.forEach(task => {
-      const stageId = getTaskStageId(task);
+      const stageId = getTaskStageId(task.title, task.description || '');
       if (map[stageId]) {
         map[stageId].push(task);
       } else {
@@ -220,7 +170,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
               총 {tasks.length}개
             </span>
           </h2>
-          <p className="text-xs text-gray-400 dark:text-white/40 mt-1">프로젝트 핵심 단계별로 과제 진행 사항과 결과물을 체계적으로 관리하세요.</p>
+          <p className="text-xs text-gray-400 dark:text-white/40 mt-1 hidden sm:block">프로젝트 핵심 단계별로 과제 진행 사항과 결과물을 체계적으로 관리하세요.</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -518,33 +468,12 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
       )}
 
       {/* -- Delete Confirmation Modal -- */}
-      {taskToDelete && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
-            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
-              <span className="text-[#1A2340] dark:text-white">'{taskToDelete.title}'</span> 과제를 삭제하시겠습니까? 삭제된 과제 정보와 산출물은 복구할 수 없습니다.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setTaskToDelete(null)}
-                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95 border-none cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDeleteTask}
-                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 border-none cursor-pointer"
-              >
-                삭제하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TaskDeleteModal
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={confirmDeleteTask}
+        taskTitle={taskToDelete?.title}
+      />
     </div>
   );
 }

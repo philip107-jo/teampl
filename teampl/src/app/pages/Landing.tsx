@@ -11,6 +11,7 @@ import {
   ChevronDown 
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { TEAMPL_LOGO_URL } from "../constants/assets";
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
@@ -60,7 +61,7 @@ export default function Landing() {
             onClick={() => scrollToSection("home")}
           >
             <img 
-              src="https://obj-e-1.ktcloud.com/teampl/ChatGPT%20Image%20May%2022,%202026,%2005_24_33%20PM.png" 
+              src={TEAMPL_LOGO_URL} 
               onError={(e) => { e.currentTarget.src = "/logo.png"; }}
               alt="Teampl Logo" 
               className="w-11 h-11 object-contain"

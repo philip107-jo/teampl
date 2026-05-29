@@ -16,13 +16,24 @@ interface SubscriptionPaywallModalProps {
 export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }: SubscriptionPaywallModalProps) {
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
-  const { updateUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [showCardRegister, setShowCardRegister] = useState(false);
 
   // if (!isOpen) return null; 대신 AnimatePresence 안에서 조건부 렌더링
 
   const handleUpgrade = async () => {
-    setShowCardRegister(true);
+    setLoading(true);
+    try {
+      await userApi.upgradePlan();
+      await refreshUser();
+      showToast('PRO 1달 무료 체험이 시작되었습니다! 🎉', 'success');
+      onSuccess?.();
+      onClose();
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'PRO 업그레이드에 실패했습니다.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -125,8 +136,8 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
             <div className="bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex gap-3 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <div>
-                <p className="font-bold mb-1">PRO 요금제 구독 안내</p>
-                <p className="opacity-90 leading-relaxed text-xs">안전한 서비스 이용을 위해 결제 카드를 등록해주세요. (졸업작품 시연 모드에서는 실제 결제가 발생하지 않습니다.)</p>
+                <p className="font-bold mb-1">PRO 요금제 1달 무료 체험 안내</p>
+                <p className="opacity-90 leading-relaxed text-xs">카드 등록 없이 클릭 한 번으로 PRO 기능을 한 달 동안 무료로 체험해보세요.</p>
               </div>
             </div>
           </div>
@@ -146,7 +157,7 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
               ) : (
                 <>
                   <Crown className="w-5 h-5" />
-                  카드 등록하고 첫 달 무료로 PRO 시작하기
+                  PRO 1달 무료 체험 시작하기
                 </>
               )}
             </button>
@@ -156,15 +167,6 @@ export function SubscriptionPaywallModal({ isOpen, onClose, onSuccess, message }
         )}
       </AnimatePresence>
       
-      {showCardRegister && (
-        <CardRegisterModal
-          onClose={() => setShowCardRegister(false)}
-          onSuccess={() => {
-            onSuccess?.();
-            onClose();
-          }}
-        />
-      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // Vite 환경 변수에서 기본 API 주소를 가져옵니다. 
 // (.env 파일에 VITE_API_BASE_URL이 정의되어 있어야 함)
@@ -25,7 +25,7 @@ export const aiClient = axios.create({
 
 // 요청(Request) 인터셉터
 // - 백엔드로 요청을 보내기 "직전"에 무언가(예: 로그인 토큰)를 가로채서 넣을 때 사용합니다.
-const requestInterceptor = (config: any) => {
+const requestInterceptor = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   const token = localStorage.getItem('access_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -34,8 +34,8 @@ const requestInterceptor = (config: any) => {
 };
 const requestErrorInterceptor = (error: any) => Promise.reject(error);
 
-const responseInterceptor = (response: any) => response;
-const responseErrorInterceptor = (error: any) => {
+const responseInterceptor = (response: AxiosResponse) => response;
+const responseErrorInterceptor = (error: AxiosError) => {
   if (error.response?.status === 401) {
     console.error("인증이 만료되었습니다. 다시 로그인해주세요.");
   }

@@ -1,13 +1,9 @@
 import { Link, useLocation, useParams } from "react-router";
-import { FolderKanban, Calendar as CalendarIcon, User as UserIcon, Bell } from "lucide-react";
+import { FolderKanban, Calendar as CalendarIcon, User as UserIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { useChat } from "../context/ChatContext";
 
-interface BottomNavigationProps {
-  unreadNotificationsCount: number;
-}
-
-export default function BottomNavigation({ unreadNotificationsCount }: BottomNavigationProps) {
+export default function BottomNavigation() {
   const location = useLocation();
   const { projectId } = useParams();
   const { totalUnreadCount } = useChat();
@@ -26,14 +22,6 @@ export default function BottomNavigation({ unreadNotificationsCount }: BottomNav
       icon: CalendarIcon,
       path: "/calendar",
       active: location.pathname.startsWith("/calendar"),
-    },
-    {
-      key: "notifications",
-      label: "알림",
-      icon: Bell,
-      path: "/notifications",
-      active: location.pathname.startsWith("/notifications"),
-      badge: unreadNotificationsCount > 0,
     },
     {
       key: "mypage",
@@ -65,11 +53,6 @@ export default function BottomNavigation({ unreadNotificationsCount }: BottomNav
                 }`}
               >
                 <Icon className="w-5 h-5 transition-transform duration-300 group-active:scale-90" />
-                
-                {/* Badge Notification */}
-                {item.badge && (
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-[#151C31] shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse" />
-                )}
               </div>
               <span
                 className={`text-[10px] font-black tracking-tight mt-0.5 transition-all duration-300 ${

@@ -13,6 +13,8 @@ import { apiClient } from '../api/client';
 import { socket, joinProjectChannel } from '../socket';
 import { SubscriptionPaywallModal } from "../components/SubscriptionPaywallModal";
 import AiTaskSplitModal from '../components/AiTaskSplitModal';
+import TaskDeleteModal from '../components/TaskDeleteModal';
+import { TaskStatus, Task } from '../types';
 
 interface OverviewProps {
   projectId: number;
@@ -28,38 +30,7 @@ interface Stage {
   keywords: string[];
 }
 
-const DEFAULT_STAGES: Stage[] = [
-  {
-    id: 1,
-    title: '주제 선정',
-    description: '조사 주제 및 가설 수립',
-    keywords: ['주제', '가설', '기획', '아이디어', '목표', '선정', '범위', '기본', '주제선정'],
-  },
-  {
-    id: 2,
-    title: '설문 설계',
-    description: '설문지 및 인터뷰 문항 작성',
-    keywords: ['설문', '인터뷰', '질문', '설계', '피드백', '질의', '문항', '설문지'],
-  },
-  {
-    id: 3,
-    title: '데이터 수집',
-    description: '설문 배포 및 응답 확보',
-    keywords: ['수집', '배포', '응답', '확보', '설문조사', '크롤링', '획득', '데이터', '자료', '조사', '논문'],
-  },
-  {
-    id: 4,
-    title: '분석',
-    description: 'SPSS 및 통계 분석 진행',
-    keywords: ['분석', 'spss', '통계', '결과', '코딩', '분석 진행', '차트', '해석', '검증'],
-  },
-  {
-    id: 5,
-    title: '발표준비',
-    description: '발표 및 PPT 준비',
-    keywords: ['발표', 'ppt', '대본', '스크립트', '제작', '피피티', '녹음', '연습', '최종', '발표준비'],
-  }
-];
+import { DEFAULT_STAGES, getTaskStageId } from "../constants/stages";
 
 const PRIORITY_COLOR: Record<string, string> = {
   high: 'text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20',
@@ -124,27 +95,29 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
     };
   }, [projectId, loadTasks]);
 
-  // Dynamic stage classification algorithm
-  const getTaskStageId = useCallback((task: any) => {
-    const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
-    
-    // Explicit stage tags check: e.g. [1단계]
-    const match = text.match(/\[(?:stage:?)?(\d+)단계?\]/i) || text.match(/\[stage(\d+)\]/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Reverse keyword scanning for intelligent automated categorization
-    for (let i = activeStages.length - 1; i >= 0; i--) {
-      const stage = activeStages[i];
-      if (stage.keywords && stage.keywords.some(k => text.includes(k.toLowerCase()))) {
-        return stage.id;
+  // Component now imports getTaskStageId directly, so we just use that directly
+  // Note: Since project.customStages might override DEFAULT_STAGES, we still need
+  // a local getTaskStageId equivalent if custom stages are active.
+  const getStageIdForTask = useCallback((task: any) => {
+    if (project.customStages && project.customStages.length > 0) {
+      const text = `${task.title || ''} ${task.description || ''}`.toLowerCase();
+      const match = text.match(/\[(?:stage:?)?(\d+)단계?\]/i) || text.match(/\[stage(\d+)\]/i);
+      if (match) return parseInt(match[1], 10);
+      
+      for (let i = activeStages.length - 1; i >= 0; i--) {
+        const stage = activeStages[i];
+        if (stage.keywords && stage.keywords.some((k: string) => text.includes(k.toLowerCase()))) {
+          return stage.id;
+        }
       }
+      return activeStages[0].id;
     }
-    return activeStages.length > 0 ? activeStages[0].id : 1; // Default fallback
-  }, [activeStages]);
+    return getTaskStageId(task.title, task.description);
+  }, [activeStages, project.customStages]);
 
   // Compute tasks & progress for each stage
-  const getStageStats = useCallback((stageId: number) => {
-    const stageTasks = tasks.filter(t => getTaskStageId(t) === stageId);
+  const getStageStats = useCallback((stage: Stage) => {
+    const stageTasks = tasks.filter(t => getStageIdForTask(t) === stage.id);
     const total = stageTasks.length;
     const done = stageTasks.filter(t => t.status === 'DONE').length;
     const progress = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -156,21 +129,23 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
       progress,
       hasTasks: total > 0
     };
-  }, [tasks, getTaskStageId]);
+  }, [tasks, getStageIdForTask]);
 
   // Check if stage is unlocked
   const isStageUnlocked = useCallback((stageId: number) => {
     if (stageId === 1) return true; // Stage 1 is always unlocked
     
     // Stage N unlocks ONLY if ALL stages from 1 to Stage N-1 are 100% complete with tasks
-    for (let s = 1; s < stageId; s++) {
-      const stats = getStageStats(s);
-      if (stats.total === 0 || stats.progress < 100) {
-        return false;
-      }
+    for (let i = 0; i < activeStages.length; i++) {
+        const stage = activeStages[i];
+        if (stage.id >= stageId) break;
+        const stats = getStageStats(stage);
+        if (stats.total === 0 || stats.progress < 100) {
+            return false;
+        }
     }
     return true;
-  }, [getStageStats]);
+  }, [activeStages, getStageStats]);
 
   const handleStageClick = (stageId: number) => {
     if (isStageUnlocked(stageId)) {
@@ -184,11 +159,12 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
     }
   };
 
-  const handleUpdateTaskStatus = async (taskId: string, newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
+    const originalStatus = task.status;
 
-    if (newStatus === 'DONE' && task.requiresDeliverable !== false && task.status !== 'IN_REVIEW') {
+    if (newStatus === 'DONE' && task.requiresDeliverable !== false && originalStatus !== 'IN_REVIEW') {
       showToast('이 과제는 산출물 제출 및 팀원의 승인이 필요합니다. (과제 관리 메뉴 이용)', 'error');
       return;
     }
@@ -204,7 +180,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
       if (e.response?.status === 402) {
         handlePaywallNeeded('더 많은 작업을 수행하려면 요금제 업그레이드가 필요합니다.');
       }
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: t.status } : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: originalStatus } : t));
       showToast('상태 변경에 실패했습니다.', 'error');
     }
   };
@@ -278,7 +254,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
 
   // Active Stage Detail View
   const selectedStage = activeStages.find(s => s.id === selectedStageId);
-  const selectedStageStats = selectedStageId ? getStageStats(selectedStageId) : null;
+  const selectedStageStats = selectedStageId ? getStageStats(selectedStage!) : null;
   const stageTasks = selectedStageStats?.tasks || [];
   const stageProgress = selectedStageStats?.progress || 0;
 
@@ -306,7 +282,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
             <div className="flex items-center justify-between pt-4 pb-2">
               <div>
                 <h2 className="text-[20px] font-bold text-[#1A2340] dark:text-white tracking-tight">프로젝트 단계</h2>
-                <p className="text-sm text-slate-400 dark:text-white/40 mt-1">단계별 과제를 완료하면 다음 단계가 열립니다</p>
+                <p className="text-sm text-slate-400 dark:text-white/40 mt-1 hidden sm:block">단계별 과제를 완료하면 다음 단계가 열립니다</p>
               </div>
               {!isReadOnly && (
                 <button
@@ -322,11 +298,10 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
             {/* Vertical Timeline Nodes: Perfectly aligned side-by-side flex layout */}
             <div className="space-y-0 mt-6 relative">
               {activeStages.map((stage, idx) => {
-                const stats = getStageStats(stage.id);
+                const stats = getStageStats(stage);
                 const unlocked = isStageUnlocked(stage.id);
                 const isCompleted = stats.hasTasks && stats.progress === 100;
                 const isActive = unlocked && !isCompleted;
-                const isLastStage = idx === activeStages.length - 1;
                 const isShaking = shakingStageId === stage.id;
 
                 return (
@@ -637,7 +612,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
           setIsAiModalOpen(false);
           showToast('✨ AI가 맞춤형 단계를 구성하고 과제를 일괄 생성했습니다!', 'success');
           loadTasks();
-          window.location.reload();
         }}
         onPaywallNeeded={handlePaywallNeeded}
       />
@@ -655,33 +629,13 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
       />
 
       {/* -- Delete Confirmation Modal -- */}
-      {taskToDelete && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="card w-full max-w-[400px] shadow-[0_30px_60px_rgba(0,0,0,0.6)] !p-8 border border-red-500/20 dark:bg-[#132038]">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-[20px] flex items-center justify-center text-red-500 mb-6 shadow-inner mx-auto">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-[20px] font-black text-center text-[#1A2340] dark:text-white tracking-tight leading-tight mb-3">정말 삭제하시겠습니까?</h2>
-            <p className="text-[13px] font-bold text-center text-[#7D879C]/80 dark:text-white/40 mb-6 break-keep leading-relaxed">
-              <span className="text-[#1A2340] dark:text-white">'{taskToDelete.title}'</span> 과제를 삭제하시겠습니까? 삭제된 과제 정보와 산출물은 복구할 수 없습니다.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setTaskToDelete(null)}
-                className="flex-1 py-4 bg-gray-100 dark:bg-white/5 text-[#7D879C] dark:text-white/60 rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95 border-none cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDeleteTask}
-                className="flex-1 py-4 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:opacity-90 transition-all active:scale-95 border-none cursor-pointer"
-              >
-                삭제하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* -- Delete Confirmation Modal -- */}
+      <TaskDeleteModal
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={confirmDeleteTask}
+        taskTitle={taskToDelete?.title}
+      />
     </div>
   );
 }
