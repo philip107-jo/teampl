@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: teampl-db-prod
+    restart: always
+    environment:
+      POSTGRES_USER: teampl_user
+      POSTGRES_PASSWORD: teampl_password
+      POSTGRES_DB: teampl_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - teampl_pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - teampl-prod-net
+
+  backend:
+    build:
+      context: ./teampl-back
+      dockerfile: Dockerfile.prod
+    container_name: teampl-backend-prod
+    restart: always
+    environment:
+      - PORT=8080
+      - FRONTEND_URL=http://211.254.213.7
+      - DATABASE_URL=postgresql://teampl_user:teampl_password@db:5432/teampl_db?schema=public
+      - JWT_SECRET=${JWT_SECRET}
+      - MS_CLIENT_ID=${MS_CLIENT_ID}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
+      - MS_REDIRECT_URI=${MS_REDIRECT_URI}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - KT_CLOUD_ENDPOINT=${KT_CLOUD_ENDPOINT}
+      - KT_CLOUD_ACCESS_KEY=${KT_CLOUD_ACCESS_KEY}
+      - KT_CLOUD_SECRET_KEY=${KT_CLOUD_SECRET_KEY}
+      - KT_CLOUD_BUCKET=${KT_CLOUD_BUCKET}
+      - KT_CLOUD_REGION=${KT_CLOUD_REGION}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+    depends_on:
+      - db
+    networks:
+      - teampl-prod-net
+
+  frontend:
+    build:
+      context: ./teampl
+      dockerfile: Dockerfile.prod
+    container_name: teampl-frontend-prod
+    restart: always
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
+    networks:
+      - teampl-prod-net
+
+volumes:
+  teampl_pgdata_prod:
+
+networks:
+  teampl-prod-net:
+    driver: bridge
