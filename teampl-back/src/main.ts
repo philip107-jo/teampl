@@ -83,6 +83,7 @@ io.on('connection', (socket: Socket) => {
   socket.on('userConnected', (email: string) => {
     socketToEmail.set(socket.id, email);
     onlineUsers.add(email);
+    socket.join(email); // 이메일 이름의 소켓 룸에 조인
     io.emit('onlineUsers', Array.from(onlineUsers));
     io.emit('inCallUsers', Array.from(inCallUsers));
   });
@@ -100,21 +101,53 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
+  // 상대방 이메일 추출 유틸리티
+  const getReceiverEmail = (room: string, senderEmail: string) => {
+    if (room.startsWith(`${senderEmail}-`)) {
+      return room.substring(senderEmail.length + 1);
+    }
+    if (room.endsWith(`-${senderEmail}`)) {
+      return room.substring(0, room.length - senderEmail.length - 1);
+    }
+    return null;
+  };
+
   // WebRTC 1:1 통화 시그널 중계
   socket.on('call-user', (data: { room: string; offer: any; callerEmail: string; callerName: string; isVideo: boolean }) => {
-    socket.to(data.room).emit('incoming-call', data);
+    const receiverEmail = getReceiverEmail(data.room, data.callerEmail);
+    if (receiverEmail) {
+      io.to(receiverEmail).emit('incoming-call', data);
+    }
   });
 
   socket.on('accept-call', (data: { room: string; answer: any }) => {
-    socket.to(data.room).emit('call-accepted', data);
+    const email = socketToEmail.get(socket.id);
+    if (email) {
+      const receiverEmail = getReceiverEmail(data.room, email);
+      if (receiverEmail) {
+        io.to(receiverEmail).emit('call-accepted', data);
+      }
+    }
   });
 
   socket.on('ice-candidate', (data: { room: string; candidate: any }) => {
-    socket.to(data.room).emit('ice-candidate', data);
+    const email = socketToEmail.get(socket.id);
+    if (email) {
+      const receiverEmail = getReceiverEmail(data.room, email);
+      if (receiverEmail) {
+        io.to(receiverEmail).emit('ice-candidate', data);
+      }
+    }
   });
 
   socket.on('end-call', (data: { room: string }) => {
-    socket.to(data.room).emit('call-ended', data);
+    const email = socketToEmail.get(socket.id);
+    if (email) {
+      const receiverEmail = getReceiverEmail(data.room, email);
+      if (receiverEmail) {
+        io.to(receiverEmail).emit('call-ended', data);
+      }
+    }
   });
 
   // 방 입장 (프로젝트방 또는 1:1방)

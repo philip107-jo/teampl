@@ -21,6 +21,7 @@ export const CallWidget: React.FC = () => {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const [duration, setDuration] = useState(0);
 
   // 통화 타이머 (초단위)
@@ -50,6 +51,13 @@ export const CallWidget: React.FC = () => {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, status]);
+
+  // 원격 오디오 바인딩 (음성 통화용)
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
     }
   }, [remoteStream, status]);
 
@@ -239,6 +247,9 @@ export const CallWidget: React.FC = () => {
             ) : (
               /* B. 음성 통화 화면 (Voice Call) */
               <div className="flex flex-col items-center">
+                {remoteStream && (
+                  <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+                )}
                 {/* 펄싱 링 이니셜 아바타 */}
                 <div className="relative flex items-center justify-center w-24 h-24 mb-4">
                   <div className="absolute inset-0 rounded-full border-2 border-[#11B886]/30 animate-pulse scale-110" />

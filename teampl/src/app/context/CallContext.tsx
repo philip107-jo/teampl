@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { socket } from "../socket";
 import { useAuth } from "./AuthContext";
+import { ringtonePlayer, ringbackPlayer, playConnectSound, playDisconnectSound } from "../utils/audioHelper";
 
 type CallStatus = "idle" | "calling" | "incoming" | "connected";
 
@@ -62,6 +63,24 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     statusRef.current = status;
   }, [status]);
 
+  // 로그인 정보 소켓에 연동 및 재연결 대응
+  useEffect(() => {
+    if (!socket || !user?.email) return;
+
+    const handleConnect = () => {
+      socket.emit("userConnected", user.email);
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    socket.on("connect", handleConnect);
+    return () => {
+      socket.off("connect", handleConnect);
+    };
+  }, [socket, user]);
+
   // 실시간 통화 유저 명단 동기화
   useEffect(() => {
     if (!socket) return;
@@ -95,6 +114,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsVideoCall(data.isVideo);
       activeRoomRef.current = data.room;
 
+      // 벨소리 재생 시작
+      ringtonePlayer.start();
+
       // 피어 커넥션 사전 준비
       createPeerConnection(data.room);
       pcRef.current?.setRemoteDescription(new RTCSessionDescription(data.offer))
@@ -109,6 +131,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setStatus("connected");
         // 내 통화 중 상태를 전체에 전파
         socket.emit("set-call-status", { isInCall: true });
+
+        // 발신 신호음 중지 및 연결 효과음 재생
+        ringbackPlayer.stop();
+        playConnectSound();
       } catch (err) {
         console.error("Failed to set remote answer", err);
       }
@@ -128,6 +154,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 4. 통화 강제 종료/거절됨
     const onCallEnded = () => {
+      if (statusRef.current !== "idle") {
+        playDisconnectSound();
+      }
       cleanupCall();
     };
 
@@ -174,6 +203,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPeerName(name);
     setIsVideoCall(isVideo);
     activeRoomRef.current = roomKey;
+
+    // 발신 대기음 재생 시작
+    ringbackPlayer.start();
 
     try {
       // 미디어 장치 권한 획득
@@ -243,6 +275,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStatus("connected");
       // 소켓 서버에 통화자 등록 전파
       socket.emit("set-call-status", { isInCall: true });
+
+      // 벨소리 중지 및 연결 성공음 재생
+      ringtonePlayer.stop();
+      playConnectSound();
     } catch (err) {
       console.error("Error accepting call:", err);
       cleanupCall();
@@ -255,6 +291,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (socket && activeRoomRef.current) {
       socket.emit("end-call", { room: activeRoomRef.current });
     }
+    playDisconnectSound();
     cleanupCall();
   };
 
@@ -263,6 +300,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (socket && activeRoomRef.current) {
       socket.emit("end-call", { room: activeRoomRef.current });
     }
+    playDisconnectSound();
     cleanupCall();
   };
 
@@ -290,6 +328,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 통화 상태 청소 및 초기화
   const cleanupCall = () => {
+    // 진행 중인 벨소리/발신음 모두 정지
+    ringtonePlayer.stop();
+    ringbackPlayer.stop();
+
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;

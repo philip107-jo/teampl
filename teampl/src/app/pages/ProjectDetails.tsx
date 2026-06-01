@@ -26,7 +26,7 @@ export default function ProjectDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { onlineUsers, socket, activeChatKey } = useChat();
+  const { onlineUsers, socket, activeChatKey, unreadCounts } = useChat();
 
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
@@ -167,6 +167,15 @@ export default function ProjectDetails() {
       return 0;
     });
   }, [rawMembers]);
+
+  const chatUnreadCount = useMemo(() => {
+    let count = unreadCounts[`team-${numProjectId}`] || 0;
+    displayMembers.forEach((m: any) => {
+      const dmKey = `user-${numProjectId}-${m.id}`;
+      count += unreadCounts[dmKey] || 0;
+    });
+    return count;
+  }, [unreadCounts, numProjectId, displayMembers]);
 
   const isReadOnly = project?.status === "COMPLETED" || project?.status === "ARCHIVED";
 
@@ -331,7 +340,7 @@ export default function ProjectDetails() {
             { id: 'overview', label: '개요', icon: LayoutDashboard },
             { id: 'tasks', label: '과제 관리', icon: CheckSquare },
             { id: 'calendar', label: '일정', icon: CalendarIcon },
-            { id: 'chat', label: '채팅', icon: MessageSquare },
+            { id: 'chat', label: '채팅', icon: MessageSquare, badge: chatUnreadCount },
             { id: 'drive', label: '자료실', icon: FolderOpen },
             { id: 'vote', label: '투표', icon: BarChart3 },
             { id: 'members', label: '팀원', icon: Users }
@@ -339,7 +348,7 @@ export default function ProjectDetails() {
             <button
               key={tab.id}
               onClick={() => navigate(`/projects/${projectId}?tab=${tab.id}`, { replace: true })}
-              className={`flex items-center gap-2 whitespace-nowrap transition-all duration-200 snap-align-start shrink-0
+              className={`flex items-center gap-2 whitespace-nowrap transition-all duration-200 snap-align-start shrink-0 relative
                 /* 데스크톱: 기존 언더라인 스타일 100% 동일 유지 */
                 md:pb-3 md:px-1 md:border-b-2 md:rounded-none md:border-t-0 md:border-x-0 md:bg-transparent md:shadow-none md:-mb-[2px]
                 ${
@@ -358,6 +367,11 @@ export default function ProjectDetails() {
             >
               <tab.icon className="w-4 h-4 shrink-0" />
               <span className="text-xs md:text-sm">{tab.label}</span>
+              {tab.badge && tab.badge > 0 ? (
+                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded-full leading-none flex items-center justify-center min-w-[15px] h-[15px] animate-pulse">
+                  {tab.badge}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
