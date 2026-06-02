@@ -46,6 +46,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [isCustomDept, setIsCustomDept] = useState(false);
 
   // 이메일 인증 관련 상태들
   const [isEmailSent, setIsEmailSent] = useState(false);
@@ -368,42 +369,87 @@ export default function Register() {
               </div>
 
               {/* Department Select */}
-              <div className="space-y-2 relative">
-                <label className="text-sm font-bold text-slate-700 ml-1">학과</label>
-                <button
-                  type="button"
-                  onClick={() => setIsDeptOpen(!isDeptOpen)}
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-left flex items-center justify-between group hover:border-[#11B886] focus:ring-4 focus:ring-[#11B886]/10 focus:bg-white transition-all outline-none"
-                >
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-slate-400 group-hover:text-[#11B886] transition-colors" />
-                    <span className={`text-sm font-semibold ${formData.department ? "text-slate-900" : "text-slate-400"}`}>
-                      {formData.department || "소속 학과를 선택해주세요"}
-                    </span>
+              {isCustomDept ? (
+                <div className="space-y-2 relative group">
+                  <label className="text-sm font-bold text-slate-700 ml-1">학과 (직접 입력)</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Building2 className="w-5 h-5 text-slate-400 group-focus-within:text-[#11B886] transition-colors" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      className="w-full pl-11 pr-24 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-[#11B886]/10 focus:border-[#11B886] focus:bg-white outline-none transition-all font-medium text-sm"
+                      placeholder="학과명을 직접 입력해주세요"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDept(false);
+                        setFormData({ ...formData, department: "" });
+                      }}
+                      className="absolute inset-y-0 right-3 flex items-center text-xs font-black text-[#11B886] hover:text-[#0EA271] transition-colors"
+                    >
+                      목록에서 선택
+                    </button>
                   </div>
-                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isDeptOpen ? "rotate-180" : ""}`} />
-                </button>
+                </div>
+              ) : (
+                <div className="space-y-2 relative">
+                  <label className="text-sm font-bold text-slate-700 ml-1">학과</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsDeptOpen(!isDeptOpen)}
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-left flex items-center justify-between group hover:border-[#11B886] focus:ring-4 focus:ring-[#11B886]/10 focus:bg-white transition-all outline-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-5 h-5 text-slate-400 group-hover:text-[#11B886] transition-colors" />
+                      <span className={`text-sm font-semibold ${formData.department ? "text-slate-900" : "text-slate-400"}`}>
+                        {formData.department || "소속 학과를 선택해주세요"}
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isDeptOpen ? "rotate-180" : ""}`} />
+                  </button>
 
-                {isDeptOpen && (
-                  <div className="absolute z-50 mt-2 w-full max-h-56 overflow-y-auto bg-white border border-slate-100 rounded-2xl shadow-xl p-2 animate-in fade-in zoom-in-95 duration-200 scrollbar-hide">
-                    {DEPARTMENTS.map((dept) => (
+                  {isDeptOpen && (
+                    <div className="absolute z-50 mt-2 w-full max-h-56 overflow-y-auto bg-white border border-slate-100 rounded-2xl shadow-xl p-2 animate-in fade-in zoom-in-95 duration-200 scrollbar-hide">
+                      {DEPARTMENTS.map((dept) => (
+                        <button
+                          key={dept}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, department: dept });
+                            setIsDeptOpen(false);
+                            setError("");
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-emerald-50 hover:text-[#11B886] rounded-xl transition-colors flex items-center justify-between group"
+                        >
+                          {dept}
+                          {formData.department === dept && <CheckCircle2 className="w-4.5 h-4.5 text-[#11B886]" />}
+                        </button>
+                      ))}
+
+                      <div className="h-px bg-slate-100 my-1 mx-2" />
+
                       <button
-                        key={dept}
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, department: dept });
+                          setIsCustomDept(true);
+                          setFormData({ ...formData, department: "" });
                           setIsDeptOpen(false);
                           setError("");
                         }}
-                        className="w-full px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-emerald-50 hover:text-[#11B886] rounded-xl transition-colors flex items-center justify-between group"
+                        className="w-full px-4 py-3 text-left text-sm font-bold text-[#11B886] hover:bg-emerald-50 rounded-xl transition-colors flex items-center justify-between group"
                       >
-                        {dept}
-                        {formData.department === dept && <CheckCircle2 className="w-4.5 h-4.5 text-[#11B886]" />}
+                        <span>직접 입력...</span>
+                        <Sparkles className="w-4.5 h-4.5 text-[#11B886]" />
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Next Button */}
               <button
