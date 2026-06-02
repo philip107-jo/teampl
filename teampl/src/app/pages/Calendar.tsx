@@ -246,7 +246,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
                         <Clock className="w-3.5 h-3.5" />
                         {cleanDate} {event.endDate && event.endDate.split('T')[0] !== cleanDate ? `~ ${event.endDate.split('T')[0]}` : ''}
                       </div>
-                      <span className="text-[10px] font-black text-[#11B886] bg-[#11B886]/10 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-black text-[#11B886] bg-[#11B886]/10 px-2 py-0.5 rounded-full whitespace-nowrap truncate max-w-[120px]">
                         {numProjectId ? "팀 프로젝트" : (event.project?.name || event.project || "개인 일정")}
                       </span>
                     </div>

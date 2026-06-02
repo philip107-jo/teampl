@@ -154,19 +154,19 @@ export default function Layout() {
       {/* Global Top Bar - Always visible */}
       <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 md:px-6 py-2.5 md:py-4 flex-shrink-0 relative sticky top-0 z-50 transition-all duration-300">
           <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
+            <div className="flex items-center gap-4 lg:gap-8 min-w-0">
+              <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200 shrink-0" onClick={() => navigate("/")}>
                 <img 
                   src={TEAMPL_LOGO_URL} 
                   onError={(e) => { e.currentTarget.src = "/logo.png"; }}
                   alt="Teampl Logo" 
-                  className="w-10 h-10 md:w-[52px] md:h-[52px] object-contain"
+                  className="w-10 h-10 md:w-[52px] md:h-[52px] object-contain shrink-0"
                 />
-                <h1 className="text-lg md:text-xl font-black text-[#1A2340] dark:text-white tracking-tight">Teampl</h1>
+                <h1 className="text-lg md:text-xl font-black text-[#1A2340] dark:text-white tracking-tight whitespace-nowrap shrink-0">Teampl</h1>
               </div>
 
               {/* Desktop Global Navigation */}
-              <nav className="hidden md:flex items-center gap-1">
+              <nav className="hidden md:flex items-center gap-1 shrink-0">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item);
@@ -174,13 +174,13 @@ export default function Layout() {
                     <Link
                       key={item.key}
                       to={item.path}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                      className={`flex items-center gap-2 px-2.5 py-2 md:px-4 rounded-xl text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
                         active
                           ? "bg-[#11B886]/10 text-[#11B886]"
                           : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 dark:text-white/60 dark:hover:text-white"
                       }`}
                     >
-                      <Icon className="w-4 h-4" />
+                      <Icon className="w-4 h-4 shrink-0" />
                       {item.label}
                     </Link>
                   );
@@ -289,16 +289,16 @@ export default function Layout() {
                 </button>
               </div>
               
-              <div className="flex items-center gap-3 border-l border-gray-200 dark:border-white/10 pl-2 md:pl-4 ml-1 md:ml-2">
-                <div className="hidden sm:block text-right">
-                  <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1">{user?.name}</p>
-                  <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest">{user?.department}</p>
+              <div className="flex items-center gap-3 border-l border-gray-200 dark:border-white/10 pl-2 md:pl-4 ml-1 md:ml-2 min-w-0">
+                <div className="hidden sm:block text-right min-w-0">
+                  <p className="text-[13px] font-black text-[#1A2340] dark:text-white leading-none mb-1 whitespace-nowrap truncate">{user?.name}</p>
+                  <p className="text-[10px] font-bold text-[#7D879C]/80 dark:text-white/40 uppercase tracking-widest whitespace-nowrap truncate">{user?.department}</p>
                 </div>
                 <Avatar 
                   name={user?.name} 
                   avatarUrl={user?.avatarUrl} 
                   shape="squircle"
-                  className="cursor-pointer shadow-sm"
+                  className="cursor-pointer shadow-sm shrink-0"
                   onClick={() => navigate('/mypage')}
                 />
               </div>

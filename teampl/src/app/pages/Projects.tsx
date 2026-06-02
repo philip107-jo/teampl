@@ -419,14 +419,14 @@ export default function Projects() {
                     </div>
 
                     {/* Project Meta Footer */}
-                    <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-[12px] text-[#9AA4B2] font-medium pt-3 sm:pt-4 border-t border-gray-100 dark:border-white/5">
-                      <div className="flex items-center gap-1">
-                        <FolderOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        <span className="truncate max-w-[60px] sm:max-w-[100px]">{project.course}</span>
+                    <div className="flex items-center justify-between gap-2 text-[10px] sm:text-[12px] text-[#9AA4B2] font-medium pt-3 sm:pt-4 border-t border-gray-100 dark:border-white/5 w-full min-w-0">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <FolderOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap truncate max-w-[60px] sm:max-w-[100px]">{project.course}</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        <span>{project.deadline}</span>
+                        <span className="whitespace-nowrap">{project.deadline}</span>
                       </div>
                     </div>
                   </Link>

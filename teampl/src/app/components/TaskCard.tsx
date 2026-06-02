@@ -108,7 +108,7 @@ export default function TaskCard({
             </div>
           ))}
         </div>
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isOverdue ? "bg-red-50 text-red-500 dark:bg-red-500/10" : "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-white/40"}`}>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 ${isOverdue ? "bg-red-50 text-red-500 dark:bg-red-500/10" : "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-white/40"}`}>
           {task.deadline && task.deadline !== "마감일 없음" ? task.deadline.slice(5) : "-"}
         </span>
       </div>
