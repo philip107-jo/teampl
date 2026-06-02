@@ -210,7 +210,8 @@ export const ProjectsService = {
     inviteByEmail: async (email: string, projectId: number, targetEmail: string) => {
         // 1. 요청한 사람이 방장인지 확인
         const me = await prisma.projectMember.findUnique({
-            where: { userEmail_projectId: { userEmail: email, projectId } }
+            where: { userEmail_projectId: { userEmail: email, projectId } },
+            include: { project: true }
         });
         if (!me || me.role !== 'LEADER') throw new Error('팀원 초대 권한이 없습니다.');
 
@@ -228,33 +229,50 @@ export const ProjectsService = {
         if (existing) {
             if (existing.status === 'ACTIVE') {
                 throw new Error('이미 프로젝트에 참여 중인 회원입니다.');
+            } else if (existing.status === 'PENDING') {
+                throw new Error('이미 초대를 발송하여 응답을 대기 중인 회원입니다.');
             } else {
-                // KICKED 또는 LEFT 상태인 경우 다시 가입 처리
+                // KICKED 또는 LEFT 상태인 경우 다시 초대 대기 상태로 변경
                 await prisma.projectMember.update({
                     where: { id: existing.id },
-                    data: { status: 'ACTIVE', role: 'MEMBER', kickReason: null }
+                    data: { status: 'PENDING', role: 'MEMBER', kickReason: null }
                 });
-                return await prisma.project.update({
-                    where: { id: projectId },
-                    data: { members: { increment: 1 } }
-                });
+                // 알림 생성
+                await prisma.notification.create({
+                    data: {
+                        userEmail: targetEmail,
+                        type: 'alert',
+                        title: '새로운 프로젝트 초대',
+                        content: `"${me.project.name}" 프로젝트에 초대되었습니다.`,
+                        link: '/projects'
+                    }
+                }).catch(err => console.error("Notification creation failed:", err));
+                return { success: true };
             }
         }
 
-        // 4. 새로운 멤버 추가
+        // 4. 새로운 멤버 추가 (PENDING 상태)
         await prisma.projectMember.create({
             data: {
                 userEmail: targetEmail,
                 projectId,
                 role: 'MEMBER',
-                status: 'ACTIVE'
+                status: 'PENDING'
             }
         });
 
-        return await prisma.project.update({
-            where: { id: projectId },
-            data: { members: { increment: 1 } }
-        });
+        // 5. 알림 생성
+        await prisma.notification.create({
+            data: {
+                userEmail: targetEmail,
+                type: 'alert',
+                title: '새로운 프로젝트 초대',
+                content: `"${me.project.name}" 프로젝트에 초대되었습니다.`,
+                link: '/projects'
+            }
+        }).catch(err => console.error("Notification creation failed:", err));
+
+        return { success: true };
     },
 
     transferLeadership: async (email: string, projectId: number, targetUserId: string) => {
@@ -651,5 +669,76 @@ Format:
         ]);
 
         return { messages, tasks, files };
+    },
+
+    getPendingInvitations: async (email: string) => {
+        if (!email) return [];
+        const invitations = await prisma.projectMember.findMany({
+            where: { userEmail: email, status: 'PENDING' },
+            include: {
+                project: {
+                    include: {
+                        projectMembers: {
+                            where: { role: 'LEADER' },
+                            include: { user: { select: { name: true, email: true } } }
+                        }
+                    }
+                }
+            },
+            orderBy: { joinedAt: 'desc' }
+        });
+
+        return invitations.map((inv: any) => {
+            const leader = inv.project.projectMembers[0]?.user;
+            return {
+                id: inv.id,
+                projectId: inv.projectId,
+                projectName: inv.project.name,
+                course: inv.project.course,
+                description: inv.project.description,
+                color: inv.project.color || 'purple',
+                icon: inv.project.icon || 'Database',
+                deadline: inv.project.deadline,
+                leaderName: leader?.name || '알 수 없음',
+                leaderEmail: leader?.email || ''
+            };
+        });
+    },
+
+    acceptInvitation: async (email: string, projectId: number) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!member || member.status !== 'PENDING') {
+            throw new Error('대기 중인 초대를 찾을 수 없습니다.');
+        }
+
+        await prisma.projectMember.update({
+            where: { id: member.id },
+            data: { status: 'ACTIVE' }
+        });
+
+        // 멤버수 1 증가
+        await prisma.project.update({
+            where: { id: projectId },
+            data: { members: { increment: 1 } }
+        });
+
+        return { success: true };
+    },
+
+    declineInvitation: async (email: string, projectId: number) => {
+        const member = await prisma.projectMember.findUnique({
+            where: { userEmail_projectId: { userEmail: email, projectId } }
+        });
+        if (!member || member.status !== 'PENDING') {
+            throw new Error('대기 중인 초대를 찾을 수 없습니다.');
+        }
+
+        await prisma.projectMember.delete({
+            where: { id: member.id }
+        });
+
+        return { success: true };
     }
 };

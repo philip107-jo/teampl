@@ -16,6 +16,7 @@ enum MemberStatus {
   ACTIVE
   KICKED
   LEFT
+  PENDING
 }
 
 enum TaskStatus {
