@@ -186,7 +186,6 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
   };
 
   const handlePaywallNeeded = (message: string) => {
-    setIsAiModalOpen(false);
     setPaywallMessage(message);
     setIsPaywallOpen(true);
   };

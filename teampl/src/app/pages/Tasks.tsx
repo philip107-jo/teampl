@@ -437,7 +437,6 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
             taskApi.getTasks(numProjectId).then(setTasks);
           }}
           onPaywallNeeded={(msg) => {
-            setIsAiModalOpen(false);
             setPaywallMessage(msg);
             setIsPaywallOpen(true);
           }}
@@ -450,8 +449,6 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
         message={paywallMessage}
         onSuccess={() => {
           setIsPaywallOpen(false);
-          // Optional: re-open AI modal automatically after success, or let user click it again.
-          setIsAiModalOpen(true);
         }}
       />
 
