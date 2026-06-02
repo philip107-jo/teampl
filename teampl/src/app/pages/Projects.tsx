@@ -3,14 +3,19 @@ import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target,
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
+import { notificationApi, Notification } from "../api/notificationApi";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useDarkMode } from "../context/DarkModeContext";
+import { useChat } from "../context/ChatContext";
 
 export default function Projects() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { isDark } = useDarkMode();
+  const { unreadCounts, initUserChat } = useChat();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const projectsRef = useRef<any[]>([]);
   const [activeTab, setActiveTab] = useState("진행 중");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -52,7 +57,15 @@ export default function Projects() {
 
     const fetchProjects = () => {
       projectApi.getProjects()
-        .then(data => setProjects(data))
+        .then(data => {
+          setProjects(data);
+          const prevIds = projectsRef.current.map(p => p.id).join(',');
+          const nextIds = data.map(p => p.id).join(',');
+          if (user?.email && prevIds !== nextIds) {
+            initUserChat(user.email, data);
+          }
+          projectsRef.current = data;
+        })
         .catch(err => console.error("프로젝트 불러오기 실패:", err));
     };
 
@@ -62,15 +75,23 @@ export default function Projects() {
         .catch(err => console.error("초대 목록 불러오기 실패:", err));
     };
 
+    const fetchNotifications = () => {
+      notificationApi.getNotifications()
+        .then(data => setNotifications(data))
+        .catch(err => console.error("알림 목록 불러오기 실패:", err));
+    };
+
     fetchProjects();
     fetchInvitations();
+    fetchNotifications();
     const intervalId = setInterval(() => {
       fetchProjects();
       fetchInvitations();
+      fetchNotifications();
     }, 5000); // 5초마다 자동 갱신 (Polling)
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [user, initUserChat]);
 
   const handleAcceptInvite = async (projectId: number) => {
     try {
@@ -208,6 +229,32 @@ export default function Projects() {
       console.error(err);
       showToast('프로젝트 삭제 중 오류가 발생했습니다.', 'error');
     }
+  };
+
+  const getProjectBadgeCount = (project: any) => {
+    let count = 0;
+    
+    const teamRoomKey = `team-${project.id}`;
+    count += unreadCounts[teamRoomKey] || 0;
+    
+    if (project.membersList && Array.isArray(project.membersList)) {
+      project.membersList.forEach((member: any) => {
+        const dmKey = `user-${project.id}-${member.id}`;
+        count += unreadCounts[dmKey] || 0;
+      });
+    }
+    
+    const projectNotificationCount = notifications.filter(n => {
+      if (n.isRead) return false;
+      if (!n.link) return false;
+      const match = n.link.match(/\/projects\/(\d+)/);
+      if (!match) return false;
+      return parseInt(match[1], 10) === project.id;
+    }).length;
+    
+    count += projectNotificationCount;
+    
+    return count;
   };
 
   return (
@@ -384,10 +431,21 @@ export default function Projects() {
                     {/* Project Header: Icon & Actions */}
                     <div className="flex items-start justify-between mb-4 sm:mb-5">
                       <div 
-                        className="w-10 h-10 sm:w-[48px] sm:h-[48px] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm"
+                        className="w-10 h-10 sm:w-[48px] sm:h-[48px] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm relative"
                         style={project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white' } : { backgroundColor: '#11B886', color: 'white' }}
                       >
                         <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                        {(() => {
+                          const badgeCount = getProjectBadgeCount(project);
+                          if (badgeCount > 0) {
+                            return (
+                              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white ring-2 ring-white dark:ring-[#132038] shadow-[0_2px_8px_rgba(244,63,94,0.4)] animate-pulse z-10">
+                                {badgeCount}
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       
                       {project.userRole === 'LEADER' && (

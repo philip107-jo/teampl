@@ -19,6 +19,15 @@ router.get('/reads/room/:roomKey', async (req, res) => {
     }
 });
 
+router.get('/unreads', async (req, res) => {
+    try {
+        const unreads = await ChatService.getUnreadCounts(req.user!.email);
+        res.json(unreads);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 router.get('/reads', async (req, res) => {
     try {
         const reads = await ChatService.getReadStates(req.user!.email);

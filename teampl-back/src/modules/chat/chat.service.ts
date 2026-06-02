@@ -117,5 +117,77 @@ export const ChatService = {
       where: { id: messageId },
       data: { isPinned }
     });
+  },
+
+  getUnreadCounts: async (email: string) => {
+    const memberships = await prisma.projectMember.findMany({
+      where: { userEmail: email, status: 'ACTIVE' },
+      include: {
+        project: {
+          include: {
+            projectMembers: {
+              where: { status: 'ACTIVE' },
+              include: { user: true }
+            }
+          }
+        }
+      }
+    });
+
+    const readStates = await prisma.chatRead.findMany({
+      where: { userEmail: email }
+    });
+    
+    const readMap: Record<string, number> = {};
+    readStates.forEach(s => {
+      readMap[s.roomKey] = s.lastReadMsgId;
+    });
+
+    const unreadCounts: Record<string, number> = {};
+
+    for (const membership of memberships) {
+      const project = membership.project;
+      const projectId = project.id;
+
+      // 1. Team Room Key
+      const teamRoomKey = `team-${projectId}`;
+      const lastReadTeamMsgId = readMap[teamRoomKey] || 0;
+      const teamUnreadCount = await prisma.message.count({
+        where: {
+          projectId,
+          receiverEmail: null,
+          id: { gt: lastReadTeamMsgId }
+        }
+      });
+      if (teamUnreadCount > 0) {
+        unreadCounts[teamRoomKey] = teamUnreadCount;
+      }
+
+      // 2. DM Rooms (1:1 with other project members)
+      if (project.projectMembers) {
+        for (const pm of project.projectMembers) {
+          if (pm.userEmail === email) continue;
+
+          const dmRoomKey = [email, pm.userEmail].sort().join('-');
+          const lastReadDmMsgId = readMap[dmRoomKey] || 0;
+          
+          const dmUnreadCount = await prisma.message.count({
+            where: {
+              senderEmail: pm.userEmail,
+              receiverEmail: email,
+              projectId: null,
+              id: { gt: lastReadDmMsgId }
+            }
+          });
+
+          if (dmUnreadCount > 0) {
+            unreadCounts[dmRoomKey] = dmUnreadCount;
+            unreadCounts[`user-${projectId}-${pm.user.id}`] = dmUnreadCount;
+          }
+        }
+      }
+    }
+
+    return unreadCounts;
   }
 };

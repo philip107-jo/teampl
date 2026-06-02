@@ -115,6 +115,23 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    // 과제 시작 및 완료 시 이전 단계 과제 완료 여부 검사
+    if (newStatus === 'IN_PROGRESS' || newStatus === 'IN_REVIEW' || newStatus === 'DONE') {
+      const taskStageId = getTaskStageId(task.title, task.description || '');
+      if (taskStageId > 1) {
+        for (let sId = 1; sId < taskStageId; sId++) {
+          const prevStageTasks = tasks.filter(t => getTaskStageId(t.title, t.description || '') === sId);
+          const isPrevStageEmpty = prevStageTasks.length === 0;
+          const hasUnfinishedTask = prevStageTasks.some(t => t.status !== 'DONE');
+          
+          if (isPrevStageEmpty || hasUnfinishedTask) {
+            alert(`이전 단계(${sId}단계)의 모든 과제를 완료해야 진행할 수 있습니다. 🔒`);
+            return;
+          }
+        }
+      }
+    }
+
     if (newStatus === 'DONE' && task.requiresDeliverable !== false) {
       alert("이 과제는 산출물 제출 및 팀원의 승인이 필요합니다.");
       return;
@@ -402,6 +419,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
         <TaskDetailModal 
           projectId={numProjectId} 
           task={selectedTask} 
+          members={members}
           isReadOnly={isReadOnly}
           onClose={() => setSelectedTask(null)}
           onUpdate={async () => {

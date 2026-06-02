@@ -32,6 +32,7 @@ interface ChatContextType {
   addMessage: (key: string, msg: Message) => void;
   setActiveChatKey: (key: string | null) => void;
   initProjectChat: (projectId: number, userEmail: string, members: any[]) => void;
+  initUserChat: (userEmail: string, projects: any[]) => Promise<void>;
   updateReadState: (roomKey: string, msgId: number) => Promise<void>;
   simulateNoti: (keys: string[]) => void;
 }
@@ -234,6 +235,41 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [socket]);
 
+  const initUserChat = useCallback(async (userEmail: string, projects: any[]) => {
+    if (!socket) return;
+    setCurrentUserEmail(userEmail);
+
+    socket.emit('userConnected', userEmail);
+
+    projects.forEach(project => {
+      socket.emit('joinRoom', `team-${project.id}`);
+      if (project.membersList && Array.isArray(project.membersList)) {
+        project.membersList.forEach((member: any) => {
+          if (member.email && member.email !== userEmail) {
+            const dmRoom = [userEmail, member.email].sort().join('-');
+            socket.emit('joinRoom', dmRoom);
+          }
+        });
+      }
+    });
+
+    try {
+      const unreads = await chatApi.getUnreadCounts();
+      setUnreadCounts(unreads);
+    } catch (e) {
+      console.error("안 읽은 메시지 수 로드 실패:", e);
+    }
+
+    try {
+      const states = await chatApi.getReadStates();
+      const readMap: Record<string, number> = {};
+      states.forEach(s => readMap[s.roomKey] = s.lastReadMsgId);
+      setReadStates(readMap);
+    } catch (e) {
+      console.error("읽음 상태 로드 실패:", e);
+    }
+  }, [socket]);
+
   const updateReadState = useCallback(async (roomKey: string, msgId: number) => {
     setReadStates(prev => {
       if ((prev[roomKey] || 0) >= msgId) return prev;
@@ -259,7 +295,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unreadCounts, totalUnreadCount, messagesStore, onlineUsers, socket, activeChatKey,
       notificationCount, readStates, roomReadStates, clearNotifications,
       incrementUnread, clearUnread, setMessages, addMessage, setActiveChatKey, initProjectChat,
-      updateReadState, simulateNoti
+      initUserChat, updateReadState, simulateNoti
     }}>
       {children}
     </ChatContext.Provider>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Calendar, MessageSquare, Save, Trash2, Paperclip, Download, CheckCircle2, FileText, FileImage, FileType2, ShieldCheck, Plus, Loader2 } from "lucide-react";
+import { X, Calendar, MessageSquare, Save, Trash2, Paperclip, Download, CheckCircle2, FileText, FileImage, FileType2, ShieldCheck, Plus, Loader2, Check } from "lucide-react";
 import { Task, TaskComment, TaskDeliverable } from "../types";
 import { taskApi } from "../api/taskApi";
 import { useAuth } from "../context/AuthContext";
@@ -14,12 +14,13 @@ function getDeliverableIcon(name: string) {
 interface TaskDetailModalProps {
   projectId: number;
   task: Task;
+  members: any[];
   onClose: () => void;
   onUpdate: () => void;
   isReadOnly?: boolean;
 }
 
-export default function TaskDetailModal({ projectId, task, onClose, onUpdate, isReadOnly }: TaskDetailModalProps) {
+export default function TaskDetailModal({ projectId, task, members, onClose, onUpdate, isReadOnly }: TaskDetailModalProps) {
   const { user } = useAuth();
   const [description, setDescription] = useState(task.description || "");
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -30,7 +31,26 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
   const [approving, setApproving] = useState(false);
   const [addingFiles, setAddingFiles] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const addFileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleAssignee = async (email: string) => {
+    const currentAssignees = task.assignees || [];
+    let nextAssignees: string[];
+    if (currentAssignees.includes(email)) {
+      nextAssignees = currentAssignees.filter(e => e !== email);
+    } else {
+      nextAssignees = [...currentAssignees, email];
+    }
+
+    try {
+      await taskApi.updateTaskAssignees(projectId, task.id, nextAssignees);
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+      alert("담당자 변경에 실패했습니다.");
+    }
+  };
 
   useEffect(() => {
     fetchComments();
@@ -166,6 +186,83 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate, is
 
         {/* Content Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar">
+          {/* Assignees Section */}
+          <section className="relative bg-gray-50/50 dark:bg-[#12182B]/30 p-5 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[14px] font-black text-[#7D879C] uppercase tracking-widest">담당 팀원</h3>
+              {!isReadOnly && (
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="text-[12px] font-bold text-[#11B886] hover:underline"
+                >
+                  {isDropdownOpen ? "닫기" : "담당자 설정"}
+                </button>
+              )}
+            </div>
+
+            {/* Current Assignees */}
+            <div className="flex flex-wrap gap-2 items-center min-h-[1.5rem]">
+              {task.assignees && task.assignees.length > 0 ? (
+                task.assignees.map(email => {
+                  const m = members.find(member => member.email === email);
+                  const name = m?.name || email.split('@')[0];
+                  return (
+                    <div
+                      key={email}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold border border-indigo-100/60 dark:border-indigo-500/20"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-indigo-150 dark:bg-indigo-500/30 flex items-center justify-center text-[8px] font-bold">
+                        {name[0].toUpperCase()}
+                      </div>
+                      <span>{name}</span>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => toggleAssignee(email)}
+                          className="hover:text-red-500 font-bold ml-1 text-[10px]"
+                          title="제거"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <span className="text-gray-400 italic text-xs">지정된 담당자가 없습니다.</span>
+              )}
+            </div>
+
+            {/* Dropdown Popover */}
+            {isDropdownOpen && (
+              <div className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-[#1A2340] border border-gray-100 dark:border-white/10 rounded-2xl shadow-xl z-50 p-2.5 space-y-1 animate-in slide-in-from-top-2 duration-150 max-h-56 overflow-y-auto">
+                <p className="text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-widest px-2.5 pb-1.5 border-b border-gray-50 dark:border-white/5 mb-1.5">팀원 선택</p>
+                {members.map(m => {
+                  const isChecked = task.assignees?.includes(m.email);
+                  return (
+                    <button
+                      key={m.email}
+                      onClick={() => toggleAssignee(m.email)}
+                      className="w-full flex items-center justify-between px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-all text-left"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                          {m.name[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[#1A2340] dark:text-white truncate">{m.name}</p>
+                          <p className="text-[9px] text-gray-400 dark:text-white/30 truncate">{m.email}</p>
+                        </div>
+                      </div>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'bg-[#11B886] border-[#11B886]' : 'border-gray-300'}`}>
+                        {isChecked && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {/* Description Section */}
           <section>
             <div className="flex items-center justify-between mb-3">

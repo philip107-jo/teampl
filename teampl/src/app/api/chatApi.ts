@@ -54,5 +54,10 @@ export const chatApi = {
 
   updateLastRead: async (roomKey: string, lastReadMsgId: number): Promise<void> => {
     await client.post('/chat/reads', { roomKey, lastReadMsgId });
+  },
+
+  getUnreadCounts: async (): Promise<Record<string, number>> => {
+    const response = await client.get('/chat/unreads');
+    return response.data;
   }
 };
