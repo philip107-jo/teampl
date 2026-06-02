@@ -447,6 +447,21 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
   const currentMessages = (chatKey && messagesStore[chatKey]) ? messagesStore[chatKey] : [];
 
   useEffect(() => {
+    // 메시지 중에 새로운 투표(votes에 존재하지 않는 투표)가 감지되면 투표 리스트를 새로고침합니다.
+    const hasNewVote = currentMessages.some(msg => {
+      if (msg.content.startsWith('[VOTE_REF]:')) {
+        const voteId = Number(msg.content.split(':')[1]);
+        return !votes.some(v => v.id === voteId);
+      }
+      return false;
+    });
+
+    if (hasNewVote) {
+      loadVotesList();
+    }
+  }, [currentMessages, votes, loadVotesList]);
+
+  useEffect(() => {
     setActiveChatKey(chatKey);
     if (chatKey) {
       clearUnread(chatKey);
