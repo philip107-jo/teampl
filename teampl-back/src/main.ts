@@ -76,6 +76,11 @@ app.use('/api/projects/:projectId/votes', votesRouter);
 const onlineUsers = new Set<string>();
 const socketToEmail = new Map<string, string>();
 const inCallUsers = new Set<string>();
+const activeGroupCalls = new Map<string, { 
+  participants: Map<string, { email: string, name: string, socketId: string }>, 
+  startTime: number, 
+  isVideo: boolean 
+}>();
 
 io.on('connection', (socket: Socket) => {
   console.log('🟢 Socket connected:', socket.id);
@@ -150,9 +155,118 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
+  // 그룹 통화 퇴장 함수
+  const leaveGroupCall = async (room: string) => {
+    const call = activeGroupCalls.get(room);
+    if (!call) return;
+
+    call.participants.delete(socket.id);
+    socket.leave(`group-call-${room}`);
+
+    // 다른 참여자들에게 퇴장 알림
+    socket.to(`group-call-${room}`).emit('peer-left', {
+      socketId: socket.id
+    });
+
+    const participantsList = Array.from(call.participants.values());
+    
+    if (call.participants.size === 0) {
+      // 통화 종료
+      const durationSec = Math.floor((Date.now() - call.startTime) / 1000);
+      activeGroupCalls.delete(room);
+
+      io.to(room).emit('group-call-ended', { room });
+
+      // 그룹 통화 종료 메시지 DB 저장 및 브로드캐스트
+      try {
+        const projectId = parseInt(room.replace('team-', ''), 10);
+        const email = socketToEmail.get(socket.id) || '';
+        const savedMsg = await ChatService.saveMessage(email, `[GROUP_CALL_END]:${call.isVideo ? 'video' : 'voice'}:${durationSec}`, {
+          projectId
+        });
+        io.to(room).emit('newMessage', savedMsg);
+      } catch (e) {
+        console.error('Failed to save group call end message:', e);
+      }
+    } else {
+      // 활성 상태 업데이트 브로드캐스트
+      io.to(room).emit('group-call-active', {
+        room,
+        participants: participantsList,
+        isVideo: call.isVideo
+      });
+    }
+  };
+
+  // 그룹 통화 참가
+  socket.on('join-group-call', async (data: { room: string, email: string, name: string, isVideo: boolean }) => {
+    let call = activeGroupCalls.get(data.room);
+    if (!call) {
+      call = {
+        participants: new Map(),
+        startTime: Date.now(),
+        isVideo: data.isVideo
+      };
+      activeGroupCalls.set(data.room, call);
+
+      // 그룹 통화 시작 메시지 DB 저장 및 브로드캐스트
+      try {
+        const projectId = parseInt(data.room.replace('team-', ''), 10);
+        const savedMsg = await ChatService.saveMessage(data.email, `[GROUP_CALL_START]:${data.isVideo ? 'video' : 'voice'}`, {
+          projectId
+        });
+        io.to(data.room).emit('newMessage', savedMsg);
+      } catch (e) {
+        console.error('Failed to save group call start message:', e);
+      }
+    }
+
+    const participantInfo = { email: data.email, name: data.name, socketId: socket.id };
+    call.participants.set(socket.id, participantInfo);
+    
+    socket.join(`group-call-${data.room}`);
+
+    socket.to(`group-call-${data.room}`).emit('peer-joined', {
+      socketId: socket.id,
+      email: data.email,
+      name: data.name
+    });
+
+    const participantsList = Array.from(call.participants.values());
+    io.to(data.room).emit('group-call-active', {
+      room: data.room,
+      participants: participantsList,
+      isVideo: call.isVideo
+    });
+  });
+
+  // 그룹 통화 시그널링 중계
+  socket.on('send-group-signal', (data: { targetSocketId: string, signal: any }) => {
+    io.to(data.targetSocketId).emit('signal-received', {
+      senderSocketId: socket.id,
+      signal: data.signal
+    });
+  });
+
+  socket.on('leave-group-call', (data: { room: string }) => {
+    leaveGroupCall(data.room);
+  });
+
   // 방 입장 (프로젝트방 또는 1:1방)
   socket.on('joinRoom', (roomName: string) => {
     socket.join(roomName);
+    
+    // 만약 프로젝트방에 입장했고, 그 프로젝트방에 진행중인 그룹 통화가 있다면 상태 알려줌
+    if (roomName.startsWith('team-')) {
+      const call = activeGroupCalls.get(roomName);
+      if (call) {
+        socket.emit('group-call-active', {
+          room: roomName,
+          participants: Array.from(call.participants.values()),
+          isVideo: call.isVideo
+        });
+      }
+    }
   });
 
   // 타이핑 인디케이터
@@ -191,7 +305,14 @@ io.on('connection', (socket: Socket) => {
     io.to(data.room).emit('aiTaskClaimed', data);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
+    // 그룹 통화 중 퇴장 처리
+    for (const [room, call] of activeGroupCalls.entries()) {
+      if (call.participants.has(socket.id)) {
+        await leaveGroupCall(room);
+      }
+    }
+
     const email = socketToEmail.get(socket.id);
     if (email) {
       onlineUsers.delete(email);

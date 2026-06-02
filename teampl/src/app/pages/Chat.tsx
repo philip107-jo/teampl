@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   Send, Plus, User as UserIcon, MessageSquare, ChevronLeft, ChevronRight, Users, 
   Mail, GraduationCap, X, CheckCircle2, AlertCircle, Loader2, BarChart3, 
-  Lock, Shuffle, Circle, Clock, Phone, Video
+  Lock, Shuffle, Circle, Clock, Phone, Video, PhoneOff, VideoOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
@@ -16,6 +16,7 @@ import { chatApi, ChatMessage } from "../api/chatApi";
 import { voteApi, Vote, CreateVoteData } from "../api/voteApi";
 import { Task } from "../types";
 import Avatar from "../components/Avatar";
+import { formatMessagePreview } from "../utils/chatHelper";
 
 // ProfileModal 
 function ProfileModal({ projectId, selectedMember, onClose, onMessage }: { projectId?: number, selectedMember: any, onClose: () => void, onMessage: () => void }) {
@@ -329,7 +330,16 @@ interface ChatProps {
 
 export default function Chat({ projectId, projectMembers = [], projectData, isReadOnly }: ChatProps) {
   const { user } = useAuth();
-  const { startCall, inCallUsers } = useCall();
+  const { 
+    startCall, 
+    inCallUsers,
+    status,
+    isGroupCall,
+    groupCallRoom,
+    activeGroupCall,
+    startGroupCall,
+    joinGroupCall
+  } = useCall();
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -608,6 +618,72 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
     setIsVoteMenuOpen(false);
   };
 
+  const parseCallMsg = (content: string) => {
+    if (content.startsWith("[CALL_START]:")) {
+      const type = content.replace("[CALL_START]:", "");
+      return {
+        status: "start",
+        type,
+        text: type === "video" ? "페이스톡 시작" : "보이스톡 시작",
+        subtext: "통화가 연결되었습니다."
+      };
+    }
+    if (content.startsWith("[CALL_END]:")) {
+      const parts = content.replace("[CALL_END]:", "").split(":");
+      const type = parts[0];
+      const seconds = parseInt(parts[1] || "0", 10);
+      const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+      const s = (seconds % 60).toString().padStart(2, "0");
+      const durationStr = `${m}:${s}`;
+      return {
+        status: "end",
+        type,
+        text: type === "video" ? "페이스톡 종료" : "보이스톡 종료",
+        subtext: `통화 시간 ${durationStr}`
+      };
+    }
+    if (content.startsWith("[CALL_MISSED]:")) {
+      const type = content.replace("[CALL_MISSED]:", "");
+      return {
+        status: "missed",
+        type,
+        text: type === "video" ? "페이스톡 응답 없음" : "보이스톡 응답 없음",
+        subtext: "통화가 연결되지 않았습니다."
+      };
+    }
+    if (content.startsWith("[GROUP_CALL_START]:")) {
+      const type = content.replace("[GROUP_CALL_START]:", "");
+      return {
+        status: "group-start",
+        type,
+        text: type === "video" ? "그룹 페이스톡 시작" : "그룹 보이스톡 시작",
+        subtext: "통화에 참여해보세요."
+      };
+    }
+    if (content.startsWith("[GROUP_CALL_END]:")) {
+      const parts = content.replace("[GROUP_CALL_END]:", "").split(":");
+      const type = parts[0];
+      const seconds = parseInt(parts[1] || "0", 10);
+      const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+      const s = (seconds % 60).toString().padStart(2, "0");
+      const durationStr = `${m}:${s}`;
+      return {
+        status: "group-end",
+        type,
+        text: type === "video" ? "그룹 페이스톡 종료" : "그룹 보이스톡 종료",
+        subtext: `총 통화 시간 ${durationStr}`
+      };
+    }
+    return null;
+  };
+
+  const handleCallBack = async (isVideo: boolean) => {
+    if (selectedMember && user) {
+      const dmRoom = [user.email, selectedMember.email].sort().join('-');
+      await startCall(dmRoom, selectedMember.name, selectedMember.email, isVideo);
+    }
+  };
+
   // 투표 생성 및 자동 공유
   const handleCreateVoteInChat = async () => {
     if (!voteForm.title.trim()) return alert('투표 제목을 입력하세요.');
@@ -692,6 +768,32 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                 </button>
               </div>
             )}
+
+            {/* 팀 통화 버튼 그룹 */}
+            {chatMode === "TEAM" && !isReadOnly && (
+              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                <button
+                  onClick={async () => {
+                    await startGroupCall(chatKey, projectMembers, false);
+                  }}
+                  disabled={status !== "idle"}
+                  className="p-2 bg-[#11B886]/10 hover:bg-[#11B886]/20 text-[#11B886] rounded-xl transition-all disabled:opacity-40"
+                  title="그룹 음성 통화 시작"
+                >
+                  <Phone className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={async () => {
+                    await startGroupCall(chatKey, projectMembers, true);
+                  }}
+                  disabled={status !== "idle"}
+                  className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl transition-all disabled:opacity-40"
+                  title="그룹 영상 통화 시작"
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -708,6 +810,37 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
 
         <div className="flex-1 bg-white dark:bg-[#132038] border border-gray-100 dark:border-white/5 rounded-[20px] shadow-sm flex flex-col overflow-hidden relative">
           
+          {/* Active Group Call Banner */}
+          {activeGroupCall && activeGroupCall.room === chatKey && (
+            <div className="bg-[#11B886]/10 border-b border-[#11B886]/20 px-6 py-3.5 flex items-center justify-between animate-in slide-in-from-top duration-300 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#11B886] animate-ping shrink-0" />
+                <div>
+                  <p className="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+                    👥 진행 중인 그룹 통화 ({activeGroupCall.participants.length}명 참여 중)
+                  </p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {activeGroupCall.participants.map(p => p.name).join(', ')}
+                  </p>
+                </div>
+              </div>
+              
+              {isGroupCall && groupCallRoom === chatKey ? (
+                <span className="px-3.5 py-1.5 bg-[#11B886]/20 text-[#11B886] text-xs font-black rounded-xl">
+                  참여 중
+                </span>
+              ) : (
+                <button
+                  onClick={() => joinGroupCall(chatKey, projectMembers, activeGroupCall.isVideo)}
+                  disabled={isReadOnly || status !== "idle"}
+                  className="px-4 py-1.5 bg-[#11B886] hover:bg-[#0EA271] text-white text-xs font-black rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                >
+                  참여하기
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Pinned Messages Header */}
           {currentMessages.filter(m => m.isPinned).length > 0 && (
             <div className="bg-[#11B886]/5 dark:bg-[#11B886]/10 border-b border-[#11B886]/20 px-4 py-3 flex items-center gap-3">
@@ -718,7 +851,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                 {currentMessages.filter(m => m.isPinned).map(msg => (
                   <div key={msg.id} className="inline-flex items-center gap-2 max-w-[300px]">
                     <span className="text-xs font-bold text-[#1A2340] dark:text-white shrink-0">{msg.sender}</span>
-                    <span className="text-xs text-gray-600 dark:text-white/70 truncate">{msg.content}</span>
+                    <span className="text-xs text-gray-600 dark:text-white/70 truncate">{formatMessagePreview(msg.content)}</span>
                   </div>
                 ))}
               </div>
@@ -822,6 +955,76 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                                     <span className="text-lg">📎</span>
                                     <span className="truncate max-w-[160px]">{name}</span>
                                   </a>
+                                );
+                              })()
+                            ) : msg.content.startsWith('[CALL_START]:') || msg.content.startsWith('[CALL_END]:') || msg.content.startsWith('[CALL_MISSED]:') || msg.content.startsWith('[GROUP_CALL_START]:') || msg.content.startsWith('[GROUP_CALL_END]:') ? (
+                              (() => {
+                                const callInfo = parseCallMsg(msg.content);
+                                if (!callInfo) return null;
+                                const isVideo = callInfo.type === "video";
+                                const isMissed = callInfo.status === "missed";
+                                const isStart = callInfo.status === "start" || callInfo.status === "group-start";
+                                const isGroup = callInfo.status === "group-start" || callInfo.status === "group-end";
+                                
+                                let IconComponent = Phone;
+                                if (isVideo) {
+                                  IconComponent = isMissed ? VideoOff : Video;
+                                } else {
+                                  IconComponent = isMissed ? PhoneOff : Phone;
+                                }
+
+                                const bubbleBg = msg.isMe 
+                                  ? "bg-[#11B886]/10 border border-[#11B886]/25 dark:bg-[#11B886]/20 text-[#1A2340] dark:text-white" 
+                                  : "bg-gray-50 border border-gray-150 dark:bg-[#1A2340]/60 dark:border-white/5 text-gray-900 dark:text-white";
+                                  
+                                const iconColor = isMissed 
+                                  ? "text-red-500 bg-red-500/10 dark:bg-red-500/20" 
+                                  : isStart 
+                                    ? "text-[#11B886] bg-[#11B886]/10 dark:bg-[#11B886]/20" 
+                                    : "text-blue-500 bg-blue-500/10 dark:bg-blue-500/20";
+
+                                return (
+                                  <div className={`p-4 rounded-2xl ${msg.isMe ? "rounded-tr-sm" : "rounded-tl-sm"} ${bubbleBg} w-[260px] flex flex-col gap-3 shadow-sm`}>
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${iconColor}`}>
+                                        <IconComponent className="w-5 h-5" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold truncate">{callInfo.text}</h4>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{callInfo.subtext}</p>
+                                      </div>
+                                    </div>
+                                    
+                                    {chatMode === "INDIVIDUAL" && selectedMember && (
+                                      <button
+                                        onClick={() => handleCallBack(isVideo)}
+                                        disabled={isReadOnly}
+                                        className={`w-full py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border
+                                          ${msg.isMe 
+                                            ? "bg-[#11B886] border-[#11B886] text-white hover:bg-[#0EA271]" 
+                                            : "bg-white dark:bg-[#1A2340] border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 hover:bg-gray-50 dark:hover:bg-white/5"
+                                          }`}
+                                      >
+                                        {isVideo ? <Video className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
+                                        <span>다시 걸기</span>
+                                      </button>
+                                    )}
+
+                                    {chatMode === "TEAM" && callInfo.status === "group-start" && (!isGroupCall || groupCallRoom !== chatKey) && (
+                                      <button
+                                        onClick={() => joinGroupCall(chatKey, projectMembers, isVideo)}
+                                        disabled={isReadOnly || status !== "idle"}
+                                        className={`w-full py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 border
+                                          ${msg.isMe 
+                                            ? "bg-[#11B886] border-[#11B886] text-white hover:bg-[#0EA271]" 
+                                            : "bg-white dark:bg-[#1A2340] border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 hover:bg-gray-50 dark:hover:bg-white/5"
+                                          }`}
+                                      >
+                                        {isVideo ? <Video className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
+                                        <span>참여하기</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 );
                               })()
                             ) : (

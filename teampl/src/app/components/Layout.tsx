@@ -21,6 +21,7 @@ import { projectApi } from "../api/projectApi";
 import { notificationApi, Notification } from "../api/notificationApi";
 import { useChat } from '../context/ChatContext';
 import Avatar from './Avatar';
+import { formatMessagePreview } from '../utils/chatHelper';
 import { useRef } from 'react';
 import { TEAMPL_LOGO_URL } from "../constants/assets";
 import BottomNavigation from './BottomNavigation';
@@ -220,7 +221,7 @@ export default function Layout() {
                               {searchResults.messages.map((m: any) => (
                                 <div key={m.id} onClick={() => { setSearchQuery(""); navigate(`/projects/${projectId}?tab=chat`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer">
                                   <p className="font-bold text-[#1A2340] dark:text-white">{m.sender.name}</p>
-                                  <p className="text-xs text-gray-500 truncate">{m.content}</p>
+                                  <p className="text-xs text-gray-500 truncate">{formatMessagePreview(m.content)}</p>
                                 </div>
                               ))}
                             </div>

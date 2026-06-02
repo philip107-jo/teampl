@@ -29,16 +29,40 @@ interface CallContextType {
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  // Group call additions
+  isGroupCall: boolean;
+  groupCallRoom: string | null;
+  groupCallParticipants: { email: string, name: string, socketId: string }[];
+  activeGroupCall: { room: string, participants: any[], isVideo: boolean } | null;
+  groupCallMembers: any[];
+  remoteStreamsMap: Record<string, MediaStream>;
+  startGroupCall: (room: string, members: any[], isVideo: boolean) => Promise<void>;
+  joinGroupCall: (room: string, members: any[], isVideo: boolean) => Promise<void>;
+  leaveGroupCall: () => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" }
-  ]
+const getIceServers = (): RTCConfiguration => {
+  const stunUrls = import.meta.env.VITE_ICE_STUN_URLS
+    ? import.meta.env.VITE_ICE_STUN_URLS.split(",")
+    : [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302"
+      ];
+
+  const servers: RTCIceServer[] = stunUrls.map((url: string) => ({ urls: url.trim() }));
+
+  if (import.meta.env.VITE_ICE_TURN_URL) {
+    servers.push({
+      urls: import.meta.env.VITE_ICE_TURN_URL.trim(),
+      username: import.meta.env.VITE_ICE_TURN_USERNAME || "",
+      credential: import.meta.env.VITE_ICE_TURN_CREDENTIAL || ""
+    });
+  }
+
+  return { iceServers: servers };
 };
 
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,14 +78,40 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
   const [inCallUsers, setInCallUsers] = useState<string[]>([]);
 
+  // Group call states
+  const [isGroupCall, setIsGroupCall] = useState<boolean>(false);
+  const [groupCallRoom, setGroupCallRoom] = useState<string | null>(null);
+  const [groupCallParticipants, setGroupCallParticipants] = useState<{ email: string, name: string, socketId: string }[]>([]);
+  const [activeGroupCall, setActiveGroupCall] = useState<{ room: string, participants: any[], isVideo: boolean } | null>(null);
+  const [groupCallMembers, setGroupCallMembers] = useState<any[]>([]);
+  const [remoteStreamsMap, setRemoteStreamsMap] = useState<Record<string, MediaStream>>({});
+
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const activeRoomRef = useRef<string | null>(null);
   const statusRef = useRef<CallStatus>(status);
 
+  const isCallerRef = useRef<boolean>(false);
+  const callStartTimeRef = useRef<number | null>(null);
+  const peerEmailRef = useRef<string | null>(null);
+  const isVideoCallRef = useRef<boolean>(false);
+  const isGroupCallRef = useRef<boolean>(false);
+  const groupCallParticipantsRef = useRef<any[]>([]);
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
+  const hadMultipleParticipantsRef = useRef<boolean>(false);
+
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    isGroupCallRef.current = isGroupCall;
+  }, [isGroupCall]);
+
+  useEffect(() => {
+    groupCallParticipantsRef.current = groupCallParticipants;
+  }, [groupCallParticipants]);
 
   // 로그인 정보 소켓에 연동 및 재연결 대응
   useEffect(() => {
@@ -99,6 +149,85 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!socket || !user) return;
 
+    // 5. 그룹 통화 상태 수신
+    const onGroupCallActive = (data: { room: string, participants: any[], isVideo: boolean }) => {
+      setActiveGroupCall(data);
+      if (activeRoomRef.current === data.room) {
+        setGroupCallParticipants(data.participants);
+      }
+    };
+
+    const onGroupCallEnded = (data: { room: string }) => {
+      setActiveGroupCall(null);
+      if (activeRoomRef.current === data.room) {
+        cleanupGroupCall();
+      }
+    };
+
+    const onPeerJoined = (data: { socketId: string, email: string, name: string }) => {
+      if (activeRoomRef.current && isGroupCallRef.current) {
+        createGroupPeerConnection(data.socketId, data.email, true);
+      }
+    };
+
+    const onSignalReceived = async (data: { senderSocketId: string, signal: any }) => {
+      if (!activeRoomRef.current || !isGroupCallRef.current) return;
+      const pc = peerConnectionsRef.current.get(data.senderSocketId);
+
+      if (data.signal.candidate) {
+        if (pc) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+          } catch (e) {
+            console.error("Failed to add ICE candidate:", e);
+          }
+        }
+      } else if (data.signal.type === 'offer') {
+        const peerInfo = groupCallParticipantsRef.current.find(p => p.socketId === data.senderSocketId);
+        const email = peerInfo ? peerInfo.email : '';
+        createGroupPeerConnection(data.senderSocketId, email, false);
+        const targetPc = peerConnectionsRef.current.get(data.senderSocketId);
+        if (targetPc) {
+          try {
+            await targetPc.setRemoteDescription(new RTCSessionDescription(data.signal));
+            const answer = await targetPc.createAnswer();
+            await targetPc.setLocalDescription(answer);
+            socket.emit('send-group-signal', {
+              targetSocketId: data.senderSocketId,
+              signal: answer
+            });
+          } catch (e) {
+            console.error("Failed to answer group call offer:", e);
+          }
+        }
+      } else if (data.signal.type === 'answer') {
+        if (pc) {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
+          } catch (e) {
+            console.error("Failed to set group call answer:", e);
+          }
+        }
+      }
+    };
+
+    const onPeerLeft = (data: { socketId: string }) => {
+      const pc = peerConnectionsRef.current.get(data.socketId);
+      if (pc) {
+        pc.close();
+        peerConnectionsRef.current.delete(data.socketId);
+      }
+      remoteStreamsRef.current.delete(data.socketId);
+      setRemoteStreamsMap(prev => {
+        const copy = { ...prev };
+        const peer = groupCallParticipantsRef.current.find(p => p.socketId === data.socketId);
+        if (peer) {
+          delete copy[peer.email];
+        }
+        return copy;
+      });
+    };
+
     // 1. 전화 들어옴
     const onIncomingCall = (data: CallerInfo & { offer: any }) => {
       // 내가 통화 중이거나 통화 대기 중이 아닐 때만 수신
@@ -110,8 +239,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStatus("incoming");
       setCallerInfo(data);
       setPeerEmail(data.callerEmail);
+      peerEmailRef.current = data.callerEmail;
       setPeerName(data.callerName);
       setIsVideoCall(data.isVideo);
+      isVideoCallRef.current = data.isVideo;
       activeRoomRef.current = data.room;
 
       // 벨소리 재생 시작
@@ -129,12 +260,23 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         setStatus("connected");
+        callStartTimeRef.current = Date.now();
         // 내 통화 중 상태를 전체에 전파
         socket.emit("set-call-status", { isInCall: true });
 
         // 발신 신호음 중지 및 연결 효과음 재생
         ringbackPlayer.stop();
         playConnectSound();
+
+        // 1:1 통화 시작 메시지 발송
+        if (isCallerRef.current && socket && user && activeRoomRef.current) {
+          socket.emit('sendMessage', {
+            room: activeRoomRef.current,
+            senderEmail: user.email,
+            content: `[CALL_START]:${isVideoCallRef.current ? 'video' : 'voice'}`,
+            receiverEmail: peerEmailRef.current
+          });
+        }
       } catch (err) {
         console.error("Failed to set remote answer", err);
       }
@@ -164,20 +306,74 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on("call-accepted", onCallAccepted);
     socket.on("ice-candidate", onIceCandidateReceived);
     socket.on("call-ended", onCallEnded);
+    socket.on("group-call-active", onGroupCallActive);
+    socket.on("group-call-ended", onGroupCallEnded);
+    socket.on("peer-joined", onPeerJoined);
+    socket.on("signal-received", onSignalReceived);
+    socket.on("peer-left", onPeerLeft);
 
     return () => {
       socket.off("incoming-call", onIncomingCall);
       socket.off("call-accepted", onCallAccepted);
       socket.off("ice-candidate", onIceCandidateReceived);
       socket.off("call-ended", onCallEnded);
+      socket.off("group-call-active", onGroupCallActive);
+      socket.off("group-call-ended", onGroupCallEnded);
+      socket.off("peer-joined", onPeerJoined);
+      socket.off("signal-received", onSignalReceived);
+      socket.off("peer-left", onPeerLeft);
     };
   }, [socket, user]); // remove status from dependencies to prevent re-binding and missing events
+
+  // 다자간 PeerConnection 생성 유틸
+  const createGroupPeerConnection = (targetSocketId: string, peerEmail: string, isOffer: boolean) => {
+    if (peerConnectionsRef.current.has(targetSocketId)) return;
+
+    const pc = new RTCPeerConnection(getIceServers());
+    peerConnectionsRef.current.set(targetSocketId, pc);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socket) {
+        socket.emit('send-group-signal', {
+          targetSocketId,
+          signal: { candidate: event.candidate }
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        remoteStreamsRef.current.set(targetSocketId, event.streams[0]);
+        setRemoteStreamsMap(prev => ({
+          ...prev,
+          [peerEmail]: event.streams[0]
+        }));
+      }
+    };
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current!);
+      });
+    }
+
+    if (isOffer) {
+      pc.createOffer().then(offer => {
+        return pc.setLocalDescription(offer).then(() => {
+          socket?.emit('send-group-signal', {
+            targetSocketId,
+            signal: offer
+          });
+        });
+      }).catch(err => console.error("Group offer creation failed:", err));
+    }
+  };
 
   // PeerConnection 생성 유틸
   const createPeerConnection = (room: string) => {
     if (pcRef.current) return;
 
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const pc = new RTCPeerConnection(getIceServers());
     pcRef.current = pc;
 
     // ICE Candidate 이벤트 연결
@@ -198,10 +394,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 전화 걸기
   const startCall = async (roomKey: string, name: string, email: string, isVideo: boolean) => {
     if (!socket || !user) return;
+    isCallerRef.current = true;
     setStatus("calling");
     setPeerEmail(email);
+    peerEmailRef.current = email;
     setPeerName(name);
     setIsVideoCall(isVideo);
+    isVideoCallRef.current = isVideo;
     activeRoomRef.current = roomKey;
 
     // 발신 대기음 재생 시작
@@ -273,6 +472,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setStatus("connected");
+      callStartTimeRef.current = Date.now();
       // 소켓 서버에 통화자 등록 전파
       socket.emit("set-call-status", { isInCall: true });
 
@@ -342,20 +542,127 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStreamRef.current = null;
     }
 
+    const prevStatus = statusRef.current;
+    const roomKey = activeRoomRef.current;
+    const isVideo = isVideoCallRef.current;
+    const pEmail = peerEmailRef.current;
+
     setLocalStream(null);
     setRemoteStream(null);
     setStatus("idle");
     setCallerInfo(null);
     setPeerEmail(null);
+    peerEmailRef.current = null;
     setPeerName(null);
     setIsMuted(false);
     setIsCameraOff(false);
+    isVideoCallRef.current = false;
     activeRoomRef.current = null;
 
     if (socket) {
       socket.emit("set-call-status", { isInCall: false });
     }
+
+    // 발신자이고 활성 통화 방이 있을 때 채팅 메시지 전송
+    if (isCallerRef.current && socket && user && roomKey) {
+      if (prevStatus === "connected" && callStartTimeRef.current) {
+        const durationSec = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+        socket.emit('sendMessage', {
+          room: roomKey,
+          senderEmail: user.email,
+          content: `[CALL_END]:${isVideo ? 'video' : 'voice'}:${durationSec}`,
+          receiverEmail: pEmail
+        });
+      } else if (prevStatus === "calling" || prevStatus === "incoming") {
+        socket.emit('sendMessage', {
+          room: roomKey,
+          senderEmail: user.email,
+          content: `[CALL_MISSED]:${isVideo ? 'video' : 'voice'}`,
+          receiverEmail: pEmail
+        });
+      }
+    }
+
+    isCallerRef.current = false;
+    callStartTimeRef.current = null;
   };
+
+  const startGroupCall = async (room: string, members: any[], isVideo: boolean) => {
+    await joinGroupCall(room, members, isVideo);
+  };
+
+  const joinGroupCall = async (room: string, members: any[], isVideo: boolean) => {
+    if (!socket || !user) return;
+    setStatus("connected");
+    setIsGroupCall(true);
+    setGroupCallRoom(room);
+    setGroupCallMembers(members);
+    setIsVideoCall(isVideo);
+    activeRoomRef.current = room;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: isVideo
+      });
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+
+      socket.emit('join-group-call', {
+        room,
+        email: user.email,
+        name: user.name || user.email.split('@')[0],
+        isVideo
+      });
+    } catch (err) {
+      console.error("Error joining group call:", err);
+      cleanupGroupCall();
+      alert("마이크 또는 카메라 장치를 찾을 수 없거나 권한이 거부되었습니다.");
+    }
+  };
+
+  const leaveGroupCall = () => {
+    if (socket && groupCallRoom) {
+      socket.emit('leave-group-call', { room: groupCallRoom });
+    }
+    playDisconnectSound();
+    cleanupGroupCall();
+  };
+
+  const cleanupGroupCall = () => {
+    peerConnectionsRef.current.forEach(pc => pc.close());
+    peerConnectionsRef.current.clear();
+    remoteStreamsRef.current.clear();
+    setRemoteStreamsMap({});
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+
+    setLocalStream(null);
+    setStatus("idle");
+    setIsGroupCall(false);
+    setGroupCallRoom(null);
+    setGroupCallParticipants([]);
+    setGroupCallMembers([]);
+    setIsVideoCall(false);
+    activeRoomRef.current = null;
+    hadMultipleParticipantsRef.current = false;
+  };
+
+  useEffect(() => {
+    if (!isGroupCall) {
+      hadMultipleParticipantsRef.current = false;
+      return;
+    }
+
+    if (groupCallParticipants.length > 1) {
+      hadMultipleParticipantsRef.current = true;
+    } else if (groupCallParticipants.length === 1 && hadMultipleParticipantsRef.current) {
+      leaveGroupCall();
+    }
+  }, [groupCallParticipants, isGroupCall]);
 
   return (
     <CallContext.Provider
@@ -375,7 +682,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rejectCall,
         endCall,
         toggleMute,
-        toggleCamera
+        toggleCamera,
+        // Group call additions
+        isGroupCall,
+        groupCallRoom,
+        groupCallParticipants,
+        activeGroupCall,
+        groupCallMembers,
+        remoteStreamsMap,
+        startGroupCall,
+        joinGroupCall,
+        leaveGroupCall
       }}
     >
       {children}

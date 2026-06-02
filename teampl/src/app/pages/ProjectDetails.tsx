@@ -18,6 +18,7 @@ import VotePage from "./Vote";
 import Overview from "./Overview";
 import { useChat } from "../context/ChatContext";
 import MembersTab from "../components/MembersTab";
+import { formatMessagePreview } from "../utils/chatHelper";
 import Avatar from "../components/Avatar";
 
 export default function ProjectDetails() {
@@ -102,7 +103,7 @@ export default function ProjectDetails() {
         const senderName = m.sender?.name || m.senderEmail.split('@')[0];
         const isTeam = !!mProjectId;
         const prefix = isTeam ? `[팀 채팅] ${senderName}` : `[1:1] ${senderName}`;
-        showToast(`${prefix}: ${m.content}`, 'info');
+        showToast(`${prefix}: ${formatMessagePreview(m.content)}`, 'info');
       }
     };
 

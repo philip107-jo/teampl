@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCall } from "../context/CallContext";
+import { useAuth } from "../context/AuthContext";
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export const CallWidget: React.FC = () => {
+  const { user } = useAuth();
   const {
     status,
     localStream,
@@ -16,7 +18,14 @@ export const CallWidget: React.FC = () => {
     rejectCall,
     endCall,
     toggleMute,
-    toggleCamera
+    toggleCamera,
+    // Group call additions
+    isGroupCall,
+    groupCallRoom,
+    groupCallParticipants,
+    groupCallMembers,
+    remoteStreamsMap,
+    leaveGroupCall
   } = useCall();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -77,6 +86,27 @@ export const CallWidget: React.FC = () => {
   return (
     <AnimatePresence>
       <div className="fixed bottom-6 right-6 z-[99999] font-sans">
+        {/* Hidden audio elements for group call remote participants to play their voices */}
+        {isGroupCall && Object.entries(remoteStreamsMap).map(([email, stream]) => {
+          if (email === user?.email) return null;
+          return (
+            <audio
+              key={email}
+              ref={(el) => {
+                if (el && el.srcObject !== stream) {
+                  el.srcObject = stream;
+                  el.play().catch((err) => {
+                    console.error("Group call remote audio playback failed for", email, err);
+                  });
+                }
+              }}
+              autoPlay
+              playsInline
+              style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+            />
+          );
+        })}
+
         {/* 1. 전화 수신 벨소리 화면 (Incoming) */}
         {status === "incoming" && (
           <motion.div
@@ -163,11 +193,119 @@ export const CallWidget: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             className={`bg-[#0B1528]/90 border border-white/10 backdrop-blur-xl rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.5)] overflow-hidden transition-all flex flex-col items-center ${
-              isVideoCall ? "w-80 h-[380px]" : "w-64 p-6 text-center"
+              isGroupCall 
+                ? "w-[360px] max-h-[500px] p-6 overflow-y-auto" 
+                : isVideoCall ? "w-80 h-[380px]" : "w-64 p-6 text-center"
             }`}
           >
-            {/* A. 영상 통화 화면 (Video Call) */}
-            {isVideoCall ? (
+            {isGroupCall ? (
+              /* Group Call screen */
+              <div className="w-full flex flex-col h-full justify-between">
+                {/* Header */}
+                <div className="w-full text-left mb-4">
+                  <h4 className="text-sm font-black text-white">👥 팀 그룹 통화</h4>
+                  <span className="text-[10px] font-bold text-[#11B886] flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#11B886] animate-ping" />
+                    {formatTime(duration)}
+                  </span>
+                </div>
+
+                {/* Participant Grid */}
+                <div className="grid grid-cols-2 gap-3 my-4 overflow-y-auto max-h-[280px] pr-1">
+                  {groupCallMembers.map((member) => {
+                    const isConnected = groupCallParticipants.some(p => p.email === member.email);
+                    const isMe = member.email === user?.email;
+                    const hasVideo = isVideoCall;
+                    const stream = isMe ? localStream : remoteStreamsMap[member.email];
+
+                    return (
+                      <div 
+                        key={member.email}
+                        className={`relative rounded-2xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center p-3 border transition-all ${
+                          isConnected 
+                            ? "bg-[#13223f] border-[#11B886]/30 shadow-md" 
+                            : "bg-[#070D19]/40 border-white/5 opacity-40 grayscale"
+                        }`}
+                      >
+                        {isConnected && hasVideo && stream ? (
+                          <div className="absolute inset-0 z-0 bg-black">
+                            <video
+                              ref={(el) => {
+                                if (el && el.srcObject !== stream) {
+                                  el.srcObject = stream;
+                                }
+                              }}
+                              autoPlay
+                              playsInline
+                              muted={isMe}
+                              className={`w-full h-full object-cover ${isMe ? "scale-x-[-1]" : ""}`}
+                            />
+                          </div>
+                        ) : (
+                          /* Avatar Display */
+                          <div className="relative z-10 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-sm font-extrabold text-[#11B886]">
+                            {member.name?.[0]?.toUpperCase()}
+                          </div>
+                        )}
+
+                        {/* Status Label Overlay */}
+                        <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center justify-between">
+                          <span className="text-[10px] font-black text-white truncate drop-shadow bg-black/40 px-2 py-0.5 rounded-full">
+                            {member.name}
+                          </span>
+                          {!isConnected && (
+                            <span className="px-1.5 py-0.5 bg-red-500/80 text-white text-[8px] font-black uppercase tracking-wider rounded-md flex items-center gap-0.5">
+                              <PhoneOff className="w-2 h-2" />
+                              미참가
+                            </span>
+                          )}
+                          {isConnected && (
+                            <span className="w-2 h-2 bg-[#11B886] rounded-full animate-pulse" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Control Panel */}
+                <div className="flex items-center gap-4 w-full justify-center mt-2">
+                  <button
+                    onClick={toggleMute}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      isMuted
+                        ? "bg-red-500 text-white shadow-lg shadow-red-500/20"
+                        : "bg-white/10 text-white hover:bg-white/20 border border-white/5"
+                    }`}
+                    title={isMuted ? "마이크 켜기" : "음소거"}
+                  >
+                    {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+
+                  <button
+                    onClick={leaveGroupCall}
+                    className="w-12 h-12 bg-red-500 hover:bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/30 transition-all"
+                    title="통화 나가기"
+                  >
+                    <PhoneOff className="w-5 h-5" />
+                  </button>
+
+                  {isVideoCall && (
+                    <button
+                      onClick={toggleCamera}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                        isCameraOff
+                          ? "bg-red-500 text-white"
+                          : "bg-white/10 text-white hover:bg-white/20"
+                      }`}
+                    >
+                      {isCameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : isVideoCall ? (
+              /* A. 1:1 영상 통화 화면 (Video Call) */
               <div className="relative w-full h-full flex flex-col justify-between">
                 {/* 원격 비디오 (전체화면) */}
                 <div className="absolute inset-0 bg-[#070D19] z-0 flex items-center justify-center">
@@ -249,7 +387,7 @@ export const CallWidget: React.FC = () => {
                 </div>
               </div>
             ) : (
-              /* B. 음성 통화 화면 (Voice Call) */
+              /* B. 1:1 음성 통화 화면 (Voice Call) */
               <div className="flex flex-col items-center">
                 {remoteStream && (
                   <audio
