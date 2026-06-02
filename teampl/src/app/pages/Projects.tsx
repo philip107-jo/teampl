@@ -25,6 +25,7 @@ export default function Projects() {
   });
   
   const [projects, setProjects] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
 
   // 수정 관련 상태
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -55,11 +56,47 @@ export default function Projects() {
         .catch(err => console.error("프로젝트 불러오기 실패:", err));
     };
 
+    const fetchInvitations = () => {
+      projectApi.getPendingInvitations()
+        .then(data => setInvitations(data))
+        .catch(err => console.error("초대 목록 불러오기 실패:", err));
+    };
+
     fetchProjects();
-    const intervalId = setInterval(fetchProjects, 5000); // 5초마다 자동 갱신 (Polling)
+    fetchInvitations();
+    const intervalId = setInterval(() => {
+      fetchProjects();
+      fetchInvitations();
+    }, 5000); // 5초마다 자동 갱신 (Polling)
 
     return () => clearInterval(intervalId);
   }, []);
+
+  const handleAcceptInvite = async (projectId: number) => {
+    try {
+      await projectApi.acceptInvitation(projectId);
+      showToast("초대를 수락했습니다!", "success");
+      const updatedProjects = await projectApi.getProjects();
+      setProjects(updatedProjects);
+      const updatedInvitations = await projectApi.getPendingInvitations();
+      setInvitations(updatedInvitations);
+    } catch (err) {
+      console.error(err);
+      showToast("초대 수락 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const handleDeclineInvite = async (projectId: number) => {
+    try {
+      await projectApi.declineInvitation(projectId);
+      showToast("초대를 거절했습니다.", "success");
+      const updatedInvitations = await projectApi.getPendingInvitations();
+      setInvitations(updatedInvitations);
+    } catch (err) {
+      console.error(err);
+      showToast("초대 거절 중 오류가 발생했습니다.", "error");
+    }
+  };
 
   // 프로젝트 삭제 알림 폴링
   useEffect(() => {
@@ -197,6 +234,59 @@ export default function Projects() {
           </button>
         </div>
       </div>
+
+      {/* Pending Invitations Section */}
+      {invitations.length > 0 && (
+        <div className="mb-10 bg-gradient-to-r from-[#7C6CFF]/10 to-[#11B886]/10 border border-[#7C6CFF]/20 rounded-3xl p-6 sm:p-8 shadow-[0_4px_20px_rgba(124,108,255,0.05)] animate-in fade-in duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#7C6CFF] animate-pulse" />
+            <h2 className="text-base sm:text-lg font-black text-[#1A2340] dark:text-white">초대받은 팀 프로젝트 ({invitations.length})</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {invitations.map((inv) => (
+              <div 
+                key={inv.id} 
+                className="bg-white dark:bg-[#132038] border border-gray-100 dark:border-white/5 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span 
+                      className="px-3 py-1 rounded-full text-[10px] font-black uppercase text-white tracking-wider"
+                      style={inv.color?.startsWith('#') ? { backgroundColor: inv.color } : { backgroundColor: '#7C6CFF' }}
+                    >
+                      {inv.course || "기타"}
+                    </span>
+                    <span className="text-[11px] text-[#7D879C] font-semibold flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      마감: {inv.deadline}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-[#1A2340] dark:text-white mb-1.5">{inv.projectName}</h3>
+                  <p className="text-xs text-[#7D879C] dark:text-white/60 mb-4 line-clamp-2">{inv.description || "설명이 없는 프로젝트입니다."}</p>
+                  <div className="text-xs font-semibold text-[#7D879C] mb-4 bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#7C6CFF]" />
+                    <span>초대한 사람: <strong className="text-[#1A2340] dark:text-white">{inv.leaderName}</strong> ({inv.leaderEmail})</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => handleDeclineInvite(inv.projectId)}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 dark:text-white/60 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+                  >
+                    거절
+                  </button>
+                  <button 
+                    onClick={() => handleAcceptInvite(inv.projectId)}
+                    className="flex-1 py-3 bg-[#7C6CFF] hover:bg-[#6858e6] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95"
+                  >
+                    수락
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs & Search Container */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-white/10 mb-8 gap-4">

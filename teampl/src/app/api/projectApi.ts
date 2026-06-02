@@ -104,5 +104,20 @@ export const projectApi = {
     updateProjectStages: async (projectId: number, stages: any[]): Promise<Project> => {
         const response = await apiClient.patch(`/projects/${projectId}/stages`, { stages });
         return response.data;
+    },
+
+    getPendingInvitations: async (): Promise<any[]> => {
+        const response = await apiClient.get('/projects/invitations');
+        return response.data;
+    },
+
+    acceptInvitation: async (projectId: number): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/accept-invite`);
+        return response.data;
+    },
+
+    declineInvitation: async (projectId: number): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/decline-invite`);
+        return response.data;
     }
 };

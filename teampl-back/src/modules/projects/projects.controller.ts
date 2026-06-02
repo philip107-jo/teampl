@@ -112,6 +112,41 @@ router.patch('/:id/kick-member', async (req, res) => {
     }
 });
 
+// GET /api/projects/invitations
+router.get('/invitations', async (req, res) => {
+    const email = req.user!.email;
+    try {
+        const invitations = await ProjectsService.getPendingInvitations(email);
+        res.json(invitations);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:id/accept-invite
+router.post('/:id/accept-invite', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    try {
+        const result = await ProjectsService.acceptInvitation(email, id);
+        res.json(result);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
+// POST /api/projects/:id/decline-invite
+router.post('/:id/decline-invite', async (req, res) => {
+    const email = req.user!.email;
+    const id = parseInt(req.params.id, 10);
+    try {
+        const result = await ProjectsService.declineInvitation(email, id);
+        res.json(result);
+    } catch (e: any) {
+        res.status(403).json({ message: e.message });
+    }
+});
+
 // GET /api/projects/kicked-alerts
 router.get('/kicked-alerts', async (req, res) => {
     const email = req.user!.email;
