@@ -58,6 +58,10 @@ export const CallWidget: React.FC = () => {
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      // 브라우저 미디어 자동 재생(Autoplay) 제한을 우회하기 위해 명시적으로 play() 호출
+      remoteAudioRef.current.play().catch((err) => {
+        console.error("Remote audio playback failed:", err);
+      });
     }
   }, [remoteStream, status]);
 
@@ -248,7 +252,12 @@ export const CallWidget: React.FC = () => {
               /* B. 음성 통화 화면 (Voice Call) */
               <div className="flex flex-col items-center">
                 {remoteStream && (
-                  <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+                  <audio
+                    ref={remoteAudioRef}
+                    autoPlay
+                    playsInline
+                    style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+                  />
                 )}
                 {/* 펄싱 링 이니셜 아바타 */}
                 <div className="relative flex items-center justify-center w-24 h-24 mb-4">
