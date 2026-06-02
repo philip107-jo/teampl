@@ -354,7 +354,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                             : 'border-slate-100 dark:border-white/5 opacity-70 bg-white dark:bg-[#12182B]'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <h3 className={`text-base font-bold transition-colors ${
@@ -382,7 +382,7 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                           </div>
 
                           {/* Right: progress and actions aligned identical to design */}
-                          <div className="flex items-center gap-6 text-right">
+                          <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6 text-left md:text-right w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-white/5">
                             <div className="flex items-center gap-2">
                               {!isReadOnly && isActive && (
                                 <button
@@ -393,14 +393,16 @@ export default function Overview({ projectId, project, members, isReadOnly }: Ov
                                 </button>
                               )}
                             </div>
-                            <span className="text-sm font-semibold text-slate-400 dark:text-white/30 w-20">
-                              {stats.hasTasks ? (
-                                isCompleted ? '완료' : `${stats.progress}% 진행 중`
-                              ) : (
-                                '과제 없음'
-                              )}
-                            </span>
-                            <span className="text-slate-300 dark:text-white/10 text-sm font-semibold pr-2">-</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs md:text-sm font-semibold text-slate-500 dark:text-white/40">
+                                {stats.hasTasks ? (
+                                  isCompleted ? '완료' : `${stats.progress}% 진행 중`
+                                ) : (
+                                  '과제 없음'
+                                )}
+                              </span>
+                              <span className="hidden md:inline text-slate-300 dark:text-white/10 text-sm font-semibold">-</span>
+                            </div>
                           </div>
                         </div>
                       </div>

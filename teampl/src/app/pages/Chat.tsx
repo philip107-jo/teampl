@@ -878,7 +878,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
           )}
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
             {currentMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-10 text-gray-400 font-medium text-sm">
                 첫 메시지를 남겨보세요
@@ -1058,11 +1058,11 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
                             )}
                           </div>
                           
-                          <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"} pb-1`}>
+                          <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"} pb-1 shrink-0`}>
                             {unreadCount > 0 && (
                               <span className="text-[10px] font-bold text-yellow-500 mb-0.5">{unreadCount}</span>
                             )}
-                            <span className="text-[10px] text-gray-400 font-medium">{msg.time}</span>
+                            <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">{msg.time}</span>
                           </div>
                         </div>
                       </div>
@@ -1170,7 +1170,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
               <button
                 onClick={handleOpenVoteMenu}
                 disabled={isReadOnly}
-                className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
+                className="flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 dark:text-white/40 hover:text-[#11B886] dark:hover:text-[#11B886] hover:bg-[#11B886]/10 transition-colors shrink-0 disabled:opacity-50"
               >
                 <BarChart3 className="w-5 h-5" />
               </button>
@@ -1222,7 +1222,7 @@ export default function Chat({ projectId, projectMembers = [], projectData, isRe
             
             {/* 멘션 팝업 */}
             {mentionQuery?.active && chatMode === "TEAM" && (
-              <div className="absolute bottom-[72px] left-14 bg-white shadow-xl rounded-xl border border-gray-100 p-2 w-56 z-50">
+              <div className="absolute bottom-[72px] left-2 sm:left-14 bg-white dark:bg-[#1F2937] shadow-xl rounded-xl border border-gray-100 dark:border-gray-800 p-2 w-56 max-w-[calc(100vw-2rem)] z-50">
                 <p className="text-[10px] text-gray-400 font-bold mb-1 ml-2">멘션할 팀원 선택</p>
                 {projectMembers.filter(m => m.name.toLowerCase().includes(mentionQuery.query.toLowerCase()) && m.email !== user?.email).map(member => (
                   <button

@@ -178,12 +178,12 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
   });
 
   return (
-    <div className="dashboard pt-4 w-full max-w-5xl mx-auto px-4 sm:px-6">
+    <div className="dashboard pt-4 pb-safe w-full max-w-5xl mx-auto px-4 sm:px-6">
       {/* Top Title & Header Section */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="hero-meta">{numProjectId ? "팀 일정" : "전체 일정"}</div>
-          <h1 className="hero-title" style={{ fontSize: '2.2rem' }}>
+          <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">
             {numProjectId ? "일정 관리" : "스케줄러"}
           </h1>
         </div>
@@ -256,7 +256,7 @@ export default function Calendar({ projectId: propProjectId, isReadOnly }: Calen
                   {!isProjectDeadline && !isReadOnly && (
                     <button 
                       onClick={(e) => handleDirectDelete(e, event)}
-                      className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all shrink-0 opacity-60 md:opacity-0 group-hover:opacity-100 focus:opacity-100"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>

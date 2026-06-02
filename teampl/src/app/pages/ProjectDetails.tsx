@@ -288,7 +288,7 @@ export default function ProjectDetails() {
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div>
-              <h1 className="text-xl md:text-[22px] font-black text-[#1A2340] dark:text-white tracking-tight">{project.name}</h1>
+              <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">{project.name}</h1>
               <p className="text-[13px] text-gray-500 font-medium mt-0.5">{project.course}</p>
             </div>
           </div>
@@ -422,31 +422,31 @@ export default function ProjectDetails() {
             </div>
 
             {/* Modal Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-white/10">
+            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-white/10 scrollbar-none">
               <button 
                 onClick={() => { setSettingTab("invite"); setSelectedUser(""); }}
-                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "invite" ? "text-[#11B886] border-b-2 border-[#11B886] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+                className={`flex-1 min-w-[100px] sm:min-w-0 py-3 sm:py-4 text-[11px] sm:text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "invite" ? "text-[#11B886] border-b-2 border-[#11B886] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <RefreshCw className="w-4 h-4" />
                 팀원 초대
               </button>
               <button 
                 onClick={() => { setSettingTab("transfer"); setSelectedUser(""); }}
-                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "transfer" ? "text-[#FFB547] border-b-2 border-[#FFB547] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+                className={`flex-1 min-w-[100px] sm:min-w-0 py-3 sm:py-4 text-[11px] sm:text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "transfer" ? "text-[#FFB547] border-b-2 border-[#FFB547] bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <UserCheck className="w-4 h-4" />
                 팀장 권한 위임
               </button>
               <button 
                 onClick={() => { setSettingTab("kick"); setSelectedUser(""); }}
-                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "kick" ? "text-red-500 border-b-2 border-red-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+                className={`flex-1 min-w-[120px] sm:min-w-0 py-3 sm:py-4 text-[11px] sm:text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "kick" ? "text-red-500 border-b-2 border-red-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <UserX className="w-4 h-4" />
-                팀원 관리
+                팀원 권한 관리
               </button>
               <button 
                 onClick={() => { setSettingTab("status"); setSelectedUser(""); }}
-                className={`flex-1 py-4 text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "status" ? "text-blue-500 border-b-2 border-blue-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
+                className={`flex-1 min-w-[100px] sm:min-w-0 py-3 sm:py-4 text-[11px] sm:text-sm font-bold flex flex-col items-center gap-1 transition-all ${settingTab === "status" ? "text-blue-500 border-b-2 border-blue-500 bg-white dark:bg-[#132038]" : "text-[#7D879C] dark:text-white/40 bg-gray-50 dark:bg-[#0d1526]"}`}
               >
                 <CheckCircle2 className="w-4 h-4" />
                 상태 변경
@@ -454,7 +454,7 @@ export default function ProjectDetails() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               {settingTab === "invite" && (
                 <div className="space-y-6">
                   {/* 이메일 직접 초대 */}

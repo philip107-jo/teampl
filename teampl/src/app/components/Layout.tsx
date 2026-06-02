@@ -14,7 +14,9 @@ import {
   FolderKanban,
   LogOut,
   Bell,
-  Search
+  Search,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { projectApi } from "../api/projectApi";
@@ -25,6 +27,7 @@ import { formatMessagePreview } from '../utils/chatHelper';
 import { useRef } from 'react';
 import { TEAMPL_LOGO_URL } from "../constants/assets";
 import BottomNavigation from './BottomNavigation';
+import { useDarkMode } from "../context/DarkModeContext";
 
 export default function Layout() {
   const location = useLocation();
@@ -32,6 +35,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { totalUnreadCount, notificationCount, clearNotifications } = useChat();
   const { projectId } = useParams();
+  const { isDark, toggleDark } = useDarkMode();
   const element = useOutlet();
 
   // Kicked Alerts State
@@ -44,6 +48,7 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ messages: [], tasks: [], files: [] });
   const [isSearching, setIsSearching] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Close search dropdown on click outside
@@ -51,6 +56,7 @@ export default function Layout() {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setSearchQuery("");
+        setIsMobileSearchOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -146,7 +152,7 @@ export default function Layout() {
     <div className="flex flex-col h-screen bg-[var(--theme-bg)] dark:bg-[var(--theme-bg-gradient)] transition-all duration-500 overflow-hidden">
       {/* Top Bar - Slimmer for Mobile */}
       {/* Global Top Bar - Always visible */}
-      <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 md:px-6 py-2.5 md:py-4 flex-shrink-0 sticky top-0 z-50 transition-all duration-300">
+      <header className="bg-white/95 dark:bg-[#151C31]/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 md:px-6 py-2.5 md:py-4 flex-shrink-0 relative sticky top-0 z-50 transition-all duration-300">
           <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-200" onClick={() => navigate("/")}>
@@ -248,6 +254,22 @@ export default function Layout() {
               )}
               
               <div className="flex items-center gap-2">
+                {projectId && (
+                  <button
+                    onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                    className="md:hidden p-2.5 text-[#7D879C]/80 hover:text-[#11B886] bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
+                    title="검색"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  onClick={toggleDark}
+                  className="p-2.5 text-[#7D879C]/80 hover:text-[#11B886] bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
+                  title={isDark ? "라이트 모드" : "다크 모드"}
+                >
+                  {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
+                </button>
                 <button
                   onClick={() => navigate('/notifications')}
                   className="relative p-2.5 text-[#7D879C]/80 hover:text-[#11B886] bg-gray-100/50 dark:bg-white/5 active:scale-90 rounded-2xl transition-all"
@@ -281,6 +303,79 @@ export default function Layout() {
                 />
               </div>
             </div>
+            
+            {/* Mobile Search Input Panel - Rendered absolute below header to prevent flex breaking */}
+            {isMobileSearchOpen && projectId && (
+              <div 
+                className="md:hidden absolute left-0 right-0 top-full bg-white/95 dark:bg-[#151C31]/95 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.08)] z-50 w-full animate-in slide-in-from-top-2 duration-150" 
+                ref={searchRef}
+              >
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3" />
+                  <input 
+                    type="text" 
+                    placeholder="통합 검색 (채팅, 업무, 자료)..." 
+                    className="pl-9 pr-10 py-2 w-full bg-gray-100 dark:bg-white/5 border-transparent focus:border-[#11B886] rounded-full text-sm outline-none transition-all dark:text-white"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Search Results */}
+                {searchQuery.trim() && (
+                  <div className="mt-2 max-h-[300px] overflow-y-auto bg-white dark:bg-[#132038] rounded-xl shadow-xl border border-gray-100 dark:border-white/10 p-2 text-sm relative z-50">
+                    {isSearching ? (
+                      <div className="p-4 text-center text-gray-500">검색 중...</div>
+                    ) : (
+                      <>
+                        {searchResults.tasks.length > 0 && (
+                          <div className="mb-2">
+                            <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">할 일</h4>
+                            {searchResults.tasks.map((t: any) => (
+                              <div key={t.id} onClick={() => { setSearchQuery(""); setIsMobileSearchOpen(false); navigate(`/projects/${projectId}?tab=tasks`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer">
+                                <p className="font-bold text-[#1A2340] dark:text-white truncate">{t.title}</p>
+                                <p className="text-xs text-gray-500 truncate">{t.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {searchResults.messages.length > 0 && (
+                          <div className="mb-2">
+                            <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">메시지</h4>
+                            {searchResults.messages.map((m: any) => (
+                              <div key={m.id} onClick={() => { setSearchQuery(""); setIsMobileSearchOpen(false); navigate(`/projects/${projectId}?tab=chat`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer">
+                                <p className="font-bold text-[#1A2340] dark:text-white">{m.sender.name}</p>
+                                <p className="text-xs text-gray-500 truncate">{formatMessagePreview(m.content)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {searchResults.files.length > 0 && (
+                          <div>
+                            <h4 className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase">자료</h4>
+                            {searchResults.files.map((f: any) => (
+                              <div key={f.id} onClick={() => { setSearchQuery(""); setIsMobileSearchOpen(false); navigate(`/projects/${projectId}?tab=drive`); }} className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer flex items-center gap-2">
+                                <FolderOpen className="w-4 h-4 text-gray-400" />
+                                <p className="font-bold text-[#1A2340] dark:text-white truncate">{f.name}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {searchResults.tasks.length === 0 && searchResults.messages.length === 0 && searchResults.files.length === 0 && (
+                          <div className="p-4 text-center text-gray-500">검색 결과가 없습니다.</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
       </header>
 

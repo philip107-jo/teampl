@@ -34,7 +34,7 @@ export default function BottomNavigation() {
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#151C31]/90 backdrop-blur-2xl border-t border-gray-100 dark:border-white/10 px-4 pt-2 pb-safe-bottom shadow-[0_-4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.2)] transition-colors duration-300">
-      <nav className="flex items-center justify-around max-w-md mx-auto h-12">
+      <nav className="flex items-center justify-around max-w-md mx-auto h-14">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = item.active;
@@ -53,6 +53,11 @@ export default function BottomNavigation() {
                 }`}
               >
                 <Icon className="w-5 h-5 transition-transform duration-300 group-active:scale-90" />
+                {item.key === "home" && totalUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white shadow-[0_0_6px_rgba(239,68,68,0.8)]">
+                    {totalUnreadCount}
+                  </span>
+                )}
               </div>
               <span
                 className={`text-[10px] font-black tracking-tight mt-0.5 transition-all duration-300 ${

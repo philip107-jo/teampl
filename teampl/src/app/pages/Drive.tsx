@@ -572,7 +572,7 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
                   <HardDrive className="w-7 h-7 text-purple-500" />
                 </div>
                 <div>
-                  <h1 className="text-[22px] font-black text-[#1A2340] dark:text-white tracking-tight">공유 자료실</h1>
+                  <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">공유 자료실</h1>
                   <p className="text-[12px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mt-0.5">KT Cloud Object Storage</p>
                 </div>
               </div>
@@ -706,7 +706,7 @@ export default function Drive({ projectId: propProjectId, isReadOnly }: DrivePro
           // 자료실 루트 화면 헤더 디자인 (폴더 만들기, 파일 업로드 버튼)
           <div className="flex items-start justify-between gap-6 mb-8 mt-2">
             <div>
-              <h1 className="text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">자료실</h1>
+              <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">자료실</h1>
               <p className="text-[12px] text-gray-400 dark:text-white/30 mt-1 hidden sm:block">
                 폴더를 클릭하거나 파일을 끌어 정리해보세요
               </p>

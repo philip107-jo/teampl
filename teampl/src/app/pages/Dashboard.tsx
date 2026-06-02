@@ -117,7 +117,7 @@ export default function Dashboard() {
           <div className="flex items-start gap-4">
             <div>
               <div className="hero-meta">{selectedProject.course}</div>
-              <h1 className="hero-title">{selectedProject.name}</h1>
+              <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight leading-tight mt-1">{selectedProject.name}</h1>
             </div>
           </div>
           <button 
@@ -226,15 +226,15 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[14px] font-black text-[#1A2340] dark:text-white">{member.name}</span>
+                        <span className="text-[14px] font-black text-[#1A2340] dark:text-white truncate max-w-[70px] sm:max-w-none">{member.name}</span>
                         {member.role === 'LEADER' && (
                           <Crown className="w-3.5 h-3.5 text-[#FFB547] fill-[#FFB547] drop-shadow-[0_0_4px_rgba(255,181,71,0.8)]" />
                         )}
                       </div>
-                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/30">{member.email}</p>
+                      <p className="hidden sm:block text-[10px] font-semibold text-gray-400 dark:text-white/30">{member.email}</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-gray-100 dark:bg-white/5 rounded-lg text-[11px] font-bold text-gray-500 dark:text-white/40">
+                  <span className="px-2.5 py-1 max-sm:px-1.5 max-sm:py-0.5 bg-gray-100 dark:bg-white/5 rounded-lg text-[11px] max-sm:text-[9px] font-bold text-gray-500 dark:text-white/40">
                     {member.role === 'LEADER' ? '팀장' : '팀원'}
                   </span>
                 </div>

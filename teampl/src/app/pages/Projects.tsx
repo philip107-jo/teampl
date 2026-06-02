@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle, FolderOpen } from "lucide-react";
+import { Plus, Edit2, Trash2, Users, Calendar, Database, Zap, BarChart3, Target, CheckCircle2, Clock, X, AlertCircle, FolderOpen, Search } from "lucide-react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { projectApi, Project } from "../api/projectApi";
@@ -12,6 +12,7 @@ export default function Projects() {
   const { showToast } = useToast();
   const { isDark } = useDarkMode();
   const [activeTab, setActiveTab] = useState("진행 중");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -177,7 +178,7 @@ export default function Projects() {
       {/* Page Title & Actions Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
         <div>
-          <h1 className="text-[26px] font-black text-[#1A2340] dark:text-white tracking-tight mb-2">내 프로젝트</h1>
+          <h1 className="text-xl md:text-2xl font-black text-[#1A2340] dark:text-white tracking-tight mb-1">내 프로젝트</h1>
           <p className="text-[14px] text-[#7D879C] font-medium">참여 중인 팀프로젝트를 관리하세요</p>
         </div>
         <div className="flex items-center gap-3">
@@ -197,102 +198,154 @@ export default function Projects() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-6 border-b border-gray-200 dark:border-white/10 mb-8">
-        {["진행 중", "완료됨"].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-4 text-[15px] font-bold transition-all relative ${
-              activeTab === tab 
-                ? "text-[#11B886]" 
-                : "text-gray-400 hover:text-gray-600 dark:hover:text-white/80"
-            }`}
-          >
-            {tab}
-            {activeTab === tab && (
-              <motion.div layoutId="projects-tab" className="absolute bottom-0 left-0 w-full h-[3px] bg-[#11B886] rounded-t-full" />
-            )}
-          </button>
-        ))}
+      {/* Tabs & Search Container */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-white/10 mb-8 gap-4">
+        <div className="flex items-center gap-6">
+          {["진행 중", "완료됨"].map(tab => (
+            <button
+              key={tab}
+              onClick={() => {
+                setActiveTab(tab);
+                setSearchQuery(""); // 탭 전환 시 검색어 초기화
+              }}
+              className={`pb-4 text-[15px] font-bold transition-all relative ${
+                activeTab === tab 
+                  ? "text-[#11B886]" 
+                  : "text-gray-400 hover:text-gray-600 dark:hover:text-white/80"
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <motion.div layoutId="projects-tab" className="absolute bottom-0 left-0 w-full h-[3px] bg-[#11B886] rounded-t-full" />
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-full sm:w-64 mb-3 sm:mb-0">
+          <input 
+            type="text"
+            placeholder="프로젝트 검색..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-2.5 sm:py-2 text-xs sm:text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl outline-none focus:border-[#11B886] transition-all text-[#1A2340] dark:text-white placeholder:text-gray-400 dark:placeholder-white/20"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery("")} 
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Projects List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AnimatePresence mode="popLayout">
-          {projects
-            .filter(p => p.userStatus !== 'KICKED')
-            .filter(p => activeTab === "진행 중" ? (p.status === "ACTIVE" || !p.status) : p.status === "COMPLETED" || p.status === "ARCHIVED")
-            .map((project) => (
-            <motion.div
-              key={project.id}
-              layout
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.2 } }}
-              transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-            >
-              <Link
-                to={`/projects/${project.id}`}
-                className={`block rounded-2xl p-7 border shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 h-full flex flex-col relative group ${
-                  activeTab === "완료됨" 
-                    ? "bg-gray-50 dark:bg-[#0d1526] border-transparent dark:border-white/5 grayscale-[0.5] opacity-80" 
-                    : "bg-white dark:bg-[#132038] border-gray-100 dark:border-white/5"
-                }`}
-              >
-                {/* Project Header: Icon & Actions */}
-                <div className="flex items-start justify-between mb-5">
-                  <div 
-                    className="w-[48px] h-[48px] rounded-2xl flex items-center justify-center shadow-sm"
-                    style={project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white' } : { backgroundColor: '#11B886', color: 'white' }}
+      {(() => {
+        const filteredProjects = projects
+          .filter(p => p.userStatus !== 'KICKED')
+          .filter(p => activeTab === "진행 중" ? (p.status === "ACTIVE" || !p.status) : p.status === "COMPLETED" || p.status === "ARCHIVED");
+
+        const displayedProjects = filteredProjects.filter(p => {
+          if (!searchQuery) return true;
+          const query = searchQuery.toLowerCase();
+          return (
+            p.name?.toLowerCase().includes(query) ||
+            p.course?.toLowerCase().includes(query) ||
+            p.description?.toLowerCase().includes(query)
+          );
+        });
+
+        if (displayedProjects.length === 0) {
+          return (
+            <div className="text-center py-20 bg-white dark:bg-[#132038] border border-gray-100 dark:border-white/5 rounded-3xl p-8 shadow-sm">
+              <FolderOpen className="w-12 h-12 text-[#7D879C]/40 dark:text-white/20 mx-auto mb-4" />
+              <h3 className="text-base font-bold text-[#1A2340] dark:text-white">
+                {searchQuery ? "검색 결과가 없습니다" : (activeTab === "진행 중" ? "진행 중인 프로젝트가 없습니다" : "완료된 프로젝트가 없습니다")}
+              </h3>
+              <p className="text-xs text-[#7D879C] dark:text-white/40 mt-1.5">
+                {searchQuery ? "다른 검색어로 다시 시도해보세요." : (activeTab === "진행 중" ? "새로운 팀프로젝트를 생성하거나 초대코드로 참여해보세요!" : "완료된 프로젝트가 이곳에 표시됩니다.")}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <AnimatePresence mode="popLayout">
+              {displayedProjects.map((project) => (
+                <motion.div
+                  key={project.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.2 } }}
+                  transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+                >
+                  <Link
+                    to={`/projects/${project.id}`}
+                    className={`block rounded-2xl p-4 sm:p-7 border shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 h-full flex flex-col relative group ${
+                      activeTab === "완료됨" 
+                        ? "bg-gray-50 dark:bg-[#0d1526] border-transparent dark:border-white/5 grayscale-[0.5] opacity-80" 
+                        : "bg-white dark:bg-[#132038] border-gray-100 dark:border-white/5"
+                    }`}
                   >
-                    <FolderOpen className="w-6 h-6" />
-                  </div>
-                  
-                  {project.userRole === 'LEADER' && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {activeTab !== "완료됨" && (
-                        <button 
-                          className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"
-                          onClick={(e) => handleEditClick(e, project)}
-                          title="수정하기"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button 
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                        onClick={(e) => handleDeleteClick(e, project)}
-                        title="삭제하기"
+                    {/* Project Header: Icon & Actions */}
+                    <div className="flex items-start justify-between mb-4 sm:mb-5">
+                      <div 
+                        className="w-10 h-10 sm:w-[48px] sm:h-[48px] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm"
+                        style={project.color?.startsWith('#') ? { backgroundColor: project.color, color: 'white' } : { backgroundColor: '#11B886', color: 'white' }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      
+                      {project.userRole === 'LEADER' && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {activeTab !== "완료됨" && (
+                            <button 
+                              className="p-1.5 text-gray-400 hover:text-[#11B886] hover:bg-[#11B886]/10 rounded-lg transition-all"
+                              onClick={(e) => handleEditClick(e, project)}
+                              title="수정하기"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button 
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                            onClick={(e) => handleDeleteClick(e, project)}
+                            title="삭제하기"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Project Info */}
-                <div className="mb-8 flex-1">
-                  <h3 className="text-[18px] font-bold text-[#1A2340] dark:text-white tracking-tight mb-2 line-clamp-1">{project.name}</h3>
-                  <p className="text-[13px] text-[#7D879C] dark:text-white/60 leading-relaxed line-clamp-2">{project.description}</p>
-                </div>
+                    {/* Project Info */}
+                    <div className="mb-4 sm:mb-8 flex-1">
+                      <h3 className="text-[14px] sm:text-[18px] font-bold text-[#1A2340] dark:text-white tracking-tight mb-1 sm:mb-2 line-clamp-1">{project.name}</h3>
+                      <p className="text-[11px] sm:text-[13px] text-[#7D879C] dark:text-white/60 leading-snug sm:leading-relaxed line-clamp-2">{project.description}</p>
+                    </div>
 
-                {/* Project Meta Footer */}
-                <div className="flex items-center gap-4 text-[12px] text-[#9AA4B2] font-medium pt-4 border-t border-gray-100 dark:border-white/5">
-                  <div className="flex items-center gap-1.5">
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-[100px]">{project.course}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{project.deadline}</span>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+                    {/* Project Meta Footer */}
+                    <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-[12px] text-[#9AA4B2] font-medium pt-3 sm:pt-4 border-t border-gray-100 dark:border-white/5">
+                      <div className="flex items-center gap-1">
+                        <FolderOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span className="truncate max-w-[60px] sm:max-w-[100px]">{project.course}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span>{project.deadline}</span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        );
+      })()}
 
       {/* -- Add Project Modal -- */}
       {isAddModalOpen && (

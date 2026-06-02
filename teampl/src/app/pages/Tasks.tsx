@@ -216,7 +216,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                       </h4>
                       {/* Progress bar inside stage header */}
                       {stageTasks.length > 0 && (
-                        <div className="flex items-center gap-2 mt-1.5 w-64">
+                        <div className="flex items-center gap-2 mt-1.5 w-full max-w-64">
                           <div className="w-full bg-gray-100 dark:bg-white/5 rounded-full h-1.5 overflow-hidden">
                             <div 
                               className="bg-[#11B886] h-1.5 rounded-full transition-all duration-500" 
@@ -286,7 +286,7 @@ export default function Tasks({ projectId: propProjectId, isReadOnly }: TasksPro
                                 {statusLabel}
                               </span>
                               
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity">
                                 {!isReadOnly && isLeader && (
                                   <button 
                                     onClick={(e) => { 

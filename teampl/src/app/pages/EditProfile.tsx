@@ -172,11 +172,11 @@ export default function EditProfile() {
   return (
     <div className="dashboard pt-4 lg:max-w-3xl lg:mx-auto">
       {/* Header */}
-      <section className="card hero-card mb-8">
+      <section className="card hero-card mb-5 sm:mb-6">
         <div className="hero-top" style={{ alignItems: "flex-end", marginBottom: 0 }}>
           <div>
-            <p className="hero-meta uppercase">내 정보</p>
-            <h1 className="hero-title" style={{ fontSize: "2rem" }}>
+            <p className="hero-meta uppercase text-[10px] sm:text-[11px] font-bold text-[#11B886]">내 정보</p>
+            <h1 className="hero-title text-xl md:text-2xl font-black tracking-tight leading-tight text-[#1A2340] dark:text-white">
               정보 수정
             </h1>
           </div>
@@ -184,31 +184,31 @@ export default function EditProfile() {
       </section>
 
       <div className="pb-24">
-        <div className="card !p-10 border border-gray-200 dark:border-white/5 relative overflow-hidden !rounded-[40px]">
+        <div className="card !p-5 sm:!p-8 border border-gray-200 dark:border-white/5 relative overflow-hidden !rounded-2xl sm:!rounded-3xl">
           {/* Decorative blob */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-[#11B886]/10 rounded-bl-full -z-10 blur-3xl" />
+          <div className="absolute top-0 right-0 w-28 h-28 sm:w-40 sm:h-40 bg-[#11B886]/10 rounded-bl-full -z-10 blur-2xl" />
 
           {/* Avatar Preview */}
-          <div className="flex items-center gap-6 mb-10">
+          <div className="flex items-center gap-5 mb-8">
             <div className="relative group cursor-pointer">
-              <label htmlFor="avatar-upload" className="flex-shrink-0 cursor-pointer block relative rounded-[28px] overflow-hidden group shadow-[0_0_30px_rgba(17,184,134,0.4)]">
+              <label htmlFor="avatar-upload" className="flex-shrink-0 cursor-pointer block relative rounded-xl sm:rounded-2xl overflow-hidden group shadow-[0_0_20px_rgba(17,184,134,0.3)]">
                 <Avatar 
                   name={formData.name || user?.name} 
                   avatarUrl={user?.avatarUrl} 
                   shape="squircle"
-                  className="w-20 h-20 text-[32px] !rounded-[28px]"
+                  className="w-18 h-18 text-xl sm:text-2xl !rounded-xl sm:!rounded-2xl"
                 />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {uploadingAvatar ? <Loader2 className="w-6 h-6 animate-spin text-white" /> : <Camera className="w-6 h-6 text-white" />}
+                  {uploadingAvatar ? <Loader2 className="w-5 h-5 animate-spin text-white" /> : <Camera className="w-5 h-5 text-white" />}
                 </div>
               </label>
               <input type="file" id="avatar-upload" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={uploadingAvatar} />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-[#1A2340] dark:text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-bold text-[#1A2340] dark:text-white tracking-tight">
                 {formData.name || user?.name}
               </h2>
-              <p className="text-sm font-bold text-[#7D879C] mt-1">{user?.email}</p>
+              <p className="text-xs sm:text-sm font-semibold text-[#7D879C] mt-0.5">{user?.email}</p>
             </div>
           </div>
 
