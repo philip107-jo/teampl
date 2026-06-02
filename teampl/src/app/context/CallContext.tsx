@@ -39,6 +39,10 @@ interface CallContextType {
   startGroupCall: (room: string, members: any[], isVideo: boolean) => Promise<void>;
   joinGroupCall: (room: string, members: any[], isVideo: boolean) => Promise<void>;
   leaveGroupCall: () => void;
+  // Screen Share additions
+  isSharingScreen: boolean;
+  startScreenShare: () => Promise<void>;
+  stopScreenShare: () => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -68,6 +72,87 @@ const getIceServers = (): RTCConfiguration => {
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [status, setStatus] = useState<CallStatus>("idle");
+
+  // 1x1 픽셀 검은색 더미 비디오 트랙 생성
+  const createDummyVideoTrack = (): MediaStreamTrack => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, 0, 16, 16);
+    }
+    const stream = (canvas as any).captureStream ? (canvas as any).captureStream(1) : (canvas as any).mozCaptureStream ? (canvas as any).mozCaptureStream(1) : null;
+    if (stream && stream.getVideoTracks().length > 0) {
+      return stream.getVideoTracks()[0];
+    }
+    const mockCanvas = document.createElement("canvas");
+    const mockStream = (mockCanvas as any).captureStream?.(1);
+    return mockStream ? mockStream.getVideoTracks()[0] : new MediaStream().getVideoTracks()[0];
+  };
+
+  // 무음 더미 오디오 트랙 생성
+  const createDummyAudioTrack = (): MediaStreamTrack => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContextClass();
+      const oscillator = ctx.createOscillator();
+      const dst = ctx.createMediaStreamDestination();
+      oscillator.connect(dst);
+      oscillator.start();
+      const track = dst.stream.getAudioTracks()[0];
+      track.enabled = false;
+      return track;
+    } catch (e) {
+      console.error("Failed to create dummy audio track:", e);
+      return new MediaStream().getAudioTracks()[0];
+    }
+  };
+
+  // 마이크/카메라 없을 때 수신 전용 모드로 폴백하기 위한 미디어 스트림 획득 함수
+  const getFallbackStream = async (isVideo: boolean): Promise<{ stream: MediaStream, infoMsg?: string }> => {
+    // 1단계: 마이크와 웹캠 모두 정상 작동 시도
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      if (!isVideo) {
+        stream.getVideoTracks().forEach(t => {
+          t.enabled = false;
+        });
+      }
+      return { stream };
+    } catch (err) {
+      console.warn("First getUserMedia (audio+video) failed, trying fallback...", err);
+    }
+
+    // 2단계: 비디오 실패 시 오디오만 시도
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const dummyVideo = createDummyVideoTrack();
+      if (dummyVideo) {
+        stream.addTrack(dummyVideo);
+      }
+      return { 
+        stream, 
+        infoMsg: isVideo ? "웹캠 장치를 찾을 수 없거나 권한이 없어 음성만 송신하며 통화에 참여합니다. (보기 전용)" : undefined 
+      };
+    } catch (err) {
+      console.warn("Audio-only getUserMedia fallback failed, trying silent fallback...", err);
+    }
+
+    // 3단계: 오디오 장치마저 없거나 차단된 경우 -> 무음 더미 오디오 + 검은색 더미 비디오로 완벽 폴백
+    const finalStream = new MediaStream();
+    const dummyAudio = createDummyAudioTrack();
+    const dummyVideo = createDummyVideoTrack();
+    if (dummyAudio) finalStream.addTrack(dummyAudio);
+    if (dummyVideo) finalStream.addTrack(dummyVideo);
+    
+    return { 
+      stream: finalStream, 
+      infoMsg: "마이크 또는 웹캠 장치가 발견되지 않아 수신 전용(듣기/보기)으로 통화에 참여합니다." 
+    };
+  };
+
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [callerInfo, setCallerInfo] = useState<CallerInfo | null>(null);
@@ -86,7 +171,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [groupCallMembers, setGroupCallMembers] = useState<any[]>([]);
   const [remoteStreamsMap, setRemoteStreamsMap] = useState<Record<string, MediaStream>>({});
 
+  // Screen Share states
+  const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+ 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const activeRoomRef = useRef<string | null>(null);
   const statusRef = useRef<CallStatus>(status);
@@ -407,11 +498,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ringbackPlayer.start();
 
     try {
-      // 미디어 장치 권한 획득
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideo
-      });
+      // 미디어 장치 권한 획득 (폴백 처리 적용)
+      const { stream, infoMsg } = await getFallbackStream(isVideo);
+      if (infoMsg) {
+        alert(infoMsg);
+      }
       setLocalStream(stream);
       localStreamRef.current = stream;
 
@@ -448,11 +539,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!socket || !activeRoomRef.current || !pcRef.current) return;
 
     try {
-      // 내 미디어 장치 권한 획득
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideoCall
-      });
+      // 내 미디어 장치 권한 획득 (폴백 처리 적용)
+      const { stream, infoMsg } = await getFallbackStream(isVideoCall);
+      if (infoMsg) {
+        alert(infoMsg);
+      }
       setLocalStream(stream);
       localStreamRef.current = stream;
 
@@ -526,6 +617,107 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 화면 공유 시작
+  const startScreenShare = async () => {
+    if (!localStreamRef.current) return;
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false
+      });
+      const screenTrack = stream.getVideoTracks()[0];
+      if (!screenTrack) return;
+
+      setScreenStream(stream);
+      screenStreamRef.current = stream;
+      setIsSharingScreen(true);
+
+      // 기존 카메라 비디오 트랙 백업
+      const localVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (localVideoTrack) {
+        originalVideoTrackRef.current = localVideoTrack;
+      }
+
+      // 비디오 트랙 스왑 (replaceTrack)
+      if (isGroupCallRef.current) {
+        peerConnectionsRef.current.forEach((pc) => {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === "video");
+          if (videoSender) {
+            videoSender.replaceTrack(screenTrack);
+          }
+        });
+      } else {
+        if (pcRef.current) {
+          const senders = pcRef.current.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === "video");
+          if (videoSender) {
+            videoSender.replaceTrack(screenTrack);
+          }
+        }
+      }
+
+      // 로컬 스트림의 비디오 트랙을 화면 공유 트랙으로 스위칭
+      const currentTracks = localStreamRef.current.getVideoTracks();
+      currentTracks.forEach(t => localStreamRef.current?.removeTrack(t));
+      localStreamRef.current?.addTrack(screenTrack);
+      
+      // 상태 강제 트리거
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+
+      // 브라우저 기본 UI의 "공유 중지" 버튼 대응
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+    } catch (err) {
+      console.error("Failed to start screen share:", err);
+      stopScreenShare();
+    }
+  };
+
+  // 화면 공유 중지
+  const stopScreenShare = () => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+    setScreenStream(null);
+    setIsSharingScreen(false);
+
+    // 백업해둔 카메라 비디오 트랙 복구
+    if (localStreamRef.current) {
+      const originalTrack = originalVideoTrackRef.current;
+      
+      // 로컬 스트림 비디오 트랙 스왑 백
+      const currentTracks = localStreamRef.current.getVideoTracks();
+      currentTracks.forEach(t => localStreamRef.current?.removeTrack(t));
+      if (originalTrack) {
+        localStreamRef.current?.addTrack(originalTrack);
+      }
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+
+      // 피어 커넥션 송신기 트랙 복구
+      if (isGroupCallRef.current) {
+        peerConnectionsRef.current.forEach((pc) => {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === "video");
+          if (videoSender) {
+            videoSender.replaceTrack(originalTrack || null);
+          }
+        });
+      } else {
+        if (pcRef.current) {
+          const senders = pcRef.current.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === "video");
+          if (videoSender) {
+            videoSender.replaceTrack(originalTrack || null);
+          }
+        }
+      }
+    }
+    originalVideoTrackRef.current = null;
+  };
+
   // 통화 상태 청소 및 초기화
   const cleanupCall = () => {
     // 진행 중인 벨소리/발신음 모두 정지
@@ -546,6 +738,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roomKey = activeRoomRef.current;
     const isVideo = isVideoCallRef.current;
     const pEmail = peerEmailRef.current;
+
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+    setScreenStream(null);
+    setIsSharingScreen(false);
+    originalVideoTrackRef.current = null;
 
     setLocalStream(null);
     setRemoteStream(null);
@@ -601,10 +801,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activeRoomRef.current = room;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideo
-      });
+      // 미디어 장치 권한 획득 (폴백 처리 적용)
+      const { stream, infoMsg } = await getFallbackStream(isVideo);
+      if (infoMsg) {
+        alert(infoMsg);
+      }
       setLocalStream(stream);
       localStreamRef.current = stream;
 
@@ -634,6 +835,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     peerConnectionsRef.current.clear();
     remoteStreamsRef.current.clear();
     setRemoteStreamsMap({});
+
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+    setScreenStream(null);
+    setIsSharingScreen(false);
+    originalVideoTrackRef.current = null;
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -692,7 +901,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         remoteStreamsMap,
         startGroupCall,
         joinGroupCall,
-        leaveGroupCall
+        leaveGroupCall,
+        // Screen Share additions
+        isSharingScreen,
+        startScreenShare,
+        stopScreenShare
       }}
     >
       {children}
