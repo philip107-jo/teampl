@@ -58,6 +58,31 @@ services:
     networks:
       - teampl-prod-net
 
+  coturn:
+    image: coturn/coturn:latest
+    container_name: teampl-coturn-prod
+    restart: always
+    network_mode: "host"
+    entrypoint:
+      - turnserver
+    command:
+      - -a
+      - -v
+      - -n
+      - --no-dtls
+      - --no-tls
+      - -u
+      - teampl:teampl_password
+      - -r
+      - teampl.duckdns.org
+      - --max-port
+      - "49200"
+      - --min-port
+      - "49152"
+      - --external-ip
+      - 211.254.213.7
+      - --log-file=stdout
+
 volumes:
   teampl_pgdata_prod:
 

@@ -3,10 +3,40 @@ import { FolderKanban, Calendar as CalendarIcon, User as UserIcon } from "lucide
 import { motion } from "motion/react";
 import { useChat } from "../context/ChatContext";
 
+import { useState, useEffect } from "react";
+
 export default function BottomNavigation() {
   const location = useLocation();
   const { projectId } = useParams();
   const { totalUnreadCount } = useChat();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.visualViewport) {
+        // If the visual viewport height is significantly smaller than innerHeight, the keyboard is up
+        const isKeyboard = window.innerHeight - window.visualViewport.height > 150;
+        setIsKeyboardOpen(isKeyboard);
+      }
+    };
+
+    const viewport = window.visualViewport;
+    if (viewport) {
+      viewport.addEventListener("resize", handleResize);
+      // Run once initially to check state
+      handleResize();
+    }
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      if (viewport) {
+        viewport.removeEventListener("resize", handleResize);
+      }
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  if (isKeyboardOpen) return null;
 
   const navItems = [
     {

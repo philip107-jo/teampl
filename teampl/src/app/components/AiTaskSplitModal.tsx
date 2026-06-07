@@ -154,11 +154,11 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
       />
       
       {/* Modal */}
-      <div className="bg-white dark:bg-[#151C31] rounded-[32px] shadow-2xl w-full max-w-lg relative z-10 overflow-hidden flex flex-col border border-white/20 dark:border-white/10 animate-in fade-in zoom-in duration-300">
+      <div className="bg-white dark:bg-[#151C31] rounded-[32px] shadow-2xl w-full max-w-lg max-h-[90vh] md:max-h-[85vh] relative z-10 overflow-hidden flex flex-col border border-white/20 dark:border-white/10 animate-in fade-in zoom-in duration-300">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#7C6CFF]/10 rounded-bl-full -z-10 blur-3xl pointer-events-none" />
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/5">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#7C6CFF]/20 flex items-center justify-center text-[#7C6CFF]">
               <Sparkles className="w-5 h-5" />
@@ -182,7 +182,7 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
           {error && (
             <div className="mb-4 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold rounded-2xl flex items-center gap-2">
               <X className="w-4 h-4 flex-shrink-0" />
@@ -374,6 +374,13 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
                   );
                 })}
               </div>
+              
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <X className="w-3.5 h-3.5 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
 
               <div className="flex gap-2 mt-4 pt-2 border-t border-gray-100 dark:border-white/5">
                 <button
