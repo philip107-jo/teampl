@@ -12,27 +12,38 @@ export default function BottomNavigation() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
+    let initialHeight = window.innerHeight;
+
     const handleResize = () => {
-      if (window.visualViewport) {
-        // If the visual viewport height is significantly smaller than innerHeight, the keyboard is up
-        const isKeyboard = window.innerHeight - window.visualViewport.height > 150;
-        setIsKeyboardOpen(isKeyboard);
-      }
+      const currentHeight = window.visualViewport 
+        ? window.visualViewport.height 
+        : window.innerHeight;
+
+      // Check if current height is significantly smaller than the initial screen height
+      const isKeyboard = initialHeight - currentHeight > 150;
+      setIsKeyboardOpen(isKeyboard);
     };
 
     const viewport = window.visualViewport;
     if (viewport) {
       viewport.addEventListener("resize", handleResize);
-      // Run once initially to check state
       handleResize();
     }
     window.addEventListener("resize", handleResize);
+
+    const handleOrientation = () => {
+      setTimeout(() => {
+        initialHeight = window.innerHeight;
+      }, 300);
+    };
+    window.addEventListener("orientationchange", handleOrientation);
 
     return () => {
       if (viewport) {
         viewport.removeEventListener("resize", handleResize);
       }
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientation);
     };
   }, []);
 
