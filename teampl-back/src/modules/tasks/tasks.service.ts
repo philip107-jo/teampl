@@ -65,7 +65,6 @@ export const TasksService = {
                     status: 'TODO',
                     priority: priority as any,
                     deadline: taskData.deadline || '',
-                    difficulty: parseInt(taskData.difficulty) || 3,
                     ownerEmail: email,
                     assignees: taskData.assignees || [], // 선택된 담당자 반영
                     requiresDeliverable: taskData.requiresDeliverable !== undefined ? taskData.requiresDeliverable : true,

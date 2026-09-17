@@ -20,8 +20,7 @@ export const AiService = {
 분석 기준:
 1. 태스크는 팀원들이 바로 착수할 수 있을 정도로 구체적이어야 하며, 전체 팀원 수(${teamSize || 2}명)를 고려해 업무량이 적절히 분산되도록 최소 5개에서 10개 내외의 태스크를 생성하세요.
 2. 각 태스크에 대해 적절한 우선순위(high, medium, low)를 지정하세요.
-3. 각 태스크의 난이도(difficulty)를 1(매우 쉬움)에서 5(매우 어려움) 사이의 숫자로 지정하세요.
-4. 마감일(deadline)은 오늘부터 며칠 뒤가 적당할지 계산하여 YYYY-MM-DD 형식으로 제안하세요. (오늘 날짜: ${new Date().toISOString().split('T')[0]})
+3. 마감일(deadline)은 오늘부터 며칠 뒤가 적당할지 계산하여 YYYY-MM-DD 형식으로 제안하세요. (오늘 날짜: ${new Date().toISOString().split('T')[0]})
 
 응답 형식:
 반드시 아래와 같은 순수한 JSON 배열 형식으로만 응답하세요. 다른 설명이나 텍스트는 포함하지 마세요.
@@ -30,7 +29,6 @@ export const AiService = {
   {
     "title": "태스크 제목",
     "priority": "high" | "medium" | "low",
-    "difficulty": 1 ~ 5,
     "deadline": "YYYY-MM-DD"
   }
 ]

@@ -28,7 +28,6 @@ export type Task = {
   description?: string;
   status: TaskStatus;
   priority: 'high' | 'medium' | 'low';
-  difficulty: number; // 1-5
   deadline?: string;
   completedAt?: string;
   createdById: string;

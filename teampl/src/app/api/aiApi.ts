@@ -5,7 +5,6 @@ export interface AiTaskSuggestion {
   title: string;
   priority: 'low' | 'medium' | 'high';
   deadline: string;
-  difficulty: number;
   assignees?: string[];
   stageId?: number;
   requiresDeliverable?: boolean;

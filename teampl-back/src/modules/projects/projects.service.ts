@@ -354,77 +354,6 @@ export const ProjectsService = {
         });
     },
 
-    getStats: async (email: string, projectId: number) => {
-        await verifyMembership(email, projectId);
-        const members = await prisma.projectMember.findMany({
-            where: { projectId, status: 'ACTIVE' },
-            include: { user: true }
-        });
-        
-        const tasks = await (prisma as any).task.findMany({ where: { projectId } });
-        const docs = await (prisma as any).sharedDocument.findMany({ where: { projectId } });
-        const messages = await (prisma as any).message.findMany({ where: { projectId } });
-
-        const rawStats = members.map(m => {
-            const memberEmail = m.userEmail;
-            const memberTasks = tasks.filter((t: any) => t.assignees.includes(memberEmail));
-            
-            let earnedPoints = 0;
-            let completedCount = 0;
-
-            memberTasks.forEach((task: any) => {
-                if (task.status === 'DONE') {
-                    completedCount++;
-                    const priorityWeight = task.priority === 'high' ? 1.5 : task.priority === 'medium' ? 1.0 : 0.8;
-                    const basePoints = (task.difficulty || 3) * priorityWeight;
-                    
-                    let timeFactor = 1.0;
-                    if (task.completedAt && task.deadline) {
-                        const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
-                        const deadlineDate = task.deadline.replace(/\./g, '-');
-                        if (completedDate <= deadlineDate) timeFactor = 1.2;
-                        else timeFactor = 0.7;
-                    }
-                    // 성공한 태스크에 대해 가중치 점수 부여 (기본 10배수 스케일링)
-                    earnedPoints += (basePoints * timeFactor) * 10;
-                }
-            });
-
-            // 문서 작성 가산점 (문서당 15점)
-            const createdDocs = docs.filter((d: any) => d.creatorEmail === memberEmail);
-            earnedPoints += createdDocs.length * 15;
-
-            // 실제 소통(채팅) 가산점 (메시지당 2점)
-            const memberMessages = messages.filter((msg: any) => msg.senderEmail === memberEmail);
-            earnedPoints += memberMessages.length * 2;
-
-            return {
-                email: memberEmail,
-                earnedPoints,
-                completed: completedCount,
-                total: memberTasks.length,
-                chatCount: memberMessages.length
-            };
-        });
-
-        // 2단계: 전체 팀의 종합 점수를 기준으로 상대적 기여도(%) 계산
-        const teamTotalPoints = rawStats.reduce((sum, s) => sum + s.earnedPoints, 0);
-
-        const stats = rawStats.map(s => {
-            // 아무도 활동이 없으면 모두 0%
-            const score = teamTotalPoints > 0 ? Math.round((s.earnedPoints / teamTotalPoints) * 100) : 0;
-            return {
-                email: s.email,
-                score,
-                completed: s.completed,
-                total: s.total,
-                chatCount: s.chatCount
-            };
-        });
-
-        return stats;
-    },
-
 
     generateTasksWithAi: async (projectId: number, teamSize: number, topic: string, description: string) => {
         if (!process.env.OPENAI_API_KEY) {
@@ -478,7 +407,6 @@ Instructions:
    - "title": a clear, concise task name IN KOREAN.
    - "priority": one of "low", "medium", "high".
    - "deadline": A realistic deadline date in YYYY-MM-DD format based on the project deadline. If project deadline is not set, leave it as an empty string "".
-   - "difficulty": an integer between 1 and 5 (1=easy, 5=hard).
    - "assignees": An array containing the email address of the most suitable member from the Active Members list, or an empty array if unsure.
    - "stageId": the integer ID of the stage this task belongs to.
    - "requiresDeliverable": a boolean indicating if this task strictly requires submitting a file/report to be considered done (e.g. true for writing code/docs, false for simple research/communication).
@@ -490,8 +418,8 @@ You must respond ONLY with a valid JSON object containing "stages" and "tasks" a
     { "id": 2, "title": "프론트엔드 개발", "description": "UI 컴포넌트 개발" }
   ],
   "tasks": [
-    { "id": "t-1", "title": "요구사항 정의서 작성", "priority": "high", "deadline": "2024-05-15", "difficulty": 3, "assignees": ["user1@example.com"], "stageId": 1, "requiresDeliverable": true },
-    { "id": "t-2", "title": "관련 사례 조사", "priority": "medium", "deadline": "", "difficulty": 2, "assignees": [], "stageId": 1, "requiresDeliverable": false }
+    { "id": "t-1", "title": "요구사항 정의서 작성", "priority": "high", "deadline": "2024-05-15", "assignees": ["user1@example.com"], "stageId": 1, "requiresDeliverable": true },
+    { "id": "t-2", "title": "관련 사례 조사", "priority": "medium", "deadline": "", "assignees": [], "stageId": 1, "requiresDeliverable": false }
   ]
 }
 `;

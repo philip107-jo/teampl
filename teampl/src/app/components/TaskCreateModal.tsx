@@ -48,7 +48,6 @@ export default function TaskCreateModal({
         description,
         status: "TODO",
         priority: "medium",
-        difficulty: 3,
         deadline: deadline || undefined,
         ownerEmail: selectedAssignees.length > 0 ? selectedAssignees[0] : user?.email,
         assignees: selectedAssignees,

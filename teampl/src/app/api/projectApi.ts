@@ -96,11 +96,6 @@ export const projectApi = {
         await apiClient.delete(`/projects/${alertId}/delete-alert`);
     },
 
-    getProjectStats: async (projectId: number): Promise<any[]> => {
-        const response = await apiClient.get(`/projects/${projectId}/stats`);
-        return response.data;
-    },
-
     updateProjectStages: async (projectId: number, stages: any[]): Promise<Project> => {
         const response = await apiClient.patch(`/projects/${projectId}/stages`, { stages });
         return response.data;

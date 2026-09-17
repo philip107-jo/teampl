@@ -677,11 +677,6 @@ function TaskCard({ task, onDragStart, onDelete, onStatusChange, isReadOnly }: T
         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${PRIORITY_COLOR[task.priority] || PRIORITY_COLOR.medium}`}>
           {PRIORITY_LABEL[task.priority] || '보통'}
         </span>
-        {task.difficulty && (
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">
-            난이도 {task.difficulty}
-          </span>
-        )}
       </div>
 
       {/* Task title */}

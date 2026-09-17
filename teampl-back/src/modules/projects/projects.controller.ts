@@ -195,17 +195,6 @@ router.delete('/:id/delete-alert', async (req, res) => {
 
 
 
-router.get('/:id/stats', async (req, res) => {
-    const projectId = parseInt(req.params.id, 10);
-    const email = req.user!.email;
-    try {
-        const stats = await ProjectsService.getStats(email, projectId);
-        res.json(stats);
-    } catch (e: any) {
-        res.status(500).json({ message: e.message });
-    }
-});
-
 // POST /api/projects/:id/ai/split-tasks
 router.post('/:id/ai/split-tasks', async (req, res) => {
     try {

@@ -110,7 +110,6 @@ model Task {
   description String?
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(medium)
-  difficulty  Int          @default(3)
   deadline    String
   ownerEmail  String?
   assignees   String[]

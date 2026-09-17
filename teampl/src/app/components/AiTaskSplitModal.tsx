@@ -118,7 +118,6 @@ export default function AiTaskSplitModal({ projectId, isOpen, onClose, onSuccess
           status: "TODO" as const,
           priority: s.priority,
           deadline: s.deadline || undefined, // undefined로 전달 (오늘 날짜 강제 대입 제거)
-          difficulty: s.difficulty, // difficulty 추가
           assignees: s.assignees || [], // 담당자 추가
           requiresDeliverable: s.requiresDeliverable !== false,
         };
